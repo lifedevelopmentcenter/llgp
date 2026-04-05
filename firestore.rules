@@ -1,0 +1,237 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ──────────────────────────────────────────────
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function uid() {
+      return request.auth.uid;
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(uid())).data;
+    }
+
+    function role() {
+      return userDoc().role;
+    }
+
+    function isGlobalAdmin() {
+      return role() == 'global_admin';
+    }
+
+    function isLeader() {
+      return role() in ['global_admin', 'national_leader', 'city_leader', 'hub_leader'];
+    }
+
+    function sameNation(nationId) {
+      return userDoc().nationId == nationId;
+    }
+
+    function sameCity(cityId) {
+      return userDoc().cityId == cityId;
+    }
+
+    function sameHub(hubId) {
+      return userDoc().hubId == hubId;
+    }
+
+    // ── Users ─────────────────────────────────────────────────
+    match /users/{userId} {
+      allow read: if isAuth();
+      allow create: if isAuth() && uid() == userId;
+      allow update: if isAuth() && (uid() == userId || isGlobalAdmin());
+      allow delete: if isGlobalAdmin();
+    }
+
+    // ── Nations ───────────────────────────────────────────────
+    match /nations/{nationId} {
+      allow read: if isAuth();
+      allow write: if isGlobalAdmin();
+    }
+
+    // ── Cities ────────────────────────────────────────────────
+    match /cities/{cityId} {
+      allow read: if isAuth();
+      allow write: if isGlobalAdmin();
+    }
+
+    // ── Hubs ──────────────────────────────────────────────────
+    match /hubs/{hubId} {
+      allow read: if isAuth();
+      allow create: if isLeader();
+      allow update: if isGlobalAdmin()
+        || (role() == 'national_leader' && sameNation(resource.data.nationId))
+        || (role() == 'city_leader' && sameCity(resource.data.cityId))
+        || (role() == 'hub_leader' && uid() == resource.data.leaderId);
+      allow delete: if isGlobalAdmin();
+    }
+
+    // ── Venture Courses ───────────────────────────────────────
+    match /ventureCourses/{courseId} {
+      allow read: if isAuth();
+      allow write: if isGlobalAdmin();
+    }
+
+    // ── Venture Lessons ───────────────────────────────────────
+    match /ventureLessons/{lessonId} {
+      allow read: if isAuth();
+      allow write: if isGlobalAdmin();
+    }
+
+    // ── User Progress ─────────────────────────────────────────
+    match /userProgress/{progressId} {
+      allow read: if isAuth() && resource.data.userId == uid();
+      allow create: if isAuth() && request.resource.data.userId == uid();
+      allow update: if isAuth() && resource.data.userId == uid();
+    }
+
+    // ── LLGLI Modules ─────────────────────────────────────────
+    match /llgliModules/{moduleId} {
+      allow read: if isAuth();
+      allow write: if isGlobalAdmin();
+    }
+
+    // ── LLGLI Submissions ─────────────────────────────────────
+    match /llgliSubmissions/{subId} {
+      allow read: if isAuth() && (isGlobalAdmin() || resource.data.userId == uid());
+      allow create: if isAuth() && request.resource.data.userId == uid();
+      allow update: if isAuth() && (resource.data.userId == uid() || isGlobalAdmin());
+    }
+
+    // ── Monthly Reports ───────────────────────────────────────
+    match /monthlyReports/{reportId} {
+      allow read: if isLeader();
+      allow create: if isLeader();
+      allow update: if isAuth() && (resource.data.submittedBy == uid() || isGlobalAdmin());
+    }
+
+    // ── Resources ─────────────────────────────────────────────
+    match /resources/{resourceId} {
+      allow read: if isAuth();
+      allow create: if isLeader();
+      allow update, delete: if isGlobalAdmin() || resource.data.uploadedBy == uid();
+    }
+
+    // ── Announcements ─────────────────────────────────────────
+    match /announcements/{annId} {
+      allow read: if isAuth();
+      allow create: if role() in ['global_admin', 'national_leader'];
+      allow update, delete: if isGlobalAdmin() || resource.data.authorId == uid();
+    }
+
+    // ── Testimonies / Prayer Wall ─────────────────────────────
+    match /testimonies/{testId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update: if isAuth() && (resource.data.authorId == uid() || isGlobalAdmin());
+      allow delete: if isGlobalAdmin() || resource.data.authorId == uid();
+    }
+
+    // ── Comments ─────────────────────────────────────────────
+    match /comments/{commentId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update, delete: if isAuth() && (resource.data.authorId == uid() || isGlobalAdmin());
+    }
+
+    // ── Groups ───────────────────────────────────────────────
+    match /groups/{groupId} {
+      allow read: if isAuth();
+      allow create: if isLeader();
+      allow update: if isGlobalAdmin() || resource.data.leaderId == uid();
+      allow delete: if isGlobalAdmin();
+    }
+
+    // ── Group Members ────────────────────────────────────────
+    match /groupMembers/{memberId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow delete: if isAuth() && (resource.data.userId == uid() || isGlobalAdmin());
+    }
+
+    // ── Group Posts ──────────────────────────────────────────
+    match /groupPosts/{postId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update, delete: if isAuth() && (resource.data.authorId == uid() || isGlobalAdmin());
+    }
+
+    // ── Phase 2 (Social) — schema placeholders ────────────────
+    match /posts/{postId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update, delete: if isAuth() && (resource.data.authorId == uid() || isGlobalAdmin());
+    }
+
+    match /events/{eventId} {
+      allow read: if isAuth();
+      allow write: if isLeader();
+    }
+
+    match /conversations/{convId} {
+      allow read, update, delete: if isAuth() && uid() in resource.data.participants;
+      allow create: if isAuth() && uid() in request.resource.data.participants;
+    }
+
+    match /messages/{msgId} {
+      allow create: if isAuth() && request.resource.data.senderId == uid();
+      allow read: if isAuth() && resource.data.senderId == uid();
+    }
+
+    // ── Conversation messages (subcollection) ─────────────────
+    match /conversations/{convId}/messages/{msgId} {
+      allow read: if isAuth() && uid() in get(/databases/$(database)/documents/conversations/$(convId)).data.participants;
+      allow create: if isAuth() && uid() in get(/databases/$(database)/documents/conversations/$(convId)).data.participants;
+    }
+
+    // ── Reactions ──────────────────────────────────────────────
+    match /reactions/{reactionId} {
+      allow read: if isAuth();
+      allow create: if isAuth() && request.resource.data.userId == uid();
+      allow update: if isAuth() && resource.data.userId == uid();
+      allow delete: if isAuth() && resource.data.userId == uid();
+    }
+
+    // ── Reports / Flags ────────────────────────────────────────
+    match /reports/{reportId} {
+      allow create: if isAuth() && request.resource.data.reporterId == uid();
+      allow read, delete: if isGlobalAdmin();
+    }
+
+    // ── Notifications ─────────────────────────────────────────
+    match /notifications/{notifId} {
+      allow read: if isAuth() && resource.data.userId == uid();
+      allow create: if isAuth();
+      allow update: if isAuth() && resource.data.userId == uid();
+      allow delete: if isAuth() && resource.data.userId == uid();
+    }
+
+    // ── Live Events ───────────────────────────────────────────
+    match /liveEvents/{eventId} {
+      allow read: if isAuth();
+      allow create: if isLeader();
+      allow update: if isAuth() && (resource.data.hostedBy == uid() || isGlobalAdmin());
+      allow delete: if isGlobalAdmin();
+    }
+
+    // ── Spotlights ────────────────────────────────────────────
+    match /spotlights/{spotlightId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update: if isGlobalAdmin();
+      allow delete: if isGlobalAdmin();
+    }
+
+    // ── Community Courses ─────────────────────────────────────
+    match /communityCourses/{courseId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update: if isAuth() && (isGlobalAdmin() || resource.data.instructorId == uid());
+      allow delete: if isGlobalAdmin();
+    }
+  }
+}

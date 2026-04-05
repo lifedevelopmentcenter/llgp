@@ -1,26 +1,106 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* ============================================================
+   LLGP DESIGN SYSTEM
+   ============================================================ */
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --bg: #F5F4FF;
+    --surface: #FFFFFF;
+    --border: #E8E6F0;
+    --brand: #4F46E5;
+    --brand-light: #EEF2FF;
+    --text-primary: #0F0E2A;
+    --text-secondary: #6B6B8A;
+    --text-muted: #A0A0BC;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    background-color: var(--bg);
+    color: var(--text-primary);
+    min-height: 100vh;
+  }
+
+  * {
+    -webkit-tap-highlight-color: transparent;
+    box-sizing: border-box;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+
+  /* ── Buttons ── */
+  .btn-primary   { @apply inline-flex items-center justify-center gap-2 font-semibold rounded-xl transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed select-none px-4 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white shadow-sm; }
+  .btn-secondary { @apply inline-flex items-center justify-center gap-2 font-semibold rounded-xl transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed select-none px-4 py-2 text-sm bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-700 border border-slate-200 shadow-sm; }
+  .btn-ghost     { @apply inline-flex items-center justify-center gap-2 font-semibold rounded-xl transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed select-none px-4 py-2 text-sm bg-transparent hover:bg-slate-100 active:bg-slate-200 text-slate-600; }
+  .btn-danger    { @apply inline-flex items-center justify-center gap-2 font-semibold rounded-xl transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed select-none px-4 py-2 text-sm bg-red-600 hover:bg-red-700 text-white; }
+
+  /* ── Cards ── */
+  .card {
+    @apply bg-white rounded-2xl border border-slate-100 shadow-sm;
+  }
+  .card-hover {
+    @apply bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-150 cursor-pointer;
+  }
+
+  /* ── Inputs ── */
+  .field {
+    @apply w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-900
+           placeholder:text-slate-400
+           focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent
+           transition-colors duration-150;
+  }
+  .field-error { @apply border-red-400 bg-red-50 focus:ring-red-400; }
+
+  /* ── Sidebar nav ── */
+  .nav-item {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-500
+           hover:bg-indigo-50 hover:text-indigo-700 transition-all duration-150 w-full;
+  }
+  .nav-item-active {
+    @apply bg-indigo-50 text-indigo-700 font-semibold;
+  }
+  .nav-section {
+    @apply text-[10px] font-bold uppercase tracking-widest text-slate-400 px-3 pt-4 pb-1;
+  }
+
+  /* ── Badges ── */
+  .pill {
+    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold;
+  }
+
+  /* ── Feed post ── */
+  .feed-card {
+    @apply bg-white rounded-2xl border border-slate-100 shadow-sm p-4;
+  }
+
+  /* ── Avatar ring ── */
+  .avatar-ring {
+    @apply ring-2 ring-white ring-offset-1;
+  }
 }
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #D1D0E8; border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: #A09FCC; }
+
+/* ── Animations ── */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in { animation: fade-in 0.2s ease-out; }
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-slide-up { animation: slide-up 0.25s ease-out; }

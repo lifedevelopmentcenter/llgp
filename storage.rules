@@ -1,0 +1,89 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ── Helpers ──────────────────────────────────────────────
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function isImage() {
+      return request.resource.contentType.matches('image/.*');
+    }
+
+    function isUnder5MB() {
+      return request.resource.size < 5 * 1024 * 1024;
+    }
+
+    function isUnder10MB() {
+      return request.resource.size < 10 * 1024 * 1024;
+    }
+
+    // ── Profile Avatars ───────────────────────────────────────
+    // Path: avatars/{userId}
+    match /avatars/{userId} {
+      allow read: if isAuth();
+      allow write: if isAuth() && isOwner(userId) && isImage() && isUnder5MB();
+    }
+
+    // ── Group Covers ──────────────────────────────────────────
+    // Path: groups/{groupId}/cover
+    match /groups/{groupId}/cover {
+      allow read: if isAuth();
+      allow write: if isAuth() && isImage() && isUnder5MB();
+    }
+
+    // ── Group Post Media ─────────────────────────────────────
+    // Path: groups/{groupId}/posts/{fileName}
+    match /groups/{groupId}/posts/{fileName} {
+      allow read: if isAuth();
+      allow write: if isAuth() && isImage() && isUnder10MB();
+    }
+
+    // ── Post Media (Feed) ─────────────────────────────────────
+    // Path: posts/{userId}/{fileName}
+    match /posts/{userId}/{fileName} {
+      allow read: if isAuth();
+      allow write: if isAuth() && isOwner(userId) && isImage() && isUnder10MB();
+    }
+
+    // ── Course Thumbnails ─────────────────────────────────────
+    // Path: courses/{courseId}/thumbnail
+    match /courses/{courseId}/thumbnail {
+      allow read: if isAuth();
+      allow write: if isAuth() && isImage() && isUnder5MB();
+    }
+
+    // ── Spotlight Thumbnails ──────────────────────────────────
+    // Path: spotlights/{spotlightId}/thumbnail
+    match /spotlights/{spotlightId}/thumbnail {
+      allow read: if isAuth();
+      allow write: if isAuth() && isImage() && isUnder5MB();
+    }
+
+    // ── Resources / Documents ────────────────────────────────
+    // Path: resources/{fileName}
+    // Allows PDFs, docs, and other file types for the Resources section
+    match /resources/{fileName} {
+      allow read: if isAuth();
+      allow write: if isAuth() && request.resource.size < 50 * 1024 * 1024;
+    }
+
+    // ── Stories ───────────────────────────────────────────────
+    // Path: stories/{userId}/{fileName}
+    match /stories/{userId}/{fileName} {
+      allow read: if isAuth();
+      allow write: if isAuth() && isOwner(userId) && isImage() && isUnder5MB();
+    }
+
+    // ── Deny everything else ─────────────────────────────────
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
