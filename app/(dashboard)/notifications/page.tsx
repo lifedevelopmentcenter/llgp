@@ -1,4 +1,5 @@
 "use client";
+export const dynamic = "force-dynamic";
 import React, { useEffect, useState } from "react";
 import { collection, query, where, orderBy, limit, getDocs, updateDoc, deleteDoc, doc, writeBatch } from "firebase/firestore";
 import { Bell, MessageSquare, Heart, Users, Check, X } from "lucide-react";

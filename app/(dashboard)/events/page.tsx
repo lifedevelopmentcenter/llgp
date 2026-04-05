@@ -1,4 +1,5 @@
 "use client";
+export const dynamic = "force-dynamic";
 import React, { useEffect, useState } from "react";
 import { collection, query, orderBy, getDocs, addDoc, serverTimestamp, updateDoc, doc, increment, Timestamp, limit } from "firebase/firestore";
 import { Calendar, MapPin, Globe, Users, Plus, Clock, CheckCircle2 } from "lucide-react";

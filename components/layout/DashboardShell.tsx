@@ -1,8 +1,61 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
 import { BottomNav } from "./BottomNav";
+import { usePushNotifications } from "@/lib/hooks/usePushNotifications";
+import { Bell, X } from "lucide-react";
+
+function NotificationBanner() {
+  const { permission, requestPermission } = usePushNotifications();
+  const [dismissed, setDismissed] = useState(true); // start hidden, check after mount
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const isDismissed = localStorage.getItem("notif-banner-dismissed");
+    if (!isDismissed && "Notification" in window && Notification.permission === "default") {
+      setDismissed(false);
+    }
+  }, []);
+
+  const handleAllow = async () => {
+    const ok = await requestPermission();
+    setDismissed(true);
+    localStorage.setItem("notif-banner-dismissed", "1");
+    if (ok) {
+      // toast shown by hook
+    }
+  };
+
+  const handleDismiss = () => {
+    setDismissed(true);
+    localStorage.setItem("notif-banner-dismissed", "1");
+  };
+
+  if (dismissed || permission === "granted" || permission === "denied" || permission === "unsupported") {
+    return null;
+  }
+
+  return (
+    <div className="bg-indigo-600 text-white px-4 py-2 flex items-center justify-between gap-3 text-sm">
+      <div className="flex items-center gap-2">
+        <Bell className="w-4 h-4 shrink-0" />
+        <span>Enable notifications to stay updated on posts, comments, and events.</span>
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        <button
+          onClick={handleAllow}
+          className="bg-white text-indigo-700 font-semibold px-3 py-1 rounded-full text-xs hover:bg-indigo-50 transition"
+        >
+          Enable
+        </button>
+        <button onClick={handleDismiss} className="hover:opacity-70 transition">
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -31,6 +84,9 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       <div className="lg:pl-64 flex flex-col min-h-screen">
         {/* Mobile top bar */}
         <TopBar onMenuClick={() => setSidebarOpen(true)} />
+
+        {/* Push notification prompt */}
+        <NotificationBanner />
 
         <main className="flex-1 px-4 py-4 lg:px-6 lg:py-6 max-w-5xl w-full mx-auto pb-24 lg:pb-6">
           {children}

@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, BookOpen, Users, Building2, FileText,
   Globe, Settings,
-  ChevronDown, ChevronRight, LogOut, X, Rss,
+  ChevronDown, ChevronRight, LogOut, X,
   Calendar, Radio, Search, Film,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -29,12 +29,6 @@ const navItems: NavItem[] = [
   {
     label: "Global Hub Central", href: "/dashboard",
     icon: <LayoutDashboard className="w-[18px] h-[18px]" />,
-    roles: ["global_admin", "national_leader", "city_leader", "hub_leader", "participant"],
-    section: "main",
-  },
-  {
-    label: "Feed", href: "/feed",
-    icon: <Rss className="w-[18px] h-[18px]" />,
     roles: ["global_admin", "national_leader", "city_leader", "hub_leader", "participant"],
     section: "main",
   },
