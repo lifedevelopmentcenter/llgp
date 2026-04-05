@@ -124,6 +124,19 @@ export default function ConversationPage() {
         [`unreadCounts.${profile.id}`]: 0,
       });
 
+      // Notify recipient
+      if (otherId) {
+        await addDoc(collection(db, "notifications"), {
+          uid: otherId,
+          type: "message",
+          title: "New message",
+          body: `${profile.displayName}: ${body.slice(0, 80)}`,
+          url: `/messages/${conversationId}`,
+          read: false,
+          createdAt: serverTimestamp(),
+        });
+      }
+
       if (!conversation) {
         const newSnap = await getDoc(convRef);
         if (newSnap.exists()) setConversation({ id: newSnap.id, ...newSnap.data() } as Conversation);
