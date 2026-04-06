@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Rss, Bell, MessageSquare, UserCircle } from "lucide-react";
+import { LayoutDashboard, Heart, Bell, MessageSquare, UserCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useEffect, useState } from "react";
@@ -33,10 +33,10 @@ export function BottomNav() {
   }, [profile]);
 
   const items = [
-    { label: "Home",     href: "/dashboard",   icon: LayoutDashboard, badge: 0 },
-    { label: "Feed",     href: "/feed",         icon: Rss,             badge: 0 },
-    { label: "Messages", href: "/messages",     icon: MessageSquare,   badge: unreadMsgs },
-    { label: "Alerts",   href: "/notifications",icon: Bell,            badge: unreadNotifs },
+    { label: "Home",     href: "/dashboard",    icon: LayoutDashboard, badge: 0 },
+    { label: "Prayer",   href: "/prayer",        icon: Heart,           badge: 0 },
+    { label: "Messages", href: "/messages",      icon: MessageSquare,   badge: unreadMsgs },
+    { label: "Alerts",   href: "/notifications", icon: Bell,            badge: unreadNotifs },
     { label: "Profile",  href: profile ? `/profile/${profile.id}` : "/login", icon: UserCircle, badge: 0 },
   ];
 

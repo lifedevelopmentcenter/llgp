@@ -315,11 +315,13 @@ export default function SpotlightsPage() {
   };
 
   const fetchOG = async (url: string, target: "submit" | "edit") => {
-    if (!url.startsWith("http")) return;
+    if (!url.startsWith("http")) { toast.error("Enter a valid URL first"); return; }
     setOgLoading(true);
     try {
       const res = await fetch(`/api/og-preview?url=${encodeURIComponent(url)}`);
+      if (!res.ok) throw new Error("fetch failed");
       const data = await res.json();
+      const hasData = data.image || data.title;
       if (target === "submit") {
         setForm(f => ({
           ...f,
@@ -335,7 +337,9 @@ export default function SpotlightsPage() {
           description: f.description || data.description || f.description,
         }));
       }
-    } catch { /* silent */ }
+      if (hasData) toast.success("Preview fetched!");
+      else toast("No preview found — you can add a thumbnail URL manually.", { icon: "ℹ️" });
+    } catch { toast.error("Couldn't fetch preview. Add thumbnail manually."); }
     finally { setOgLoading(false); }
   };
 
@@ -462,15 +466,20 @@ export default function SpotlightsPage() {
           <Input label="Title" value={editForm.title} onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))} required />
           <Textarea label="Description" value={editForm.description} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))} rows={3} />
           <div>
-            <Input
-              label="URL"
-              value={editForm.url}
-              onChange={e => setEditForm(f => ({ ...f, url: e.target.value }))}
-              onBlur={e => fetchOG(e.target.value, "edit")}
-              type="url"
-              required
-            />
-            {ogLoading && <p className="text-xs text-indigo-500 mt-1">Fetching preview…</p>}
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">URL</label>
+            <div className="flex gap-2">
+              <input
+                className="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                value={editForm.url}
+                onChange={e => setEditForm(f => ({ ...f, url: e.target.value }))}
+                type="url"
+                required
+              />
+              <button type="button" onClick={() => fetchOG(editForm.url, "edit")} disabled={ogLoading}
+                className="px-3 py-2 rounded-xl bg-indigo-50 text-indigo-700 text-xs font-bold hover:bg-indigo-100 transition-colors disabled:opacity-50 whitespace-nowrap">
+                {ogLoading ? "…" : "Fetch Preview"}
+              </button>
+            </div>
           </div>
           <Select label="Type" value={editForm.type} onChange={e => setEditForm(f => ({ ...f, type: e.target.value as SpotlightType }))}>
             <option value="podcast">Podcast</option>
@@ -520,16 +529,21 @@ export default function SpotlightsPage() {
             rows={3}
           />
           <div>
-            <Input
-              label="URL"
-              value={form.url}
-              onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))}
-              onBlur={(e) => fetchOG(e.target.value, "submit")}
-              placeholder="https://..."
-              type="url"
-              required
-            />
-            {ogLoading && <p className="text-xs text-indigo-500 mt-1">Fetching preview…</p>}
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">URL</label>
+            <div className="flex gap-2">
+              <input
+                className="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                value={form.url}
+                onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))}
+                placeholder="https://..."
+                type="url"
+                required
+              />
+              <button type="button" onClick={() => fetchOG(form.url, "submit")} disabled={ogLoading}
+                className="px-3 py-2 rounded-xl bg-indigo-50 text-indigo-700 text-xs font-bold hover:bg-indigo-100 transition-colors disabled:opacity-50 whitespace-nowrap">
+                {ogLoading ? "…" : "Fetch Preview"}
+              </button>
+            </div>
           </div>
           <Select
             label="Type"

@@ -92,6 +92,14 @@
 ::-webkit-scrollbar-thumb { background: #D1D0E8; border-radius: 99px; }
 ::-webkit-scrollbar-thumb:hover { background: #A09FCC; }
 
+/* ── Hide scrollbar utility ── */
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* ── Safe area (iPhone notch/home bar) ── */
+.safe-area-pb { padding-bottom: max(0.5rem, env(safe-area-inset-bottom)); }
+.safe-area-pt { padding-top: max(0rem, env(safe-area-inset-top)); }
+
 /* ── Animations ── */
 @keyframes fade-in {
   from { opacity: 0; transform: translateY(6px); }
