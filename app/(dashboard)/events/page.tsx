@@ -1,7 +1,10 @@
 "use client";
 export const dynamic = "force-dynamic";
-import React, { useEffect, useState } from "react";
-import { collection, query, orderBy, getDocs, addDoc, serverTimestamp, updateDoc, doc, increment, Timestamp, limit } from "firebase/firestore";
+import React, { useEffect, useState, useCallback } from "react";
+import {
+  collection, query, orderBy, getDocs, addDoc, serverTimestamp,
+  updateDoc, doc, increment, Timestamp, limit, where, deleteDoc, getDoc, setDoc,
+} from "firebase/firestore";
 import { Calendar, MapPin, Globe, Users, Plus, Clock, CheckCircle2 } from "lucide-react";
 import { db } from "@/lib/firebase/config";
 import { COLLECTIONS } from "@/lib/firebase/firestore";
@@ -11,9 +14,11 @@ import { Input, Textarea } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageLoader } from "@/components/ui/Spinner";
+import { Avatar } from "@/components/ui/Avatar";
 import toast from "react-hot-toast";
 import type { Event } from "@/lib/types";
 
+const EVENT_RSVPS = "eventRsvps";
 const LEADER_ROLES = ["global_admin", "national_leader", "city_leader", "hub_leader"];
 
 function formatEventDate(ts: Timestamp | undefined): string {
@@ -32,6 +37,12 @@ function formatEventTime(ts: Timestamp | undefined): string {
   } catch { return ""; }
 }
 
+interface AttendeePreview {
+  id: string;
+  displayName: string;
+  photoURL: string | null;
+}
+
 export default function EventsPage() {
   const { profile } = useAuth();
   const [events, setEvents] = useState<Event[]>([]);
@@ -40,29 +51,120 @@ export default function EventsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [rsvped, setRsvped] = useState<Set<string>>(new Set());
+  const [rsvpLoading, setRsvpLoading] = useState<Set<string>>(new Set());
+  const [attendeePreviews, setAttendeePreviews] = useState<Record<string, AttendeePreview[]>>({});
   const [form, setForm] = useState({
     title: "", description: "", startDate: "", endDate: "",
     location: "", isOnline: false, meetingLink: "",
   });
 
+  // Load events and restore the current user's RSVPs from Firestore
   useEffect(() => {
+    if (!profile) return;
     const load = async () => {
       try {
-        const snap = await getDocs(query(collection(db, COLLECTIONS.EVENTS), orderBy("startDate", "asc"), limit(50)));
-        setEvents(snap.docs.map(d => ({ id: d.id, ...d.data() } as Event)));
+        const [eventsSnap, rsvpSnap] = await Promise.all([
+          getDocs(query(collection(db, COLLECTIONS.EVENTS), orderBy("startDate", "asc"), limit(50))),
+          getDocs(query(collection(db, EVENT_RSVPS), where("userId", "==", profile.id))),
+        ]);
+
+        setEvents(eventsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Event)));
+
+        const myRsvpIds = new Set(rsvpSnap.docs.map(d => d.data().eventId as string));
+        setRsvped(myRsvpIds);
       } catch (e) { console.error(e); }
       finally { setLoading(false); }
     };
     load();
-  }, []);
+  }, [profile]);
 
-  const rsvp = async (eventId: string) => {
-    if (!profile || rsvped.has(eventId)) return;
-    setRsvped(prev => new Set([...prev, eventId]));
+  // Fetch up to 5 attendee profiles for a given event
+  const loadAttendees = useCallback(async (eventId: string) => {
+    if (attendeePreviews[eventId]) return; // already loaded
     try {
-      await updateDoc(doc(db, COLLECTIONS.EVENTS, eventId), { rsvpCount: increment(1) });
-      setEvents(prev => prev.map(e => e.id === eventId ? { ...e, rsvpCount: e.rsvpCount + 1 } : e));
+      const rsvpSnap = await getDocs(
+        query(collection(db, EVENT_RSVPS), where("eventId", "==", eventId), limit(5))
+      );
+      const userIds = rsvpSnap.docs.map(d => d.data().userId as string);
+      const profiles = await Promise.all(
+        userIds.map(uid => getDoc(doc(db, COLLECTIONS.USERS, uid)))
+      );
+      const previews: AttendeePreview[] = profiles
+        .filter(p => p.exists())
+        .map(p => {
+          const data = p.data()!;
+          return { id: p.id, displayName: data.displayName ?? "User", photoURL: data.photoURL ?? null };
+        });
+      setAttendeePreviews(prev => ({ ...prev, [eventId]: previews }));
     } catch (e) { console.error(e); }
+  }, [attendeePreviews]);
+
+  // Toggle RSVP: create or delete the eventRsvps doc and adjust the counter
+  const toggleRsvp = async (eventId: string) => {
+    if (!profile || rsvpLoading.has(eventId)) return;
+
+    const rsvpDocId = `${eventId}_${profile.id}`;
+    const rsvpRef = doc(db, EVENT_RSVPS, rsvpDocId);
+    const alreadyRsvped = rsvped.has(eventId);
+
+    // Optimistic UI update
+    setRsvpLoading(prev => new Set([...prev, eventId]));
+    setRsvped(prev => {
+      const next = new Set(prev);
+      alreadyRsvped ? next.delete(eventId) : next.add(eventId);
+      return next;
+    });
+    setEvents(prev =>
+      prev.map(e =>
+        e.id === eventId
+          ? { ...e, rsvpCount: Math.max(0, e.rsvpCount + (alreadyRsvped ? -1 : 1)) }
+          : e
+      )
+    );
+
+    try {
+      if (alreadyRsvped) {
+        await deleteDoc(rsvpRef);
+        await updateDoc(doc(db, COLLECTIONS.EVENTS, eventId), { rsvpCount: increment(-1) });
+        // Remove user from attendee preview cache so it refreshes on next expand
+        setAttendeePreviews(prev => {
+          const next = { ...prev };
+          delete next[eventId];
+          return next;
+        });
+      } else {
+        await setDoc(rsvpRef, { eventId, userId: profile.id, createdAt: serverTimestamp() });
+        await updateDoc(doc(db, COLLECTIONS.EVENTS, eventId), { rsvpCount: increment(1) });
+        // Invalidate preview cache so the new attendee shows up
+        setAttendeePreviews(prev => {
+          const next = { ...prev };
+          delete next[eventId];
+          return next;
+        });
+      }
+    } catch (e) {
+      // Roll back optimistic update on error
+      console.error(e);
+      setRsvped(prev => {
+        const next = new Set(prev);
+        alreadyRsvped ? next.add(eventId) : next.delete(eventId);
+        return next;
+      });
+      setEvents(prev =>
+        prev.map(e =>
+          e.id === eventId
+            ? { ...e, rsvpCount: Math.max(0, e.rsvpCount + (alreadyRsvped ? 1 : -1)) }
+            : e
+        )
+      );
+      toast.error("Could not update RSVP. Please try again.");
+    } finally {
+      setRsvpLoading(prev => {
+        const next = new Set(prev);
+        next.delete(eventId);
+        return next;
+      });
+    }
   };
 
   const createEvent = async () => {
@@ -145,8 +247,14 @@ export default function EventsPage() {
         <div className="space-y-3">
           {displayed.map(event => {
             const hasRsvped = rsvped.has(event.id);
+            const isRsvpLoading = rsvpLoading.has(event.id);
+            const previews = attendeePreviews[event.id];
             return (
-              <div key={event.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-150">
+              <div
+                key={event.id}
+                className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-150"
+                onMouseEnter={() => event.rsvpCount > 0 && loadAttendees(event.id)}
+              >
                 {/* Date strip */}
                 <div className="bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2.5 flex items-center gap-3">
                   <div className="flex items-center gap-1.5 text-white">
@@ -173,15 +281,53 @@ export default function EventsPage() {
                           <span>{event.rsvpCount} attending</span>
                         </div>
                       </div>
+
+                      {/* Attendee avatar preview */}
+                      {event.rsvpCount > 0 && (
+                        <div className="flex items-center gap-1.5 mt-2">
+                          {previews && previews.length > 0 ? (
+                            <div className="flex items-center">
+                              <div className="flex -space-x-1.5">
+                                {previews.map(p => (
+                                  <Avatar
+                                    key={p.id}
+                                    name={p.displayName}
+                                    photoURL={p.photoURL}
+                                    size="xs"
+                                    className="ring-2 ring-white"
+                                  />
+                                ))}
+                              </div>
+                              {event.rsvpCount > 5 && (
+                                <span className="ml-2 text-xs text-slate-400">+{event.rsvpCount - 5} more</span>
+                              )}
+                            </div>
+                          ) : (
+                            // Placeholder skeleton while loading
+                            <div className="flex -space-x-1.5">
+                              {Array.from({ length: Math.min(event.rsvpCount, 3) }).map((_, i) => (
+                                <div key={i} className="w-6 h-6 rounded-full bg-slate-100 ring-2 ring-white animate-pulse" />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       <p className="text-xs text-slate-400 mt-1.5">Organized by {event.organizerName}</p>
                     </div>
                     <div className="flex-shrink-0">
                       {tab === "upcoming" ? (
                         <button
-                          onClick={() => rsvp(event.id)}
-                          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all ${hasRsvped ? "bg-green-100 text-green-700" : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"}`}
+                          onClick={() => toggleRsvp(event.id)}
+                          disabled={isRsvpLoading}
+                          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
+                            hasRsvped
+                              ? "bg-green-100 text-green-700 hover:bg-red-50 hover:text-red-600"
+                              : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+                          }`}
+                          title={hasRsvped ? "Click to cancel RSVP" : "RSVP to this event"}
                         >
-                          {hasRsvped ? <><CheckCircle2 className="w-3.5 h-3.5" />Going</> : "RSVP"}
+                          {hasRsvped ? <><CheckCircle2 className="w-3.5 h-3.5" />Going ✓</> : "RSVP"}
                         </button>
                       ) : (
                         <span className="text-[10px] font-bold bg-slate-100 text-slate-500 px-2.5 py-1.5 rounded-xl">Past</span>

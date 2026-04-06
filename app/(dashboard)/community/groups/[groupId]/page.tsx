@@ -1,12 +1,12 @@
 "use client";
 export const dynamic = "force-dynamic";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   doc, getDoc, collection, getDocs, query, orderBy, addDoc, serverTimestamp,
-  where, updateDoc, deleteDoc, setDoc, increment, limit,
+  where, updateDoc, deleteDoc, setDoc, increment, limit, onSnapshot,
 } from "firebase/firestore";
-import { ArrowLeft, Send, Users, Pin, Heart, ThumbsUp, HandHeart, UserPlus, UserMinus, MoreHorizontal, Pencil, Trash2, Flag, Camera } from "lucide-react";
+import { ArrowLeft, Send, Users, Pin, Heart, ThumbsUp, HandHeart, UserPlus, UserMinus, MoreHorizontal, Pencil, Trash2, Flag, Camera, MessageSquare } from "lucide-react";
 import { ImageUpload } from "@/components/ui/ImageUpload";
 import Link from "next/link";
 import { db } from "@/lib/firebase/config";
@@ -19,6 +19,15 @@ import { PageLoader } from "@/components/ui/Spinner";
 import { timeAgo } from "@/lib/utils";
 import toast from "react-hot-toast";
 import type { Group, GroupPost, GroupMember } from "@/lib/types";
+
+interface ChatMessage {
+  id: string;
+  senderId: string;
+  senderName: string;
+  senderPhoto: string | null;
+  body: string;
+  createdAt: any;
+}
 
 export default function GroupDetailPage() {
   const { groupId } = useParams<{ groupId: string }>();
@@ -33,7 +42,13 @@ export default function GroupDetailPage() {
   const [loading, setLoading] = useState(true);
   const [reacted, setReacted] = useState<Record<string, string>>({});
   const [joiningLeaving, setJoiningLeaving] = useState(false);
-  const [tab, setTab] = useState<"feed" | "members">("feed");
+  const [tab, setTab] = useState<"feed" | "members" | "chat">("feed");
+
+  // Chat state
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatText, setChatText] = useState("");
+  const [chatSending, setChatSending] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Edit / delete / report state
   const [editPost, setEditPost] = useState<{ id: string; body: string } | null>(null);
@@ -61,6 +76,42 @@ export default function GroupDetailPage() {
     };
     load();
   }, [profile, groupId, router]);
+
+  // Real-time chat listener — only attach when on chat tab and groupId is known
+  useEffect(() => {
+    if (!groupId || tab !== "chat") return;
+    const q = query(collection(db, "groups", groupId, "chat"), orderBy("createdAt", "asc"));
+    const unsub = onSnapshot(q, snap => {
+      setChatMessages(snap.docs.map(d => ({ id: d.id, ...d.data() } as ChatMessage)));
+    });
+    return unsub;
+  }, [groupId, tab]);
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatMessages]);
+
+  const sendChatMessage = async () => {
+    if (!profile || !chatText.trim() || chatSending || !isMember) return;
+    const body = chatText.trim();
+    setChatText("");
+    setChatSending(true);
+    try {
+      await addDoc(collection(db, "groups", groupId, "chat"), {
+        senderId: profile.id,
+        senderName: profile.displayName,
+        senderPhoto: profile.photoURL || null,
+        body,
+        createdAt: serverTimestamp(),
+      });
+    } catch (e) {
+      toast.error("Failed to send message.");
+      setChatText(body);
+    } finally {
+      setChatSending(false);
+    }
+  };
 
   const isMember = members.some((m) => m.userId === profile?.id);
   const isLeader = members.some((m) => m.userId === profile?.id && m.role === "leader") || profile?.id === group?.leaderId;
@@ -288,13 +339,13 @@ export default function GroupDetailPage() {
 
         {/* Tabs */}
         <div className="flex gap-0">
-          {(["feed", "members"] as const).map(t => (
+          {(["feed", "members", "chat"] as const).map(t => (
             <button
               key={t}
               onClick={() => setTab(t)}
               className={`flex-1 py-2.5 text-sm font-semibold capitalize transition-colors border-b-2 ${tab === t ? "border-indigo-600 text-indigo-600" : "border-transparent text-slate-400 hover:text-slate-700"}`}
             >
-              {t === "feed" ? `Feed` : `Members`}
+              {t === "feed" ? "Feed" : t === "members" ? "Members" : "Chat"}
             </button>
           ))}
         </div>
@@ -387,6 +438,75 @@ export default function GroupDetailPage() {
                 <span className="text-xs text-slate-400 group-hover:text-indigo-600 transition-colors">View →</span>
               </Link>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── TAB: CHAT ── */}
+      {tab === "chat" && (
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col" style={{ height: "480px" }}>
+          {/* Messages area */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
+            {chatMessages.length === 0 && (
+              <div className="flex flex-col items-center justify-center h-full text-center">
+                <MessageSquare className="w-8 h-8 text-slate-200 mb-2" />
+                <p className="text-sm font-semibold text-slate-400">No messages yet</p>
+                {isMember
+                  ? <p className="text-xs text-slate-400 mt-1">Start the conversation!</p>
+                  : <p className="text-xs text-slate-400 mt-1">Join the group to chat.</p>
+                }
+              </div>
+            )}
+            {chatMessages.map((msg, i) => {
+              const isMe = msg.senderId === profile?.id;
+              const showHeader = !isMe && (i === 0 || chatMessages[i - 1].senderId !== msg.senderId);
+              return (
+                <div key={msg.id} className={`flex items-end gap-2 ${isMe ? "justify-end" : "justify-start"}`}>
+                  {/* Avatar column for others */}
+                  {!isMe && (
+                    <div className="w-7 flex-shrink-0 self-end">
+                      {showHeader && <Avatar name={msg.senderName} photoURL={msg.senderPhoto} size="xs" />}
+                    </div>
+                  )}
+                  <div className={`max-w-[72%] flex flex-col gap-0.5 ${isMe ? "items-end" : "items-start"}`}>
+                    {showHeader && !isMe && (
+                      <p className="text-[10px] font-semibold text-slate-500 px-1">{msg.senderName}</p>
+                    )}
+                    <div className={`px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed break-words ${isMe ? "bg-indigo-600 text-white rounded-br-sm" : "bg-slate-100 text-slate-800 rounded-bl-sm"}`}>
+                      {msg.body}
+                    </div>
+                    <p className="text-[10px] text-slate-400 px-1">{timeAgo(msg.createdAt)}</p>
+                  </div>
+                </div>
+              );
+            })}
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Input area */}
+          <div className="border-t border-slate-100 p-3 flex-shrink-0">
+            {isMember ? (
+              <div className="flex items-center gap-2">
+                <Avatar name={profile?.displayName ?? "?"} photoURL={profile?.photoURL} size="xs" className="flex-shrink-0" />
+                <input
+                  className="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
+                  placeholder="Type a message…"
+                  value={chatText}
+                  onChange={e => setChatText(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChatMessage(); } }}
+                  disabled={chatSending}
+                />
+                <button
+                  onClick={sendChatMessage}
+                  disabled={!chatText.trim() || chatSending}
+                  className="w-9 h-9 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 flex items-center justify-center transition-colors flex-shrink-0"
+                >
+                  <Send className="w-4 h-4 text-white" />
+                </button>
+              </div>
+            ) : (
+              <p className="text-xs text-slate-400 text-center py-1">Join the group to participate in chat.</p>
+            )}
           </div>
         </div>
       )}

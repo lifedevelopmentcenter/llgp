@@ -73,6 +73,11 @@ export default function DashboardPage() {
   const [composeScope, setComposeScope] = useState<"global" | "national" | "city">("global");
   const [composeSaving, setComposeSaving] = useState(false);
 
+  // Feed tabs
+  const [feedTab, setFeedTab] = useState<"global" | "following">("global");
+  const [followingFeed, setFollowingFeed] = useState<Post[]>([]);
+  const [followingLoading, setFollowingLoading] = useState(false);
+
   // Reactions & Comments
   const [reacted, setReacted] = useState<Record<string, string>>({});
   const [commentingOn, setCommentingOn] = useState<string | null>(null);
@@ -100,6 +105,43 @@ export default function DashboardPage() {
     });
     return unsub;
   }, [profile]);
+
+  // ── Following feed ────────────────────────────────────
+
+  useEffect(() => {
+    if (!profile || feedTab !== "following") return;
+    setFollowingLoading(true);
+    const loadFollowingFeed = async () => {
+      try {
+        const followsSnap = await getDocs(
+          query(
+            collection(db, COLLECTIONS.FOLLOWS),
+            where("followerId", "==", profile.id)
+          )
+        );
+        const followingIds = followsSnap.docs.map(d => d.data().followingId as string);
+        if (followingIds.length === 0) {
+          setFollowingFeed([]);
+          setFollowingLoading(false);
+          return;
+        }
+        const postsSnap = await getDocs(
+          query(
+            collection(db, COLLECTIONS.POSTS),
+            where("authorId", "in", followingIds),
+            orderBy("createdAt", "desc"),
+            limit(20)
+          )
+        );
+        setFollowingFeed(postsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Post)));
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setFollowingLoading(false);
+      }
+    };
+    loadFollowingFeed();
+  }, [profile, feedTab]);
 
   // ── Side data (stories, announcements, members, live) ─
 
@@ -355,8 +397,28 @@ export default function DashboardPage() {
             </div>
           </div>
 
+          {/* Feed tab switcher */}
+          <div className="flex gap-2">
+            {([
+              { key: "global",    label: "For You" },
+              { key: "following", label: "Following" },
+            ] as const).map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => setFeedTab(tab.key)}
+                className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-colors ${
+                  feedTab === tab.key
+                    ? "bg-indigo-600 text-white"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
           {/* Feed */}
-          {feedLoading ? (
+          {feedTab === "global" ? (feedLoading ? (
             <div className="space-y-4">
               {[1, 2, 3].map(i => (
                 <div key={i} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 animate-pulse">
@@ -397,6 +459,54 @@ export default function DashboardPage() {
                 />
               ))}
             </div>
+          )) : (
+            /* Following tab */
+            followingLoading ? (
+              <div className="space-y-4">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 animate-pulse">
+                    <div className="flex gap-3 mb-3">
+                      <div className="w-10 h-10 rounded-full bg-slate-200" />
+                      <div className="flex-1 space-y-2">
+                        <div className="h-3 bg-slate-200 rounded w-1/3" />
+                        <div className="h-3 bg-slate-200 rounded w-1/4" />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="h-3 bg-slate-200 rounded" />
+                      <div className="h-3 bg-slate-200 rounded w-5/6" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : followingFeed.length === 0 ? (
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-10 text-center">
+                <p className="text-slate-500 text-sm font-semibold mb-1">You&apos;re not following anyone yet</p>
+                <p className="text-slate-400 text-xs mb-4">Follow people to see their posts here.</p>
+                <Link href="/community/directory" className="text-indigo-600 text-sm font-semibold hover:underline">
+                  Browse the directory →
+                </Link>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {followingFeed.map(post => (
+                  <FeedPostCard
+                    key={post.id}
+                    post={post}
+                    myReaction={reacted[post.id]}
+                    onReact={handleReact}
+                    commentingOn={commentingOn}
+                    commentText={commentText}
+                    onCommentToggle={id => {
+                      setCommentingOn(prev => prev === id ? null : id);
+                      setCommentText("");
+                    }}
+                    onCommentChange={setCommentText}
+                    onCommentSubmit={handleComment}
+                  />
+                ))}
+              </div>
+            )
           )}
         </div>
 

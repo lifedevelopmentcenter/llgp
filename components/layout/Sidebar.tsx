@@ -6,7 +6,7 @@ import {
   LayoutDashboard, BookOpen, Users, Building2, FileText,
   Globe, Settings,
   ChevronDown, ChevronRight, LogOut, X,
-  Calendar, Radio, Search, Film,
+  Calendar, Radio, Search, Film, Heart, BarChart2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -35,6 +35,12 @@ const navItems: NavItem[] = [
   {
     label: "Stories", href: "/stories",
     icon: <Film className="w-[18px] h-[18px]" />,
+    roles: ["global_admin", "national_leader", "city_leader", "hub_leader", "participant"],
+    section: "main",
+  },
+  {
+    label: "Prayer Wall", href: "/prayer",
+    icon: <Heart className="w-[18px] h-[18px]" />,
     roles: ["global_admin", "national_leader", "city_leader", "hub_leader", "participant"],
     section: "main",
   },
@@ -90,6 +96,12 @@ const navItems: NavItem[] = [
     label: "Reports", href: "/reports",
     icon: <FileText className="w-[18px] h-[18px]" />,
     roles: ["global_admin", "national_leader", "city_leader", "hub_leader"],
+    section: "manage",
+  },
+  {
+    label: "Metrics", href: "/metrics",
+    icon: <BarChart2 className="w-[18px] h-[18px]" />,
+    roles: ["global_admin", "national_leader", "city_leader"],
     section: "manage",
   },
   {

@@ -1,0 +1,455 @@
+[debug] [2026-04-06T04:16:02.814Z] ----------------------------------------------------------------------
+[debug] [2026-04-06T04:16:02.818Z] Command:       /Users/DrLan/.nvm/versions/node/v22.22.0/bin/node /Users/DrLan/.nvm/versions/node/v22.22.0/bin/firebase deploy --only functions
+[debug] [2026-04-06T04:16:02.818Z] CLI Version:   15.3.1
+[debug] [2026-04-06T04:16:02.818Z] Platform:      darwin
+[debug] [2026-04-06T04:16:02.818Z] Node Version:  v22.22.0
+[debug] [2026-04-06T04:16:02.819Z] Time:          Sun Apr 05 2026 23:16:02 GMT-0500 (Central Daylight Time)
+[debug] [2026-04-06T04:16:02.819Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-04-06T04:16:03.811Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-04-06T04:16:03.811Z] > authorizing via signed-in user (g.ijiwola@thelifedevelopmentcenter.org)
+[debug] [2026-04-06T04:16:03.811Z] [iam] checking project leading-lights-global-platform for permissions ["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]
+[debug] [2026-04-06T04:16:03.812Z] Checked if tokens are valid: true, expires at: 1775452098301
+[debug] [2026-04-06T04:16:03.812Z] Checked if tokens are valid: true, expires at: 1775452098301
+[debug] [2026-04-06T04:16:03.813Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/leading-lights-global-platform:testIamPermissions [none]
+[debug] [2026-04-06T04:16:03.813Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/leading-lights-global-platform:testIamPermissions x-goog-quota-user=projects/leading-lights-global-platform
+[debug] [2026-04-06T04:16:03.813Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/leading-lights-global-platform:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]}
+[debug] [2026-04-06T04:16:04.039Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/leading-lights-global-platform:testIamPermissions 200
+[debug] [2026-04-06T04:16:04.039Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/leading-lights-global-platform:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]}
+[debug] [2026-04-06T04:16:04.040Z] Checked if tokens are valid: true, expires at: 1775452098301
+[debug] [2026-04-06T04:16:04.040Z] Checked if tokens are valid: true, expires at: 1775452098301
+[debug] [2026-04-06T04:16:04.040Z] >>> [apiv2][query] POST https://iam.googleapis.com/v1/projects/leading-lights-global-platform/serviceAccounts/leading-lights-global-platform@appspot.gserviceaccount.com:testIamPermissions [none]
+[debug] [2026-04-06T04:16:04.040Z] >>> [apiv2][body] POST https://iam.googleapis.com/v1/projects/leading-lights-global-platform/serviceAccounts/leading-lights-global-platform@appspot.gserviceaccount.com:testIamPermissions {"permissions":["iam.serviceAccounts.actAs"]}
+[debug] [2026-04-06T04:16:04.227Z] <<< [apiv2][status] POST https://iam.googleapis.com/v1/projects/leading-lights-global-platform/serviceAccounts/leading-lights-global-platform@appspot.gserviceaccount.com:testIamPermissions 200
+[debug] [2026-04-06T04:16:04.227Z] <<< [apiv2][body] POST https://iam.googleapis.com/v1/projects/leading-lights-global-platform/serviceAccounts/leading-lights-global-platform@appspot.gserviceaccount.com:testIamPermissions {"permissions":["iam.serviceAccounts.actAs"]}
+[info] 
+[info] === Deploying to 'leading-lights-global-platform'...
+[info] 
+[info] i  deploying functions 
+[debug] [2026-04-06T04:16:04.231Z] Checked if tokens are valid: true, expires at: 1775452098301
+[debug] [2026-04-06T04:16:04.231Z] Checked if tokens are valid: true, expires at: 1775452098301
+[debug] [2026-04-06T04:16:04.231Z] >>> [apiv2][query] GET https://cloudresourcemanager.googleapis.com/v1/projects/leading-lights-global-platform [none]
+[debug] [2026-04-06T04:16:04.312Z] <<< [apiv2][status] GET https://cloudresourcemanager.googleapis.com/v1/projects/leading-lights-global-platform 200
+[debug] [2026-04-06T04:16:04.312Z] <<< [apiv2][body] GET https://cloudresourcemanager.googleapis.com/v1/projects/leading-lights-global-platform {"projectNumber":"164092065517","projectId":"leading-lights-global-platform","lifecycleState":"ACTIVE","name":"Leading Lights Global Platform","labels":{"firebase":"enabled","firebase-core":"disabled"},"createTime":"2026-04-03T18:33:16.941Z","parent":{"type":"organization","id":"141862910971"}}
+[info] i  functions: preparing codebase default for deployment 
+[info] i  functions: ensuring required API cloudfunctions.googleapis.com is enabled... 
+[info] i  functions: ensuring required API cloudbuild.googleapis.com is enabled... 
+[info] i  artifactregistry: ensuring required API artifactregistry.googleapis.com is enabled... 
+[debug] [2026-04-06T04:16:04.314Z] Checked if tokens are valid: true, expires at: 1775452098301
+[debug] [2026-04-06T04:16:04.314Z] Checked if tokens are valid: true, expires at: 1775452098301
+[debug] [2026-04-06T04:16:04.314Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/leading-lights-global-platform/adminSdkConfig [none]
+[debug] [2026-04-06T04:16:04.835Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/leading-lights-global-platform/adminSdkConfig 200
+[debug] [2026-04-06T04:16:04.835Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/leading-lights-global-platform/adminSdkConfig {"projectId":"leading-lights-global-platform","storageBucket":"leading-lights-global-platform.firebasestorage.app"}
+[debug] [2026-04-06T04:16:04.836Z] Checked if tokens are valid: true, expires at: 1775452098301
+[debug] [2026-04-06T04:16:04.836Z] Checked if tokens are valid: true, expires at: 1775452098301
+[debug] [2026-04-06T04:16:04.836Z] >>> [apiv2][query] GET https://runtimeconfig.googleapis.com/v1beta1/projects/leading-lights-global-platform/configs [none]
+[debug] [2026-04-06T04:16:05.015Z] <<< [apiv2][status] GET https://runtimeconfig.googleapis.com/v1beta1/projects/leading-lights-global-platform/configs 200
+[debug] [2026-04-06T04:16:05.015Z] <<< [apiv2][body] GET https://runtimeconfig.googleapis.com/v1beta1/projects/leading-lights-global-platform/configs {}
+[debug] [2026-04-06T04:16:05.016Z] Validating nodejs source
+[warn] ⚠  functions: Runtime Node.js 20 will be deprecated on 2026-04-30 and will be decommissioned on 2026-10-30, after which you will not be able to deploy without upgrading. Consider upgrading now to avoid disruption. See https://cloud.google.com/functions/docs/runtime-support for full details on the lifecycle policy 
+[warn] ⚠  functions: package.json indicates an outdated version of firebase-functions. Please upgrade using npm install --save firebase-functions@latest in your functions directory. 
+[warn] ⚠  functions: Please note that there will be breaking changes when you upgrade. 
+[debug] [2026-04-06T04:16:05.627Z] > [functions] package.json contents: {
+  "name": "llgp-functions",
+  "description": "LLGP Cloud Functions",
+  "scripts": {
+    "build": "tsc",
+    "serve": "npm run build && firebase emulators:start --only functions",
+    "deploy": "firebase deploy --only functions"
+  },
+  "engines": {
+    "node": "20"
+  },
+  "main": "lib/index.js",
+  "dependencies": {
+    "firebase-admin": "^12.0.0",
+    "firebase-functions": "^5.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "@types/node": "^20.11.0"
+  },
+  "private": true
+}
+[debug] [2026-04-06T04:16:05.627Z] Building nodejs source
+[info] i  functions: Loading and analyzing source code for codebase default to determine what to deploy 
+[debug] [2026-04-06T04:16:05.628Z] Could not find functions.yaml. Must use http discovery
+[debug] [2026-04-06T04:16:05.642Z] Found firebase-functions binary at '/Users/DrLan/Documents/APPS/LDC Global Platform/llgp/functions/node_modules/.bin/firebase-functions'
+[info] Serving at port 8326
+
+[debug] [2026-04-06T04:16:05.918Z] Got response from /__/functions.yaml {"endpoints":{"onNotificationCreated":{"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"concurrency":null,"serviceAccountEmail":null,"vpc":null,"platform":"gcfv2","labels":{},"eventTrigger":{"eventType":"google.cloud.firestore.document.v1.created","eventFilters":{"database":"(default)","namespace":"(default)"},"eventFilterPathPatterns":{"document":"notifications/{notifId}"},"retry":false},"entryPoint":"onNotificationCreated"},"onPostCreated":{"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"concurrency":null,"serviceAccountEmail":null,"vpc":null,"platform":"gcfv2","labels":{},"eventTrigger":{"eventType":"google.cloud.firestore.document.v1.created","eventFilters":{"database":"(default)","namespace":"(default)"},"eventFilterPathPatterns":{"document":"posts/{postId}"},"retry":false},"entryPoint":"onPostCreated"},"onCommentCreated":{"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"concurrency":null,"serviceAccountEmail":null,"vpc":null,"platform":"gcfv2","labels":{},"eventTrigger":{"eventType":"google.cloud.firestore.document.v1.created","eventFilters":{"database":"(default)","namespace":"(default)"},"eventFilterPathPatterns":{"document":"comments/{commentId}"},"retry":false},"entryPoint":"onCommentCreated"}},"specVersion":"v1alpha1","requiredAPIs":[],"extensions":{}}
+[info] i  extensions: ensuring required API firebaseextensions.googleapis.com is enabled... 
+[debug] [2026-04-06T04:16:09.949Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-04-06T04:16:09.949Z] > authorizing via signed-in user (g.ijiwola@thelifedevelopmentcenter.org)
+[debug] [2026-04-06T04:16:09.949Z] [iam] checking project leading-lights-global-platform for permissions ["firebase.projects.get","firebaseextensions.instances.list"]
+[debug] [2026-04-06T04:16:09.949Z] Checked if tokens are valid: true, expires at: 1775452098301
+[debug] [2026-04-06T04:16:09.950Z] Checked if tokens are valid: true, expires at: 1775452098301
+[debug] [2026-04-06T04:16:09.950Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/leading-lights-global-platform:testIamPermissions [none]
+[debug] [2026-04-06T04:16:09.950Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/leading-lights-global-platform:testIamPermissions x-goog-quota-user=projects/leading-lights-global-platform
+[debug] [2026-04-06T04:16:09.950Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/leading-lights-global-platform:testIamPermissions {"permissions":["firebase.projects.get","firebaseextensions.instances.list"]}
+[debug] [2026-04-06T04:16:10.144Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/leading-lights-global-platform:testIamPermissions 200
+[debug] [2026-04-06T04:16:10.144Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/leading-lights-global-platform:testIamPermissions {"permissions":["firebase.projects.get","firebaseextensions.instances.list"]}
+[debug] [2026-04-06T04:16:10.144Z] Checked if tokens are valid: true, expires at: 1775452098301
+[debug] [2026-04-06T04:16:10.144Z] Checked if tokens are valid: true, expires at: 1775452098301
+[debug] [2026-04-06T04:16:10.144Z] >>> [apiv2][query] GET https://firebaseextensions.googleapis.com/v1beta/projects/leading-lights-global-platform/instances pageSize=100&pageToken=
+[debug] [2026-04-06T04:16:10.397Z] <<< [apiv2][status] GET https://firebaseextensions.googleapis.com/v1beta/projects/leading-lights-global-platform/instances 200
+[debug] [2026-04-06T04:16:10.397Z] <<< [apiv2][body] GET https://firebaseextensions.googleapis.com/v1beta/projects/leading-lights-global-platform/instances {}
+[info] i  functions: preparing functions directory for uploading... 
+[info] i  functions: packaged /Users/DrLan/Documents/APPS/LDC Global Platform/llgp/functions (34.07 KB) for uploading 
+[debug] [2026-04-06T04:16:10.436Z] Checked if tokens are valid: true, expires at: 1775452098301
+[debug] [2026-04-06T04:16:10.436Z] Checked if tokens are valid: true, expires at: 1775452098301
+[debug] [2026-04-06T04:16:10.437Z] >>> [apiv2][query] GET https://cloudfunctions.googleapis.com/v1/projects/leading-lights-global-platform/locations/-/functions [none]
+[debug] [2026-04-06T04:16:10.979Z] <<< [apiv2][status] GET https://cloudfunctions.googleapis.com/v1/projects/leading-lights-global-platform/locations/-/functions 200
+[debug] [2026-04-06T04:16:10.979Z] <<< [apiv2][body] GET https://cloudfunctions.googleapis.com/v1/projects/leading-lights-global-platform/locations/-/functions {}
+[debug] [2026-04-06T04:16:10.979Z] Checked if tokens are valid: true, expires at: 1775452098301
+[debug] [2026-04-06T04:16:10.979Z] Checked if tokens are valid: true, expires at: 1775452098301
+[debug] [2026-04-06T04:16:10.980Z] >>> [apiv2][query] GET https://cloudfunctions.googleapis.com/v2/projects/leading-lights-global-platform/locations/-/functions filter=environment%3D%22GEN_2%22
+[debug] [2026-04-06T04:16:11.364Z] <<< [apiv2][status] GET https://cloudfunctions.googleapis.com/v2/projects/leading-lights-global-platform/locations/-/functions 200
+[debug] [2026-04-06T04:16:11.364Z] <<< [apiv2][body] GET https://cloudfunctions.googleapis.com/v2/projects/leading-lights-global-platform/locations/-/functions {}
+[debug] [2026-04-06T04:16:11.365Z] Checked if tokens are valid: true, expires at: 1775452098301
+[debug] [2026-04-06T04:16:11.365Z] Checked if tokens are valid: true, expires at: 1775452098301
+[debug] [2026-04-06T04:16:11.365Z] >>> [apiv2][query] GET https://firestore.googleapis.com/v1/projects/leading-lights-global-platform/databases/(default) [none]
+[debug] [2026-04-06T04:16:11.614Z] <<< [apiv2][status] GET https://firestore.googleapis.com/v1/projects/leading-lights-global-platform/databases/(default) 200
+[debug] [2026-04-06T04:16:11.614Z] <<< [apiv2][body] GET https://firestore.googleapis.com/v1/projects/leading-lights-global-platform/databases/(default) {"name":"projects/leading-lights-global-platform/databases/(default)","uid":"0aa683c7-2a63-4720-9eaa-759a9f64d492","createTime":"2026-04-03T18:39:37.442356Z","updateTime":"2026-04-03T18:39:37.442356Z","locationId":"us-central1","type":"FIRESTORE_NATIVE","concurrencyMode":"PESSIMISTIC","versionRetentionPeriod":"3600s","earliestVersionTime":"2026-04-06T03:16:11.792743Z","appEngineIntegrationMode":"DISABLED","pointInTimeRecoveryEnablement":"POINT_IN_TIME_RECOVERY_DISABLED","deleteProtectionState":"DELETE_PROTECTION_DISABLED","databaseEdition":"STANDARD","freeTier":true,"realtimeUpdatesMode":"REALTIME_UPDATES_MODE_ENABLED","etag":"IN2an+qu2JMDMMC9w7ey0pMD"}
+[info] i  functions: ensuring required API run.googleapis.com is enabled... 
+[info] i  functions: ensuring required API eventarc.googleapis.com is enabled... 
+[info] i  functions: ensuring required API pubsub.googleapis.com is enabled... 
+[info] i  functions: ensuring required API storage.googleapis.com is enabled... 
+[info] i  functions: generating the service identity for pubsub.googleapis.com... 
+[debug] [2026-04-06T04:16:11.619Z] Checked if tokens are valid: true, expires at: 1775452098301
+[debug] [2026-04-06T04:16:11.619Z] Checked if tokens are valid: true, expires at: 1775452098301
+[info] i  functions: generating the service identity for eventarc.googleapis.com... 
+[debug] [2026-04-06T04:16:11.619Z] Checked if tokens are valid: true, expires at: 1775452098301
+[debug] [2026-04-06T04:16:11.619Z] Checked if tokens are valid: true, expires at: 1775452098301
+[debug] [2026-04-06T04:16:11.619Z] >>> [apiv2][query] POST https://serviceusage.googleapis.com/v1beta1/projects/164092065517/services/pubsub.googleapis.com:generateServiceIdentity [none]
+[debug] [2026-04-06T04:16:11.620Z] >>> [apiv2][(partial)header] POST https://serviceusage.googleapis.com/v1beta1/projects/164092065517/services/pubsub.googleapis.com:generateServiceIdentity x-goog-quota-user=projects/164092065517
+[debug] [2026-04-06T04:16:11.620Z] >>> [apiv2][body] POST https://serviceusage.googleapis.com/v1beta1/projects/164092065517/services/pubsub.googleapis.com:generateServiceIdentity {}
+[debug] [2026-04-06T04:16:11.625Z] >>> [apiv2][query] POST https://serviceusage.googleapis.com/v1beta1/projects/164092065517/services/eventarc.googleapis.com:generateServiceIdentity [none]
+[debug] [2026-04-06T04:16:11.625Z] >>> [apiv2][(partial)header] POST https://serviceusage.googleapis.com/v1beta1/projects/164092065517/services/eventarc.googleapis.com:generateServiceIdentity x-goog-quota-user=projects/164092065517
+[debug] [2026-04-06T04:16:11.625Z] >>> [apiv2][body] POST https://serviceusage.googleapis.com/v1beta1/projects/164092065517/services/eventarc.googleapis.com:generateServiceIdentity {}
+[debug] [2026-04-06T04:16:12.281Z] <<< [apiv2][status] POST https://serviceusage.googleapis.com/v1beta1/projects/164092065517/services/pubsub.googleapis.com:generateServiceIdentity 200
+[debug] [2026-04-06T04:16:12.281Z] <<< [apiv2][body] POST https://serviceusage.googleapis.com/v1beta1/projects/164092065517/services/pubsub.googleapis.com:generateServiceIdentity {"name":"operations/finished.DONE_OPERATION","done":true,"response":{"@type":"type.googleapis.com/google.api.serviceusage.v1beta1.ServiceIdentity","email":"service-164092065517@gcp-sa-pubsub.iam.gserviceaccount.com","uniqueId":"102008895974607634986"}}
+[debug] [2026-04-06T04:16:12.358Z] <<< [apiv2][status] POST https://serviceusage.googleapis.com/v1beta1/projects/164092065517/services/eventarc.googleapis.com:generateServiceIdentity 200
+[debug] [2026-04-06T04:16:12.358Z] <<< [apiv2][body] POST https://serviceusage.googleapis.com/v1beta1/projects/164092065517/services/eventarc.googleapis.com:generateServiceIdentity {"name":"operations/finished.DONE_OPERATION","done":true,"response":{"@type":"type.googleapis.com/google.api.serviceusage.v1beta1.ServiceIdentity","email":"service-164092065517@gcp-sa-eventarc.iam.gserviceaccount.com","uniqueId":"103315557110788477088"}}
+[debug] [2026-04-06T04:16:12.359Z] Checked if tokens are valid: true, expires at: 1775452098301
+[debug] [2026-04-06T04:16:12.360Z] Checked if tokens are valid: true, expires at: 1775452098301
+[debug] [2026-04-06T04:16:12.360Z] >>> [apiv2][query] GET https://compute.googleapis.com/compute/v1/projects/164092065517 [none]
+[debug] [2026-04-06T04:16:12.547Z] <<< [apiv2][status] GET https://compute.googleapis.com/compute/v1/projects/164092065517 403
+[debug] [2026-04-06T04:16:12.547Z] <<< [apiv2][body] GET https://compute.googleapis.com/compute/v1/projects/164092065517 {"error":{"code":403,"message":"Compute Engine API has not been used in project 164092065517 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/compute.googleapis.com/overview?project=164092065517 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.","errors":[{"message":"Compute Engine API has not been used in project 164092065517 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/compute.googleapis.com/overview?project=164092065517 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.","domain":"usageLimits","reason":"accessNotConfigured","extendedHelp":"https://console.developers.google.com"}],"status":"PERMISSION_DENIED","details":[{"@type":"type.googleapis.com/google.rpc.ErrorInfo","reason":"SERVICE_DISABLED","domain":"googleapis.com","metadata":{"activationUrl":"https://console.developers.google.com/apis/api/compute.googleapis.com/overview?project=164092065517","serviceTitle":"Compute Engine API","consumer":"projects/164092065517","service":"compute.googleapis.com","containerInfo":"164092065517"}},{"@type":"type.googleapis.com/google.rpc.LocalizedMessage","locale":"en-US","message":"Compute Engine API has not been used in project 164092065517 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/compute.googleapis.com/overview?project=164092065517 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry."},{"@type":"type.googleapis.com/google.rpc.Help","links":[{"description":"Google developers console API activation","url":"https://console.developers.google.com/apis/api/compute.googleapis.com/overview?project=164092065517"}]}]}}
+[debug] [2026-04-06T04:16:12.549Z] unable to look up default compute service account. Falling back to 164092065517-compute@developer.gserviceaccount.com. Error: {"name":"FirebaseError","children":[],"context":{"body":{"error":{"code":403,"message":"Compute Engine API has not been used in project 164092065517 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/compute.googleapis.com/overview?project=164092065517 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.","errors":[{"message":"Compute Engine API has not been used in project 164092065517 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/compute.googleapis.com/overview?project=164092065517 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.","domain":"usageLimits","reason":"accessNotConfigured","extendedHelp":"https://console.developers.google.com"}],"status":"PERMISSION_DENIED","details":[{"@type":"type.googleapis.com/google.rpc.ErrorInfo","reason":"SERVICE_DISABLED","domain":"googleapis.com","metadata":{"activationUrl":"https://console.developers.google.com/apis/api/compute.googleapis.com/overview?project=164092065517","serviceTitle":"Compute Engine API","consumer":"projects/164092065517","service":"compute.googleapis.com","containerInfo":"164092065517"}},{"@type":"type.googleapis.com/google.rpc.LocalizedMessage","locale":"en-US","message":"Compute Engine API has not been used in project 164092065517 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/compute.googleapis.com/overview?project=164092065517 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry."},{"@type":"type.googleapis.com/google.rpc.Help","links":[{"description":"Google developers console API activation","url":"https://console.developers.google.com/apis/api/compute.googleapis.com/overview?project=164092065517"}]}]}},"response":{"statusCode":403}},"exit":1,"message":"Request to https://compute.googleapis.com/compute/v1/projects/164092065517 had HTTP Error: 403, Compute Engine API has not been used in project 164092065517 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/compute.googleapis.com/overview?project=164092065517 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.","status":403}
+[debug] [2026-04-06T04:16:12.550Z] Checked if tokens are valid: true, expires at: 1775452098301
+[debug] [2026-04-06T04:16:12.550Z] Checked if tokens are valid: true, expires at: 1775452098301
+[debug] [2026-04-06T04:16:12.551Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/164092065517:getIamPolicy [none]
+[debug] [2026-04-06T04:16:12.727Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/164092065517:getIamPolicy 200
+[debug] [2026-04-06T04:16:12.727Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/164092065517:getIamPolicy {"version":1,"etag":"BwZOwuwnDNk=","bindings":[{"role":"roles/cloudbuild.builds.builder","members":["serviceAccount:164092065517@cloudbuild.gserviceaccount.com"]},{"role":"roles/cloudbuild.serviceAgent","members":["serviceAccount:service-164092065517@gcp-sa-cloudbuild.iam.gserviceaccount.com"]},{"role":"roles/cloudfunctions.serviceAgent","members":["serviceAccount:service-164092065517@gcf-admin-robot.iam.gserviceaccount.com"]},{"role":"roles/containerregistry.ServiceAgent","members":["serviceAccount:service-164092065517@containerregistry.iam.gserviceaccount.com"]},{"role":"roles/editor","members":["serviceAccount:164092065517-compute@developer.gserviceaccount.com","serviceAccount:164092065517@cloudservices.gserviceaccount.com","serviceAccount:leading-lights-global-platform@appspot.gserviceaccount.com"]},{"role":"roles/eventarc.eventReceiver","members":["serviceAccount:164092065517-compute@developer.gserviceaccount.com"]},{"role":"roles/firebase.managementServiceAgent","members":["serviceAccount:service-164092065517@gcp-sa-firebase.iam.gserviceaccount.com"]},{"role":"roles/firebase.sdkAdminServiceAgent","members":["serviceAccount:firebase-adminsdk-fbsvc@leading-lights-global-platform.iam.gserviceaccount.com"]},{"role":"roles/firebaseauth.admin","members":["serviceAccount:firebase-adminsdk-fbsvc@leading-lights-global-platform.iam.gserviceaccount.com"]},{"role":"roles/firebasemods.serviceAgent","members":["serviceAccount:service-164092065517@gcp-sa-firebasemods.iam.gserviceaccount.com"]},{"role":"roles/firebaserules.system","members":["serviceAccount:service-164092065517@firebase-rules.iam.gserviceaccount.com"]},{"role":"roles/firestore.serviceAgent","members":["serviceAccount:service-164092065517@gcp-sa-firestore.iam.gserviceaccount.com"]},{"role":"roles/iam.serviceAccountTokenCreator","members":["serviceAccount:firebase-adminsdk-fbsvc@leading-lights-global-platform.iam.gserviceaccount.com","serviceAccount:service-164092065517@gcp-sa-pubsub.iam.gserviceaccount.com"]},{"role":"roles/owner","members":["user:g.ijiwola@thelifedevelopmentcenter.org"]},{"role":"roles/run.invoker","members":["serviceAccount:164092065517-compute@developer.gserviceaccount.com"]},{"role":"roles/run.serviceAgent","members":["serviceAccount:service-164092065517@serverless-robot-prod.iam.gserviceaccount.com"]}]}
+[debug] [2026-04-06T04:16:12.728Z] Checked if tokens are valid: true, expires at: 1775452098301
+[debug] [2026-04-06T04:16:12.728Z] Checked if tokens are valid: true, expires at: 1775452098301
+[debug] [2026-04-06T04:16:12.728Z] >>> [apiv2][query] GET https://cloudresourcemanager.googleapis.com/v1/projects/leading-lights-global-platform [none]
+[debug] [2026-04-06T04:16:12.799Z] <<< [apiv2][status] GET https://cloudresourcemanager.googleapis.com/v1/projects/leading-lights-global-platform 200
+[debug] [2026-04-06T04:16:12.799Z] <<< [apiv2][body] GET https://cloudresourcemanager.googleapis.com/v1/projects/leading-lights-global-platform {"projectNumber":"164092065517","projectId":"leading-lights-global-platform","lifecycleState":"ACTIVE","name":"Leading Lights Global Platform","labels":{"firebase":"enabled","firebase-core":"disabled"},"createTime":"2026-04-03T18:33:16.941Z","parent":{"type":"organization","id":"141862910971"}}
+[debug] [2026-04-06T04:16:12.800Z] Checked if tokens are valid: true, expires at: 1775452098301
+[debug] [2026-04-06T04:16:12.800Z] Checked if tokens are valid: true, expires at: 1775452098301
+[debug] [2026-04-06T04:16:12.800Z] >>> [apiv2][query] GET https://compute.googleapis.com/compute/v1/projects/164092065517 [none]
+[debug] [2026-04-06T04:16:12.875Z] <<< [apiv2][status] GET https://compute.googleapis.com/compute/v1/projects/164092065517 403
+[debug] [2026-04-06T04:16:12.875Z] <<< [apiv2][body] GET https://compute.googleapis.com/compute/v1/projects/164092065517 {"error":{"code":403,"message":"Compute Engine API has not been used in project 164092065517 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/compute.googleapis.com/overview?project=164092065517 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.","errors":[{"message":"Compute Engine API has not been used in project 164092065517 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/compute.googleapis.com/overview?project=164092065517 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.","domain":"usageLimits","reason":"accessNotConfigured","extendedHelp":"https://console.developers.google.com"}],"status":"PERMISSION_DENIED","details":[{"@type":"type.googleapis.com/google.rpc.ErrorInfo","reason":"SERVICE_DISABLED","domain":"googleapis.com","metadata":{"containerInfo":"164092065517","consumer":"projects/164092065517","activationUrl":"https://console.developers.google.com/apis/api/compute.googleapis.com/overview?project=164092065517","service":"compute.googleapis.com","serviceTitle":"Compute Engine API"}},{"@type":"type.googleapis.com/google.rpc.LocalizedMessage","locale":"en-US","message":"Compute Engine API has not been used in project 164092065517 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/compute.googleapis.com/overview?project=164092065517 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry."},{"@type":"type.googleapis.com/google.rpc.Help","links":[{"description":"Google developers console API activation","url":"https://console.developers.google.com/apis/api/compute.googleapis.com/overview?project=164092065517"}]}]}}
+[debug] [2026-04-06T04:16:12.875Z] unable to look up default compute service account. Falling back to 164092065517-compute@developer.gserviceaccount.com. Error: {"name":"FirebaseError","children":[],"context":{"body":{"error":{"code":403,"message":"Compute Engine API has not been used in project 164092065517 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/compute.googleapis.com/overview?project=164092065517 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.","errors":[{"message":"Compute Engine API has not been used in project 164092065517 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/compute.googleapis.com/overview?project=164092065517 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.","domain":"usageLimits","reason":"accessNotConfigured","extendedHelp":"https://console.developers.google.com"}],"status":"PERMISSION_DENIED","details":[{"@type":"type.googleapis.com/google.rpc.ErrorInfo","reason":"SERVICE_DISABLED","domain":"googleapis.com","metadata":{"containerInfo":"164092065517","consumer":"projects/164092065517","activationUrl":"https://console.developers.google.com/apis/api/compute.googleapis.com/overview?project=164092065517","service":"compute.googleapis.com","serviceTitle":"Compute Engine API"}},{"@type":"type.googleapis.com/google.rpc.LocalizedMessage","locale":"en-US","message":"Compute Engine API has not been used in project 164092065517 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/compute.googleapis.com/overview?project=164092065517 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry."},{"@type":"type.googleapis.com/google.rpc.Help","links":[{"description":"Google developers console API activation","url":"https://console.developers.google.com/apis/api/compute.googleapis.com/overview?project=164092065517"}]}]}},"response":{"statusCode":403}},"exit":1,"message":"Request to https://compute.googleapis.com/compute/v1/projects/164092065517 had HTTP Error: 403, Compute Engine API has not been used in project 164092065517 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/compute.googleapis.com/overview?project=164092065517 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.","status":403}
+[debug] [2026-04-06T04:16:12.875Z] Checked if tokens are valid: true, expires at: 1775452098301
+[debug] [2026-04-06T04:16:12.875Z] Checked if tokens are valid: true, expires at: 1775452098301
+[debug] [2026-04-06T04:16:12.875Z] >>> [apiv2][query] GET https://compute.googleapis.com/compute/v1/projects/164092065517 [none]
+[debug] [2026-04-06T04:16:12.955Z] <<< [apiv2][status] GET https://compute.googleapis.com/compute/v1/projects/164092065517 403
+[debug] [2026-04-06T04:16:12.955Z] <<< [apiv2][body] GET https://compute.googleapis.com/compute/v1/projects/164092065517 {"error":{"code":403,"message":"Compute Engine API has not been used in project 164092065517 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/compute.googleapis.com/overview?project=164092065517 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.","errors":[{"message":"Compute Engine API has not been used in project 164092065517 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/compute.googleapis.com/overview?project=164092065517 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.","domain":"usageLimits","reason":"accessNotConfigured","extendedHelp":"https://console.developers.google.com"}],"status":"PERMISSION_DENIED","details":[{"@type":"type.googleapis.com/google.rpc.ErrorInfo","reason":"SERVICE_DISABLED","domain":"googleapis.com","metadata":{"service":"compute.googleapis.com","serviceTitle":"Compute Engine API","activationUrl":"https://console.developers.google.com/apis/api/compute.googleapis.com/overview?project=164092065517","consumer":"projects/164092065517","containerInfo":"164092065517"}},{"@type":"type.googleapis.com/google.rpc.LocalizedMessage","locale":"en-US","message":"Compute Engine API has not been used in project 164092065517 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/compute.googleapis.com/overview?project=164092065517 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry."},{"@type":"type.googleapis.com/google.rpc.Help","links":[{"description":"Google developers console API activation","url":"https://console.developers.google.com/apis/api/compute.googleapis.com/overview?project=164092065517"}]}]}}
+[debug] [2026-04-06T04:16:12.956Z] unable to look up default compute service account. Falling back to 164092065517-compute@developer.gserviceaccount.com. Error: {"name":"FirebaseError","children":[],"context":{"body":{"error":{"code":403,"message":"Compute Engine API has not been used in project 164092065517 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/compute.googleapis.com/overview?project=164092065517 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.","errors":[{"message":"Compute Engine API has not been used in project 164092065517 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/compute.googleapis.com/overview?project=164092065517 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.","domain":"usageLimits","reason":"accessNotConfigured","extendedHelp":"https://console.developers.google.com"}],"status":"PERMISSION_DENIED","details":[{"@type":"type.googleapis.com/google.rpc.ErrorInfo","reason":"SERVICE_DISABLED","domain":"googleapis.com","metadata":{"service":"compute.googleapis.com","serviceTitle":"Compute Engine API","activationUrl":"https://console.developers.google.com/apis/api/compute.googleapis.com/overview?project=164092065517","consumer":"projects/164092065517","containerInfo":"164092065517"}},{"@type":"type.googleapis.com/google.rpc.LocalizedMessage","locale":"en-US","message":"Compute Engine API has not been used in project 164092065517 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/compute.googleapis.com/overview?project=164092065517 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry."},{"@type":"type.googleapis.com/google.rpc.Help","links":[{"description":"Google developers console API activation","url":"https://console.developers.google.com/apis/api/compute.googleapis.com/overview?project=164092065517"}]}]}},"response":{"statusCode":403}},"exit":1,"message":"Request to https://compute.googleapis.com/compute/v1/projects/164092065517 had HTTP Error: 403, Compute Engine API has not been used in project 164092065517 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/compute.googleapis.com/overview?project=164092065517 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.","status":403}
+[debug] [2026-04-06T04:16:12.956Z] Checked if tokens are valid: true, expires at: 1775452098301
+[debug] [2026-04-06T04:16:12.956Z] Checked if tokens are valid: true, expires at: 1775452098301
+[debug] [2026-04-06T04:16:12.957Z] >>> [apiv2][query] GET https://compute.googleapis.com/compute/v1/projects/164092065517 [none]
+[debug] [2026-04-06T04:16:13.043Z] <<< [apiv2][status] GET https://compute.googleapis.com/compute/v1/projects/164092065517 403
+[debug] [2026-04-06T04:16:13.044Z] <<< [apiv2][body] GET https://compute.googleapis.com/compute/v1/projects/164092065517 {"error":{"code":403,"message":"Compute Engine API has not been used in project 164092065517 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/compute.googleapis.com/overview?project=164092065517 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.","errors":[{"message":"Compute Engine API has not been used in project 164092065517 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/compute.googleapis.com/overview?project=164092065517 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.","domain":"usageLimits","reason":"accessNotConfigured","extendedHelp":"https://console.developers.google.com"}],"status":"PERMISSION_DENIED","details":[{"@type":"type.googleapis.com/google.rpc.ErrorInfo","reason":"SERVICE_DISABLED","domain":"googleapis.com","metadata":{"activationUrl":"https://console.developers.google.com/apis/api/compute.googleapis.com/overview?project=164092065517","consumer":"projects/164092065517","serviceTitle":"Compute Engine API","service":"compute.googleapis.com","containerInfo":"164092065517"}},{"@type":"type.googleapis.com/google.rpc.LocalizedMessage","locale":"en-US","message":"Compute Engine API has not been used in project 164092065517 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/compute.googleapis.com/overview?project=164092065517 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry."},{"@type":"type.googleapis.com/google.rpc.Help","links":[{"description":"Google developers console API activation","url":"https://console.developers.google.com/apis/api/compute.googleapis.com/overview?project=164092065517"}]}]}}
+[debug] [2026-04-06T04:16:13.044Z] unable to look up default compute service account. Falling back to 164092065517-compute@developer.gserviceaccount.com. Error: {"name":"FirebaseError","children":[],"context":{"body":{"error":{"code":403,"message":"Compute Engine API has not been used in project 164092065517 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/compute.googleapis.com/overview?project=164092065517 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.","errors":[{"message":"Compute Engine API has not been used in project 164092065517 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/compute.googleapis.com/overview?project=164092065517 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.","domain":"usageLimits","reason":"accessNotConfigured","extendedHelp":"https://console.developers.google.com"}],"status":"PERMISSION_DENIED","details":[{"@type":"type.googleapis.com/google.rpc.ErrorInfo","reason":"SERVICE_DISABLED","domain":"googleapis.com","metadata":{"activationUrl":"https://console.developers.google.com/apis/api/compute.googleapis.com/overview?project=164092065517","consumer":"projects/164092065517","serviceTitle":"Compute Engine API","service":"compute.googleapis.com","containerInfo":"164092065517"}},{"@type":"type.googleapis.com/google.rpc.LocalizedMessage","locale":"en-US","message":"Compute Engine API has not been used in project 164092065517 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/compute.googleapis.com/overview?project=164092065517 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry."},{"@type":"type.googleapis.com/google.rpc.Help","links":[{"description":"Google developers console API activation","url":"https://console.developers.google.com/apis/api/compute.googleapis.com/overview?project=164092065517"}]}]}},"response":{"statusCode":403}},"exit":1,"message":"Request to https://compute.googleapis.com/compute/v1/projects/164092065517 had HTTP Error: 403, Compute Engine API has not been used in project 164092065517 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/compute.googleapis.com/overview?project=164092065517 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.","status":403}
+[debug] [2026-04-06T04:16:13.045Z] Checked if tokens are valid: true, expires at: 1775452098301
+[debug] [2026-04-06T04:16:13.045Z] Checked if tokens are valid: true, expires at: 1775452098301
+[debug] [2026-04-06T04:16:13.045Z] >>> [apiv2][query] GET https://cloudbilling.googleapis.com/v1/projects/leading-lights-global-platform/billingInfo [none]
+[debug] [2026-04-06T04:16:13.225Z] <<< [apiv2][status] GET https://cloudbilling.googleapis.com/v1/projects/leading-lights-global-platform/billingInfo 200
+[debug] [2026-04-06T04:16:13.225Z] <<< [apiv2][body] GET https://cloudbilling.googleapis.com/v1/projects/leading-lights-global-platform/billingInfo {"name":"projects/leading-lights-global-platform/billingInfo","projectId":"leading-lights-global-platform","billingAccountName":"billingAccounts/013584-DA46AF-A86707","billingEnabled":true}
+[debug] [2026-04-06T04:16:13.226Z] Checked if tokens are valid: true, expires at: 1775452098301
+[debug] [2026-04-06T04:16:13.226Z] Checked if tokens are valid: true, expires at: 1775452098301
+[debug] [2026-04-06T04:16:13.226Z] >>> [apiv2][query] POST https://cloudfunctions.googleapis.com/v2/projects/leading-lights-global-platform/locations/us-central1/functions:generateUploadUrl [none]
+[debug] [2026-04-06T04:16:14.343Z] <<< [apiv2][status] POST https://cloudfunctions.googleapis.com/v2/projects/leading-lights-global-platform/locations/us-central1/functions:generateUploadUrl 200
+[debug] [2026-04-06T04:16:14.343Z] <<< [apiv2][body] POST https://cloudfunctions.googleapis.com/v2/projects/leading-lights-global-platform/locations/us-central1/functions:generateUploadUrl {"uploadUrl":"https://storage.googleapis.com/gcf-v2-uploads-164092065517.us-central1.cloudfunctions.appspot.com/6cfc5c3e-2cdb-4fac-be51-0d57caaaa2f0.zip?GoogleAccessId=service-164092065517@gcf-admin-robot.iam.gserviceaccount.com&Expires=1775450774&Signature=I%2Bz3HvIFlMEFu2%2F%2Fn8NkOlOD72%2FzF2Tq6AScK7k80Wmqek6R6EDhkeQBbLW45prv8w7CvXtT0SiO1n7qllAbE%2FyT9P1vbuKLYKcHmKq7QZwWJeVzpMwXxf8TcLwgSKggUdj1W51oZKaNjOr60LjcvUVXNWkxXQTlwhd4ITrm4gj9q1oF7yQxJu1vAeFwve30QdI%2BuLRjf%2FLzOrpcIyW3aAqzPJkwjP4ZRM53aNvWQ%2F6joYf%2FqyUFTJGFOPoQOiuD%2BG0uXJ%2BmKidvRBSELAv8hYpodfspC63B%2BivSJVfkAgAJGTUNXkTvX8AoXWpDYOmTSSvRy6HI7bM%2Bg%2BdYk0Gwqg%3D%3D","storageSource":{"bucket":"gcf-v2-uploads-164092065517.us-central1.cloudfunctions.appspot.com","object":"6cfc5c3e-2cdb-4fac-be51-0d57caaaa2f0.zip"}}
+[debug] [2026-04-06T04:16:14.344Z] >>> [apiv2][query] PUT https://storage.googleapis.com/gcf-v2-uploads-164092065517.us-central1.cloudfunctions.appspot.com/6cfc5c3e-2cdb-4fac-be51-0d57caaaa2f0.zip GoogleAccessId=service-164092065517%40gcf-admin-robot.iam.gserviceaccount.com&Expires=1775450774&Signature=I%2Bz3HvIFlMEFu2%2F%2Fn8NkOlOD72%2FzF2Tq6AScK7k80Wmqek6R6EDhkeQBbLW45prv8w7CvXtT0SiO1n7qllAbE%2FyT9P1vbuKLYKcHmKq7QZwWJeVzpMwXxf8TcLwgSKggUdj1W51oZKaNjOr60LjcvUVXNWkxXQTlwhd4ITrm4gj9q1oF7yQxJu1vAeFwve30QdI%2BuLRjf%2FLzOrpcIyW3aAqzPJkwjP4ZRM53aNvWQ%2F6joYf%2FqyUFTJGFOPoQOiuD%2BG0uXJ%2BmKidvRBSELAv8hYpodfspC63B%2BivSJVfkAgAJGTUNXkTvX8AoXWpDYOmTSSvRy6HI7bM%2Bg%2BdYk0Gwqg%3D%3D
+[debug] [2026-04-06T04:16:14.344Z] >>> [apiv2][body] PUT https://storage.googleapis.com/gcf-v2-uploads-164092065517.us-central1.cloudfunctions.appspot.com/6cfc5c3e-2cdb-4fac-be51-0d57caaaa2f0.zip [stream]
+[debug] [2026-04-06T04:16:14.608Z] <<< [apiv2][status] PUT https://storage.googleapis.com/gcf-v2-uploads-164092065517.us-central1.cloudfunctions.appspot.com/6cfc5c3e-2cdb-4fac-be51-0d57caaaa2f0.zip 200
+[debug] [2026-04-06T04:16:14.609Z] <<< [apiv2][body] PUT https://storage.googleapis.com/gcf-v2-uploads-164092065517.us-central1.cloudfunctions.appspot.com/6cfc5c3e-2cdb-4fac-be51-0d57caaaa2f0.zip [omitted]
+[info] ✔  functions: functions source uploaded successfully 
+[info] i  functions: creating Node.js 20 (2nd Gen) function onNotificationCreated(us-central1)... 
+[info] i  functions: creating Node.js 20 (2nd Gen) function onPostCreated(us-central1)... 
+[info] i  functions: creating Node.js 20 (2nd Gen) function onCommentCreated(us-central1)... 
+[debug] [2026-04-06T04:16:14.612Z] Checked if tokens are valid: true, expires at: 1775452098301
+[debug] [2026-04-06T04:16:14.612Z] Checked if tokens are valid: true, expires at: 1775452098301
+[debug] [2026-04-06T04:16:14.612Z] >>> [apiv2][query] POST https://cloudfunctions.googleapis.com/v2/projects/leading-lights-global-platform/locations/us-central1/functions functionId=onNotificationCreated
+[debug] [2026-04-06T04:16:14.612Z] >>> [apiv2][body] POST https://cloudfunctions.googleapis.com/v2/projects/leading-lights-global-platform/locations/us-central1/functions {"name":"projects/leading-lights-global-platform/locations/us-central1/functions/onNotificationCreated","buildConfig":{"runtime":"nodejs20","entryPoint":"onNotificationCreated","source":{"storageSource":{"bucket":"gcf-v2-uploads-164092065517.us-central1.cloudfunctions.appspot.com","object":"6cfc5c3e-2cdb-4fac-be51-0d57caaaa2f0.zip"}},"environmentVariables":{"GOOGLE_NODE_RUN_SCRIPTS":""}},"serviceConfig":{"environmentVariables":{"FIREBASE_CONFIG":"{\"projectId\":\"leading-lights-global-platform\",\"storageBucket\":\"leading-lights-global-platform.firebasestorage.app\"}","GCLOUD_PROJECT":"leading-lights-global-platform","EVENTARC_CLOUD_EVENT_SOURCE":"projects/leading-lights-global-platform/locations/us-central1/services/onNotificationCreated","FUNCTION_SIGNATURE_TYPE":"cloudevent","FUNCTION_TARGET":"onNotificationCreated","LOG_EXECUTION_ID":"true"},"ingressSettings":null,"timeoutSeconds":null,"serviceAccountEmail":null,"availableMemory":"256Mi","minInstanceCount":null,"maxInstanceCount":null,"maxInstanceRequestConcurrency":80,"availableCpu":"1","vpcConnector":null,"vpcConnectorEgressSettings":null},"labels":{"deployment-tool":"cli-firebase","firebase-functions-hash":"c2e00f3bc8bc1c449961fd6e0aff9c8774aabe41"},"eventTrigger":{"eventType":"google.cloud.firestore.document.v1.created","retryPolicy":"RETRY_POLICY_DO_NOT_RETRY","eventFilters":[{"attribute":"database","value":"(default)"},{"attribute":"namespace","value":"(default)"},{"attribute":"document","value":"notifications/{notifId}","operator":"match-path-pattern"}],"triggerRegion":"us-central1"}}
+[debug] [2026-04-06T04:16:30.742Z] <<< [apiv2][status] POST https://cloudfunctions.googleapis.com/v2/projects/leading-lights-global-platform/locations/us-central1/functions 400
+[debug] [2026-04-06T04:16:30.742Z] <<< [apiv2][body] POST https://cloudfunctions.googleapis.com/v2/projects/leading-lights-global-platform/locations/us-central1/functions {"error":{"code":400,"message":"Validation failed for trigger projects/leading-lights-global-platform/locations/us-central1/triggers/onnotificationcreated-930927: Invalid resource state for \"\": Permission denied while using the Eventarc Service Agent. If you recently started to use Eventarc, it may take a few minutes before all necessary permissions are propagated to the Service Agent. Otherwise, verify that it has Eventarc Service Agent role.","status":"FAILED_PRECONDITION"}}
+[warn] ⚠  functions: Request to https://cloudfunctions.googleapis.com/v2/projects/leading-lights-global-platform/locations/us-central1/functions?functionId=onNotificationCreated had HTTP Error: 400, Validation failed for trigger projects/leading-lights-global-platform/locations/us-central1/triggers/onnotificationcreated-930927: Invalid resource state for "": Permission denied while using the Eventarc Service Agent. If you recently started to use Eventarc, it may take a few minutes before all necessary permissions are propagated to the Service Agent. Otherwise, verify that it has Eventarc Service Agent role. 
+[warn] ⚠  functions: Since this is your first time using 2nd gen functions, we need a little bit longer to finish setting everything up. Retry the deployment in a few minutes. 
+[warn] ⚠  functions:  failed to create function projects/leading-lights-global-platform/locations/us-central1/functions/onNotificationCreated 
+[error] Failed to create function projects/leading-lights-global-platform/locations/us-central1/functions/onNotificationCreated
+[debug] [2026-04-06T04:16:30.744Z] Checked if tokens are valid: true, expires at: 1775452098301
+[debug] [2026-04-06T04:16:30.744Z] Checked if tokens are valid: true, expires at: 1775452098301
+[debug] [2026-04-06T04:16:30.744Z] Checked if tokens are valid: true, expires at: 1775452098301
+[debug] [2026-04-06T04:16:30.744Z] Checked if tokens are valid: true, expires at: 1775452098301
+[debug] [2026-04-06T04:16:30.744Z] >>> [apiv2][query] POST https://cloudfunctions.googleapis.com/v2/projects/leading-lights-global-platform/locations/us-central1/functions functionId=onPostCreated
+[debug] [2026-04-06T04:16:30.744Z] >>> [apiv2][body] POST https://cloudfunctions.googleapis.com/v2/projects/leading-lights-global-platform/locations/us-central1/functions {"name":"projects/leading-lights-global-platform/locations/us-central1/functions/onPostCreated","buildConfig":{"runtime":"nodejs20","entryPoint":"onPostCreated","source":{"storageSource":{"bucket":"gcf-v2-uploads-164092065517.us-central1.cloudfunctions.appspot.com","object":"6cfc5c3e-2cdb-4fac-be51-0d57caaaa2f0.zip"}},"environmentVariables":{"GOOGLE_NODE_RUN_SCRIPTS":""}},"serviceConfig":{"environmentVariables":{"FIREBASE_CONFIG":"{\"projectId\":\"leading-lights-global-platform\",\"storageBucket\":\"leading-lights-global-platform.firebasestorage.app\"}","GCLOUD_PROJECT":"leading-lights-global-platform","EVENTARC_CLOUD_EVENT_SOURCE":"projects/leading-lights-global-platform/locations/us-central1/services/onPostCreated","FUNCTION_SIGNATURE_TYPE":"cloudevent","FUNCTION_TARGET":"onPostCreated","LOG_EXECUTION_ID":"true"},"ingressSettings":null,"timeoutSeconds":null,"serviceAccountEmail":null,"availableMemory":"256Mi","minInstanceCount":null,"maxInstanceCount":null,"maxInstanceRequestConcurrency":80,"availableCpu":"1","vpcConnector":null,"vpcConnectorEgressSettings":null},"labels":{"deployment-tool":"cli-firebase","firebase-functions-hash":"c2e00f3bc8bc1c449961fd6e0aff9c8774aabe41"},"eventTrigger":{"eventType":"google.cloud.firestore.document.v1.created","retryPolicy":"RETRY_POLICY_DO_NOT_RETRY","eventFilters":[{"attribute":"database","value":"(default)"},{"attribute":"namespace","value":"(default)"},{"attribute":"document","value":"posts/{postId}","operator":"match-path-pattern"}],"triggerRegion":"us-central1"}}
+[debug] [2026-04-06T04:16:30.745Z] >>> [apiv2][query] POST https://cloudfunctions.googleapis.com/v2/projects/leading-lights-global-platform/locations/us-central1/functions functionId=onCommentCreated
+[debug] [2026-04-06T04:16:30.745Z] >>> [apiv2][body] POST https://cloudfunctions.googleapis.com/v2/projects/leading-lights-global-platform/locations/us-central1/functions {"name":"projects/leading-lights-global-platform/locations/us-central1/functions/onCommentCreated","buildConfig":{"runtime":"nodejs20","entryPoint":"onCommentCreated","source":{"storageSource":{"bucket":"gcf-v2-uploads-164092065517.us-central1.cloudfunctions.appspot.com","object":"6cfc5c3e-2cdb-4fac-be51-0d57caaaa2f0.zip"}},"environmentVariables":{"GOOGLE_NODE_RUN_SCRIPTS":""}},"serviceConfig":{"environmentVariables":{"FIREBASE_CONFIG":"{\"projectId\":\"leading-lights-global-platform\",\"storageBucket\":\"leading-lights-global-platform.firebasestorage.app\"}","GCLOUD_PROJECT":"leading-lights-global-platform","EVENTARC_CLOUD_EVENT_SOURCE":"projects/leading-lights-global-platform/locations/us-central1/services/onCommentCreated","FUNCTION_SIGNATURE_TYPE":"cloudevent","FUNCTION_TARGET":"onCommentCreated","LOG_EXECUTION_ID":"true"},"ingressSettings":null,"timeoutSeconds":null,"serviceAccountEmail":null,"availableMemory":"256Mi","minInstanceCount":null,"maxInstanceCount":null,"maxInstanceRequestConcurrency":80,"availableCpu":"1","vpcConnector":null,"vpcConnectorEgressSettings":null},"labels":{"deployment-tool":"cli-firebase","firebase-functions-hash":"c2e00f3bc8bc1c449961fd6e0aff9c8774aabe41"},"eventTrigger":{"eventType":"google.cloud.firestore.document.v1.created","retryPolicy":"RETRY_POLICY_DO_NOT_RETRY","eventFilters":[{"attribute":"database","value":"(default)"},{"attribute":"namespace","value":"(default)"},{"attribute":"document","value":"comments/{commentId}","operator":"match-path-pattern"}],"triggerRegion":"us-central1"}}
+[debug] [2026-04-06T04:16:45.883Z] <<< [apiv2][status] POST https://cloudfunctions.googleapis.com/v2/projects/leading-lights-global-platform/locations/us-central1/functions 400
+[debug] [2026-04-06T04:16:45.883Z] <<< [apiv2][body] POST https://cloudfunctions.googleapis.com/v2/projects/leading-lights-global-platform/locations/us-central1/functions {"error":{"code":400,"message":"Validation failed for trigger projects/leading-lights-global-platform/locations/us-central1/triggers/oncommentcreated-242786: Invalid resource state for \"\": Permission denied while using the Eventarc Service Agent. If you recently started to use Eventarc, it may take a few minutes before all necessary permissions are propagated to the Service Agent. Otherwise, verify that it has Eventarc Service Agent role.","status":"FAILED_PRECONDITION"}}
+[warn] ⚠  functions: Request to https://cloudfunctions.googleapis.com/v2/projects/leading-lights-global-platform/locations/us-central1/functions?functionId=onCommentCreated had HTTP Error: 400, Validation failed for trigger projects/leading-lights-global-platform/locations/us-central1/triggers/oncommentcreated-242786: Invalid resource state for "": Permission denied while using the Eventarc Service Agent. If you recently started to use Eventarc, it may take a few minutes before all necessary permissions are propagated to the Service Agent. Otherwise, verify that it has Eventarc Service Agent role. 
+[warn] ⚠  functions: Since this is your first time using 2nd gen functions, we need a little bit longer to finish setting everything up. Retry the deployment in a few minutes. 
+[warn] ⚠  functions:  failed to create function projects/leading-lights-global-platform/locations/us-central1/functions/onCommentCreated 
+[error] Failed to create function projects/leading-lights-global-platform/locations/us-central1/functions/onCommentCreated
+[debug] [2026-04-06T04:16:45.892Z] <<< [apiv2][status] POST https://cloudfunctions.googleapis.com/v2/projects/leading-lights-global-platform/locations/us-central1/functions 400
+[debug] [2026-04-06T04:16:45.892Z] <<< [apiv2][body] POST https://cloudfunctions.googleapis.com/v2/projects/leading-lights-global-platform/locations/us-central1/functions {"error":{"code":400,"message":"Validation failed for trigger projects/leading-lights-global-platform/locations/us-central1/triggers/onpostcreated-756862: Invalid resource state for \"\": Permission denied while using the Eventarc Service Agent. If you recently started to use Eventarc, it may take a few minutes before all necessary permissions are propagated to the Service Agent. Otherwise, verify that it has Eventarc Service Agent role.","status":"FAILED_PRECONDITION"}}
+[warn] ⚠  functions: Request to https://cloudfunctions.googleapis.com/v2/projects/leading-lights-global-platform/locations/us-central1/functions?functionId=onPostCreated had HTTP Error: 400, Validation failed for trigger projects/leading-lights-global-platform/locations/us-central1/triggers/onpostcreated-756862: Invalid resource state for "": Permission denied while using the Eventarc Service Agent. If you recently started to use Eventarc, it may take a few minutes before all necessary permissions are propagated to the Service Agent. Otherwise, verify that it has Eventarc Service Agent role. 
+[warn] ⚠  functions: Since this is your first time using 2nd gen functions, we need a little bit longer to finish setting everything up. Retry the deployment in a few minutes. 
+[warn] ⚠  functions:  failed to create function projects/leading-lights-global-platform/locations/us-central1/functions/onPostCreated 
+[error] Failed to create function projects/leading-lights-global-platform/locations/us-central1/functions/onPostCreated
+[debug] [2026-04-06T04:16:45.911Z] Total Function Deployment time: 31298
+[debug] [2026-04-06T04:16:45.911Z] 3 Functions Deployed
+[debug] [2026-04-06T04:16:45.911Z] 3 Functions Errored
+[debug] [2026-04-06T04:16:45.911Z] 0 Function Deployments Aborted
+[debug] [2026-04-06T04:16:45.911Z] Average Function Deployment time: 26236.666666666668
+[info] 
+[info] Functions deploy had errors with the following functions:
+	onCommentCreated(us-central1)
+	onNotificationCreated(us-central1)
+	onPostCreated(us-central1)
+[debug] [2026-04-06T04:16:45.913Z] Checked if tokens are valid: true, expires at: 1775452098301
+[debug] [2026-04-06T04:16:45.913Z] Checked if tokens are valid: true, expires at: 1775452098301
+[debug] [2026-04-06T04:16:45.914Z] >>> [apiv2][query] GET https://artifactregistry.googleapis.com/v1/projects/leading-lights-global-platform/locations/us-central1/repositories/gcf-artifacts [none]
+[debug] [2026-04-06T04:16:46.245Z] <<< [apiv2][status] GET https://artifactregistry.googleapis.com/v1/projects/leading-lights-global-platform/locations/us-central1/repositories/gcf-artifacts 404
+[debug] [2026-04-06T04:16:46.245Z] <<< [apiv2][body] GET https://artifactregistry.googleapis.com/v1/projects/leading-lights-global-platform/locations/us-central1/repositories/gcf-artifacts {"error":{"code":404,"message":"Requested entity was not found.","status":"NOT_FOUND"}}
+[debug] [2026-04-06T04:16:46.246Z] Failed to check artifact cleanup policy for region us-central1: Request to https://artifactregistry.googleapis.com/v1/projects/leading-lights-global-platform/locations/us-central1/repositories/gcf-artifacts had HTTP Error: 404, Requested entity was not found. {"name":"FirebaseError","children":[],"context":{"body":{"error":{"code":404,"message":"Requested entity was not found.","status":"NOT_FOUND"}},"response":{"statusCode":404}},"exit":1,"message":"Request to https://artifactregistry.googleapis.com/v1/projects/leading-lights-global-platform/locations/us-central1/repositories/gcf-artifacts had HTTP Error: 404, Requested entity was not found.","status":404}
+[debug] [2026-04-06T04:16:46.247Z] Functions deploy failed.
+[debug] [2026-04-06T04:16:46.248Z] {
+  "endpoint": {
+    "id": "onNotificationCreated",
+    "project": "leading-lights-global-platform",
+    "region": "us-central1",
+    "entryPoint": "onNotificationCreated",
+    "platform": "gcfv2",
+    "runtime": "nodejs20",
+    "eventTrigger": {
+      "eventType": "google.cloud.firestore.document.v1.created",
+      "retry": false,
+      "eventFilters": {
+        "database": "(default)",
+        "namespace": "(default)"
+      },
+      "eventFilterPathPatterns": {
+        "document": "notifications/{notifId}"
+      },
+      "region": "us-central1"
+    },
+    "labels": {
+      "deployment-tool": "cli-firebase"
+    },
+    "serviceAccount": null,
+    "ingressSettings": null,
+    "availableMemoryMb": null,
+    "timeoutSeconds": null,
+    "maxInstances": null,
+    "minInstances": null,
+    "concurrency": 80,
+    "vpc": null,
+    "environmentVariables": {
+      "FIREBASE_CONFIG": "{\"projectId\":\"leading-lights-global-platform\",\"storageBucket\":\"leading-lights-global-platform.firebasestorage.app\"}",
+      "GCLOUD_PROJECT": "leading-lights-global-platform",
+      "EVENTARC_CLOUD_EVENT_SOURCE": "projects/leading-lights-global-platform/locations/us-central1/services/onNotificationCreated"
+    },
+    "codebase": "default",
+    "cpu": 1,
+    "targetedByOnly": false,
+    "hash": "c2e00f3bc8bc1c449961fd6e0aff9c8774aabe41"
+  },
+  "op": "create",
+  "original": {
+    "name": "FirebaseError",
+    "children": [],
+    "context": {
+      "function": "projects/leading-lights-global-platform/locations/us-central1/functions/onNotificationCreated"
+    },
+    "exit": 1,
+    "message": "Failed to create function projects/leading-lights-global-platform/locations/us-central1/functions/onNotificationCreated",
+    "original": {
+      "name": "FirebaseError",
+      "children": [],
+      "context": {
+        "body": {
+          "error": {
+            "code": 400,
+            "message": "Validation failed for trigger projects/leading-lights-global-platform/locations/us-central1/triggers/onnotificationcreated-930927: Invalid resource state for \"\": Permission denied while using the Eventarc Service Agent. If you recently started to use Eventarc, it may take a few minutes before all necessary permissions are propagated to the Service Agent. Otherwise, verify that it has Eventarc Service Agent role.",
+            "status": "FAILED_PRECONDITION"
+          }
+        },
+        "response": {
+          "statusCode": 400
+        }
+      },
+      "exit": 1,
+      "message": "Request to https://cloudfunctions.googleapis.com/v2/projects/leading-lights-global-platform/locations/us-central1/functions?functionId=onNotificationCreated had HTTP Error: 400, Validation failed for trigger projects/leading-lights-global-platform/locations/us-central1/triggers/onnotificationcreated-930927: Invalid resource state for \"\": Permission denied while using the Eventarc Service Agent. If you recently started to use Eventarc, it may take a few minutes before all necessary permissions are propagated to the Service Agent. Otherwise, verify that it has Eventarc Service Agent role.",
+      "status": 400
+    },
+    "status": 400,
+    "code": 400
+  }
+}
+[debug] [2026-04-06T04:16:46.248Z] {
+  "endpoint": {
+    "id": "onCommentCreated",
+    "project": "leading-lights-global-platform",
+    "region": "us-central1",
+    "entryPoint": "onCommentCreated",
+    "platform": "gcfv2",
+    "runtime": "nodejs20",
+    "eventTrigger": {
+      "eventType": "google.cloud.firestore.document.v1.created",
+      "retry": false,
+      "eventFilters": {
+        "database": "(default)",
+        "namespace": "(default)"
+      },
+      "eventFilterPathPatterns": {
+        "document": "comments/{commentId}"
+      },
+      "region": "us-central1"
+    },
+    "labels": {
+      "deployment-tool": "cli-firebase"
+    },
+    "serviceAccount": null,
+    "ingressSettings": null,
+    "availableMemoryMb": null,
+    "timeoutSeconds": null,
+    "maxInstances": null,
+    "minInstances": null,
+    "concurrency": 80,
+    "vpc": null,
+    "environmentVariables": {
+      "FIREBASE_CONFIG": "{\"projectId\":\"leading-lights-global-platform\",\"storageBucket\":\"leading-lights-global-platform.firebasestorage.app\"}",
+      "GCLOUD_PROJECT": "leading-lights-global-platform",
+      "EVENTARC_CLOUD_EVENT_SOURCE": "projects/leading-lights-global-platform/locations/us-central1/services/onCommentCreated"
+    },
+    "codebase": "default",
+    "cpu": 1,
+    "targetedByOnly": false,
+    "hash": "c2e00f3bc8bc1c449961fd6e0aff9c8774aabe41"
+  },
+  "op": "create",
+  "original": {
+    "name": "FirebaseError",
+    "children": [],
+    "context": {
+      "function": "projects/leading-lights-global-platform/locations/us-central1/functions/onCommentCreated"
+    },
+    "exit": 1,
+    "message": "Failed to create function projects/leading-lights-global-platform/locations/us-central1/functions/onCommentCreated",
+    "original": {
+      "name": "FirebaseError",
+      "children": [],
+      "context": {
+        "body": {
+          "error": {
+            "code": 400,
+            "message": "Validation failed for trigger projects/leading-lights-global-platform/locations/us-central1/triggers/oncommentcreated-242786: Invalid resource state for \"\": Permission denied while using the Eventarc Service Agent. If you recently started to use Eventarc, it may take a few minutes before all necessary permissions are propagated to the Service Agent. Otherwise, verify that it has Eventarc Service Agent role.",
+            "status": "FAILED_PRECONDITION"
+          }
+        },
+        "response": {
+          "statusCode": 400
+        }
+      },
+      "exit": 1,
+      "message": "Request to https://cloudfunctions.googleapis.com/v2/projects/leading-lights-global-platform/locations/us-central1/functions?functionId=onCommentCreated had HTTP Error: 400, Validation failed for trigger projects/leading-lights-global-platform/locations/us-central1/triggers/oncommentcreated-242786: Invalid resource state for \"\": Permission denied while using the Eventarc Service Agent. If you recently started to use Eventarc, it may take a few minutes before all necessary permissions are propagated to the Service Agent. Otherwise, verify that it has Eventarc Service Agent role.",
+      "status": 400
+    },
+    "status": 400,
+    "code": 400
+  }
+}
+[debug] [2026-04-06T04:16:46.249Z] {
+  "endpoint": {
+    "id": "onPostCreated",
+    "project": "leading-lights-global-platform",
+    "region": "us-central1",
+    "entryPoint": "onPostCreated",
+    "platform": "gcfv2",
+    "runtime": "nodejs20",
+    "eventTrigger": {
+      "eventType": "google.cloud.firestore.document.v1.created",
+      "retry": false,
+      "eventFilters": {
+        "database": "(default)",
+        "namespace": "(default)"
+      },
+      "eventFilterPathPatterns": {
+        "document": "posts/{postId}"
+      },
+      "region": "us-central1"
+    },
+    "labels": {
+      "deployment-tool": "cli-firebase"
+    },
+    "serviceAccount": null,
+    "ingressSettings": null,
+    "availableMemoryMb": null,
+    "timeoutSeconds": null,
+    "maxInstances": null,
+    "minInstances": null,
+    "concurrency": 80,
+    "vpc": null,
+    "environmentVariables": {
+      "FIREBASE_CONFIG": "{\"projectId\":\"leading-lights-global-platform\",\"storageBucket\":\"leading-lights-global-platform.firebasestorage.app\"}",
+      "GCLOUD_PROJECT": "leading-lights-global-platform",
+      "EVENTARC_CLOUD_EVENT_SOURCE": "projects/leading-lights-global-platform/locations/us-central1/services/onPostCreated"
+    },
+    "codebase": "default",
+    "cpu": 1,
+    "targetedByOnly": false,
+    "hash": "c2e00f3bc8bc1c449961fd6e0aff9c8774aabe41"
+  },
+  "op": "create",
+  "original": {
+    "name": "FirebaseError",
+    "children": [],
+    "context": {
+      "function": "projects/leading-lights-global-platform/locations/us-central1/functions/onPostCreated"
+    },
+    "exit": 1,
+    "message": "Failed to create function projects/leading-lights-global-platform/locations/us-central1/functions/onPostCreated",
+    "original": {
+      "name": "FirebaseError",
+      "children": [],
+      "context": {
+        "body": {
+          "error": {
+            "code": 400,
+            "message": "Validation failed for trigger projects/leading-lights-global-platform/locations/us-central1/triggers/onpostcreated-756862: Invalid resource state for \"\": Permission denied while using the Eventarc Service Agent. If you recently started to use Eventarc, it may take a few minutes before all necessary permissions are propagated to the Service Agent. Otherwise, verify that it has Eventarc Service Agent role.",
+            "status": "FAILED_PRECONDITION"
+          }
+        },
+        "response": {
+          "statusCode": 400
+        }
+      },
+      "exit": 1,
+      "message": "Request to https://cloudfunctions.googleapis.com/v2/projects/leading-lights-global-platform/locations/us-central1/functions?functionId=onPostCreated had HTTP Error: 400, Validation failed for trigger projects/leading-lights-global-platform/locations/us-central1/triggers/onpostcreated-756862: Invalid resource state for \"\": Permission denied while using the Eventarc Service Agent. If you recently started to use Eventarc, it may take a few minutes before all necessary permissions are propagated to the Service Agent. Otherwise, verify that it has Eventarc Service Agent role.",
+      "status": 400
+    },
+    "status": 400,
+    "code": 400
+  }
+}
+[error] Error: There was an error deploying functions:
+[error] - Error Failed to create function onNotificationCreated in region us-central1
+[error] - Error Failed to create function onCommentCreated in region us-central1
+[error] - Error Failed to create function onPostCreated in region us-central1
