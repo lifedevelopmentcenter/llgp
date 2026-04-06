@@ -350,18 +350,22 @@ export default function DashboardPage() {
       snap => setStories(snap.docs.map(d => ({ id: d.id, ...d.data() } as Story)))
     );
 
+    // Real-time live events
+    const unsubLive = onSnapshot(
+      query(collection(db, COLLECTIONS.LIVE_EVENTS), where("isLive", "==", true), limit(5)),
+      snap => setLiveEvents(snap.docs.map(d => ({ id: d.id, ...d.data() } as LiveEvent)))
+    );
+
     const load = async () => {
       try {
-        const [annSnap, membersSnap, liveSnap, spotlightSnap, reactSnap] = await Promise.all([
+        const [annSnap, membersSnap, spotlightSnap, reactSnap] = await Promise.all([
           getDocs(query(collection(db, COLLECTIONS.ANNOUNCEMENTS), orderBy("createdAt", "desc"), limit(3))),
           getDocs(query(collection(db, COLLECTIONS.USERS), where("isActive", "==", true), orderBy("displayName"), limit(12))),
-          getDocs(query(collection(db, COLLECTIONS.LIVE_EVENTS), where("isLive", "==", true), limit(5))),
           getDocs(query(collection(db, COLLECTIONS.SPOTLIGHTS), where("isApproved", "==", true), orderBy("createdAt", "desc"), limit(8))),
           getDocs(query(collection(db, COLLECTIONS.REACTIONS), where("userId", "==", profile.id), limit(50))),
         ]);
         setAnnouncements(annSnap.docs.map(d => ({ id: d.id, ...d.data() } as Announcement)));
         setActiveMembers(membersSnap.docs.map(d => ({ id: d.id, ...d.data() } as UserProfile)));
-        setLiveEvents(liveSnap.docs.map(d => ({ id: d.id, ...d.data() } as LiveEvent)));
         setSpotlights(spotlightSnap.docs.map(d => ({ id: d.id, ...d.data() } as Spotlight)));
         const map: Record<string, string> = {};
         reactSnap.docs.forEach(d => { const x = d.data(); map[x.postId] = x.type; });
@@ -369,7 +373,7 @@ export default function DashboardPage() {
       } catch (e) { console.error(e); }
     };
     load();
-    return () => unsubStories();
+    return () => { unsubStories(); unsubLive(); };
   }, [profile]);
 
   // ── Actions ─────────────────────────────────────────────

@@ -13,7 +13,7 @@ import {
   doc,
   serverTimestamp,
 } from "firebase/firestore";
-import { ExternalLink, Radio, Video, Lightbulb, FileText, Globe } from "lucide-react";
+import { ExternalLink, Radio, Video, Lightbulb, FileText, Globe, Pencil } from "lucide-react";
 import toast from "react-hot-toast";
 import { db } from "@/lib/firebase/config";
 import { COLLECTIONS } from "@/lib/firebase/firestore";
@@ -93,14 +93,18 @@ function SpotlightCard({
   spotlight,
   onApprove,
   onReject,
+  onEdit,
   isAdmin,
   isPending,
+  currentUserId,
 }: {
   spotlight: Spotlight;
   onApprove?: (id: string) => void;
   onReject?: (id: string) => void;
+  onEdit?: (s: Spotlight) => void;
   isAdmin?: boolean;
   isPending?: boolean;
+  currentUserId?: string;
 }) {
   return (
     <Card className={`flex flex-col gap-0 p-0 overflow-hidden ${isPending ? "border-amber-200 bg-amber-50" : ""}`}>
@@ -147,6 +151,14 @@ function SpotlightCard({
           >
             Visit <ExternalLink className="w-3 h-3" />
           </a>
+          {(isAdmin || spotlight.submittedBy === currentUserId) && onEdit && (
+            <button
+              onClick={() => onEdit(spotlight)}
+              className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-slate-700"
+            >
+              <Pencil className="w-3 h-3" /> Edit
+            </button>
+          )}
           {isPending && isAdmin && onApprove && onReject && (
             <>
               <Button size="sm" onClick={() => onApprove(spotlight.id)}>
@@ -196,6 +208,10 @@ export default function SpotlightsPage() {
   });
 
   const isAdmin = profile?.role === "global_admin";
+  const [editingSpotlight, setEditingSpotlight] = useState<Spotlight | null>(null);
+  const [editForm, setEditForm] = useState<SubmitForm>({ title: "", description: "", url: "", type: "initiative", thumbnailUrl: "" });
+  const [editSaving, setEditSaving] = useState(false);
+  const [ogLoading, setOgLoading] = useState(false);
 
   const loadSpotlights = async () => {
     try {
@@ -298,6 +314,65 @@ export default function SpotlightsPage() {
     }
   };
 
+  const fetchOG = async (url: string, target: "submit" | "edit") => {
+    if (!url.startsWith("http")) return;
+    setOgLoading(true);
+    try {
+      const res = await fetch(`/api/og-preview?url=${encodeURIComponent(url)}`);
+      const data = await res.json();
+      if (target === "submit") {
+        setForm(f => ({
+          ...f,
+          thumbnailUrl: data.image || f.thumbnailUrl,
+          title: f.title || data.title || f.title,
+          description: f.description || data.description || f.description,
+        }));
+      } else {
+        setEditForm(f => ({
+          ...f,
+          thumbnailUrl: data.image || f.thumbnailUrl,
+          title: f.title || data.title || f.title,
+          description: f.description || data.description || f.description,
+        }));
+      }
+    } catch { /* silent */ }
+    finally { setOgLoading(false); }
+  };
+
+  const openEdit = (s: Spotlight) => {
+    setEditingSpotlight(s);
+    setEditForm({
+      title: s.title,
+      description: s.description || "",
+      url: s.url,
+      type: s.type,
+      thumbnailUrl: s.thumbnailUrl || "",
+    });
+  };
+
+  const handleEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingSpotlight) return;
+    setEditSaving(true);
+    try {
+      await updateDoc(doc(db, COLLECTIONS.SPOTLIGHTS, editingSpotlight.id), {
+        title: editForm.title.trim(),
+        description: editForm.description.trim() || null,
+        url: editForm.url.trim(),
+        type: editForm.type,
+        thumbnailUrl: editForm.thumbnailUrl.trim() || null,
+        updatedAt: serverTimestamp(),
+      });
+      toast.success("Spotlight updated!");
+      setEditingSpotlight(null);
+      loadSpotlights();
+    } catch {
+      toast.error("Failed to update.");
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
   const filtered =
     activeFilter === "all" ? spotlights : spotlights.filter((s) => s.type === activeFilter);
 
@@ -333,6 +408,8 @@ export default function SpotlightsPage() {
                 isPending
                 onApprove={handleApprove}
                 onReject={handleReject}
+                onEdit={openEdit}
+                currentUserId={profile?.id}
               />
             ))}
           </div>
@@ -374,10 +451,51 @@ export default function SpotlightsPage() {
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
           {filtered.map((s) => (
-            <SpotlightCard key={s.id} spotlight={s} />
+            <SpotlightCard key={s.id} spotlight={s} onEdit={openEdit} isAdmin={isAdmin} currentUserId={profile?.id} />
           ))}
         </div>
       )}
+
+      {/* Edit Modal */}
+      <Modal open={!!editingSpotlight} onClose={() => setEditingSpotlight(null)} title="Edit Spotlight" size="lg">
+        <form onSubmit={handleEdit} className="space-y-4">
+          <Input label="Title" value={editForm.title} onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))} required />
+          <Textarea label="Description" value={editForm.description} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))} rows={3} />
+          <div>
+            <Input
+              label="URL"
+              value={editForm.url}
+              onChange={e => setEditForm(f => ({ ...f, url: e.target.value }))}
+              onBlur={e => fetchOG(e.target.value, "edit")}
+              type="url"
+              required
+            />
+            {ogLoading && <p className="text-xs text-indigo-500 mt-1">Fetching preview…</p>}
+          </div>
+          <Select label="Type" value={editForm.type} onChange={e => setEditForm(f => ({ ...f, type: e.target.value as SpotlightType }))}>
+            <option value="podcast">Podcast</option>
+            <option value="video">Video</option>
+            <option value="initiative">Initiative</option>
+            <option value="article">Article</option>
+            <option value="website">Website</option>
+          </Select>
+          <div>
+            <Input
+              label="Thumbnail URL"
+              value={editForm.thumbnailUrl}
+              onChange={e => setEditForm(f => ({ ...f, thumbnailUrl: e.target.value }))}
+              type="url"
+            />
+            {editForm.thumbnailUrl && (
+              <img src={editForm.thumbnailUrl} alt="preview" className="mt-2 w-full h-28 object-cover rounded-xl" onError={e => (e.currentTarget.style.display = "none")} />
+            )}
+          </div>
+          <div className="flex gap-3 pt-1">
+            <Button type="submit" loading={editSaving} className="flex-1">Save Changes</Button>
+            <Button type="button" variant="secondary" onClick={() => setEditingSpotlight(null)} className="flex-1">Cancel</Button>
+          </div>
+        </form>
+      </Modal>
 
       {/* Submit Modal */}
       <Modal
@@ -401,14 +519,18 @@ export default function SpotlightsPage() {
             placeholder="Tell us about this spotlight..."
             rows={3}
           />
-          <Input
-            label="URL"
-            value={form.url}
-            onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))}
-            placeholder="https://..."
-            type="url"
-            required
-          />
+          <div>
+            <Input
+              label="URL"
+              value={form.url}
+              onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))}
+              onBlur={(e) => fetchOG(e.target.value, "submit")}
+              placeholder="https://..."
+              type="url"
+              required
+            />
+            {ogLoading && <p className="text-xs text-indigo-500 mt-1">Fetching preview…</p>}
+          </div>
           <Select
             label="Type"
             value={form.type}
@@ -426,13 +548,18 @@ export default function SpotlightsPage() {
             readOnly
             className="bg-slate-50 text-slate-500"
           />
-          <Input
-            label="Thumbnail URL (optional)"
-            value={form.thumbnailUrl}
-            onChange={(e) => setForm((f) => ({ ...f, thumbnailUrl: e.target.value }))}
-            placeholder="https://example.com/image.jpg"
-            type="url"
-          />
+          <div>
+            <Input
+              label="Thumbnail URL (auto-filled from URL)"
+              value={form.thumbnailUrl}
+              onChange={(e) => setForm((f) => ({ ...f, thumbnailUrl: e.target.value }))}
+              placeholder="https://example.com/image.jpg"
+              type="url"
+            />
+            {form.thumbnailUrl && (
+              <img src={form.thumbnailUrl} alt="preview" className="mt-2 w-full h-28 object-cover rounded-xl" onError={e => (e.currentTarget.style.display = "none")} />
+            )}
+          </div>
           <div className="flex gap-3 pt-1">
             <Button type="submit" loading={submitting} className="flex-1">
               Submit Spotlight
