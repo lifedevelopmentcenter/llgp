@@ -97,7 +97,13 @@ const GRADIENT_FALLBACKS = [
   "from-fuchsia-500 to-purple-700",
 ];
 
-function FeaturedCarousel({ spotlights, onSubmit }: { spotlights: Spotlight[]; onSubmit: () => void }) {
+function FeaturedCarousel({ spotlights, onSubmit, currentUserId, isAdmin, onEdit }: {
+  spotlights: Spotlight[];
+  onSubmit: () => void;
+  currentUserId?: string;
+  isAdmin?: boolean;
+  onEdit: (s: Spotlight) => void;
+}) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [activeIdx, setActiveIdx] = useState(0);
 
@@ -167,30 +173,43 @@ function FeaturedCarousel({ spotlights, onSubmit }: { spotlights: Spotlight[]; o
         style={{ scrollSnapType: "x mandatory" }}
       >
         {spotlights.map((s, i) => (
-          <a key={s.id} href={s.url} target="_blank" rel="noopener noreferrer"
+          <div key={s.id}
             className="flex-shrink-0 w-[85vw] max-w-xs lg:w-72 rounded-2xl overflow-hidden shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 group"
             style={{ scrollSnapAlign: "start" }}>
             {/* Card image / gradient */}
+            <a href={s.url} target="_blank" rel="noopener noreferrer" className="block">
             <div className={`relative h-40 bg-gradient-to-br ${GRADIENT_FALLBACKS[i % GRADIENT_FALLBACKS.length]}`}>
               {s.thumbnailUrl && (
                 <img src={s.thumbnailUrl} alt={s.title}
                   className="absolute inset-0 w-full h-full object-cover" />
               )}
-              {/* Gradient overlay */}
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-              {/* Type badge */}
               <span className="absolute top-3 left-3 text-[10px] font-black uppercase tracking-widest bg-white/20 backdrop-blur-sm text-white px-2.5 py-0.5 rounded-full">
                 {s.type}
               </span>
-              {/* External link icon */}
-              <div className="absolute top-3 right-3 w-7 h-7 rounded-full bg-black/30 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                <ExternalLink className="w-3.5 h-3.5 text-white" />
-              </div>
-              {/* Bottom title overlay */}
+              {/* Edit button — only for owner/admin */}
+              {(isAdmin || s.submittedBy === currentUserId) && (
+                <button
+                  onClick={e => { e.preventDefault(); onEdit(s); }}
+                  className="absolute top-3 right-3 w-7 h-7 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center hover:bg-black/60 transition-colors"
+                  title="Edit spotlight">
+                  <Link2 className="w-3.5 h-3.5 text-white" style={{ display: "none" }} />
+                  <ExternalLink className="w-3.5 h-3.5 text-white opacity-0 group-hover:opacity-100 transition-opacity absolute" />
+                  <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 text-white fill-none stroke-current stroke-2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
+                  </svg>
+                </button>
+              )}
+              {!(isAdmin || s.submittedBy === currentUserId) && (
+                <div className="absolute top-3 right-3 w-7 h-7 rounded-full bg-black/30 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <ExternalLink className="w-3.5 h-3.5 text-white" />
+                </div>
+              )}
               <div className="absolute bottom-0 left-0 right-0 p-3">
                 <p className="text-white font-black text-sm leading-tight line-clamp-2">{s.title}</p>
               </div>
             </div>
+            </a>
             {/* Card footer */}
             <div className="bg-white p-3 flex items-center gap-2.5">
               <Avatar name={s.personName} photoURL={s.personPhoto} size="xs" />
@@ -202,7 +221,7 @@ function FeaturedCarousel({ spotlights, onSubmit }: { spotlights: Spotlight[]; o
                 <p className="text-[10px] text-slate-400 line-clamp-1 hidden sm:block">{s.description}</p>
               )}
             </div>
-          </a>
+          </div>
         ))}
       </div>
     </div>
@@ -324,6 +343,9 @@ export default function DashboardPage() {
   const [spotlightForm, setSpotlightForm] = useState({ title: "", url: "", description: "", type: "initiative" as Spotlight["type"], thumbnailUrl: "" });
   const [spotlightSaving, setSpotlightSaving] = useState(false);
   const [ogLoading, setOgLoading] = useState(false);
+  const [editingSpotlight, setEditingSpotlight] = useState<Spotlight | null>(null);
+  const [editForm, setEditForm] = useState({ title: "", url: "", description: "", type: "initiative" as Spotlight["type"], thumbnailUrl: "" });
+  const [editSaving, setEditSaving] = useState(false);
 
   // ── Real-time feed ──────────────────────────────────────
 
@@ -544,6 +566,31 @@ export default function DashboardPage() {
     finally { setStorySaving(false); }
   };
 
+  const openEdit = (s: Spotlight) => {
+    setEditingSpotlight(s);
+    setEditForm({ title: s.title, url: s.url, description: s.description || "", type: s.type, thumbnailUrl: s.thumbnailUrl || "" });
+  };
+
+  const handleEdit = async () => {
+    if (!editingSpotlight || !editForm.title.trim() || !editForm.url.trim()) return;
+    setEditSaving(true);
+    try {
+      const { updateDoc, doc: fsDoc } = await import("firebase/firestore");
+      await updateDoc(fsDoc(db, COLLECTIONS.SPOTLIGHTS, editingSpotlight.id), {
+        title: editForm.title.trim(),
+        description: editForm.description.trim() || null,
+        url: editForm.url.trim(),
+        type: editForm.type,
+        thumbnailUrl: editForm.thumbnailUrl.trim() || null,
+        updatedAt: serverTimestamp(),
+      });
+      setSpotlights(prev => prev.map(s => s.id === editingSpotlight.id ? { ...s, ...editForm } : s));
+      toast.success("Spotlight updated!");
+      setEditingSpotlight(null);
+    } catch { toast.error("Failed to update"); }
+    finally { setEditSaving(false); }
+  };
+
   if (!profile) return null;
   const firstName = (profile.displayName ?? "Friend").split(" ")[0];
 
@@ -595,7 +642,13 @@ export default function DashboardPage() {
           </div>
 
           {/* 4. Featured initiatives carousel */}
-          <FeaturedCarousel spotlights={spotlights} onSubmit={() => setSpotlightOpen(true)} />
+          <FeaturedCarousel
+            spotlights={spotlights}
+            onSubmit={() => setSpotlightOpen(true)}
+            currentUserId={profile.id}
+            isAdmin={profile.role === "global_admin"}
+            onEdit={openEdit}
+          />
 
           {/* 5. Active members strip */}
           <MembersStrip members={activeMembers} />
@@ -689,6 +742,61 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Modals ── */}
+
+      {/* Spotlight edit */}
+      <Modal open={!!editingSpotlight} onClose={() => setEditingSpotlight(null)} title="Edit Spotlight" size="md">
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">URL</label>
+            <div className="flex gap-2">
+              <input className="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                value={editForm.url} onChange={e => setEditForm(f => ({ ...f, url: e.target.value }))} type="url" />
+              <button type="button" onClick={async () => {
+                if (!editForm.url.startsWith("http")) { toast.error("Enter a valid URL"); return; }
+                setOgLoading(true);
+                try {
+                  const res = await fetch(`/api/og-preview?url=${encodeURIComponent(editForm.url)}`);
+                  const data = await res.json();
+                  setEditForm(f => ({ ...f, thumbnailUrl: data.image || f.thumbnailUrl, title: f.title || data.title || "", description: f.description || data.description || "" }));
+                  if (data.image || data.title) toast.success("Preview fetched!");
+                } catch { toast.error("Couldn't fetch preview"); }
+                finally { setOgLoading(false); }
+              }} disabled={ogLoading}
+                className="px-3 py-2 rounded-xl bg-indigo-50 text-indigo-700 text-xs font-bold hover:bg-indigo-100 transition-colors disabled:opacity-50 whitespace-nowrap">
+                {ogLoading ? "…" : "Fetch Preview"}
+              </button>
+            </div>
+          </div>
+          {editForm.thumbnailUrl && (
+            <img src={editForm.thumbnailUrl} alt="preview" className="w-full h-36 object-cover rounded-xl"
+              onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+          )}
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Title</label>
+            <input className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              value={editForm.title} onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))} />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Type</label>
+            <select className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              value={editForm.type} onChange={e => setEditForm(f => ({ ...f, type: e.target.value as Spotlight["type"] }))}>
+              <option value="initiative">Initiative</option>
+              <option value="podcast">Podcast</option>
+              <option value="video">Video</option>
+              <option value="article">Article</option>
+              <option value="website">Website</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Description</label>
+            <textarea rows={2} className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+              value={editForm.description} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))} />
+          </div>
+          <Button onClick={handleEdit} disabled={!editForm.title.trim() || !editForm.url.trim() || editSaving} className="w-full">
+            {editSaving ? "Saving…" : "Save Changes"}
+          </Button>
+        </div>
+      </Modal>
 
       {/* Spotlight submit */}
       <Modal open={spotlightOpen} onClose={() => setSpotlightOpen(false)} title="Share a Spotlight" size="md">
