@@ -771,6 +771,31 @@ export default function ProfilePage() {
               <FieldRow label="Profession" value={profile.profession} />
             </SectionCard>
 
+            {/* Card 2b — Privacy (own profile only) */}
+            {isMe && (
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+                <p className="text-sm font-bold text-slate-900 mb-3">Privacy</p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-slate-700 font-medium">Show online status</p>
+                    <p className="text-xs text-slate-400">Others can see when you&apos;re active in the community</p>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      const next = !profile.hideOnlineStatus;
+                      setProfile(prev => prev ? { ...prev, hideOnlineStatus: next } : prev);
+                      try {
+                        await updateDoc(doc(db, COLLECTIONS.USERS, profile.id), { hideOnlineStatus: next, updatedAt: serverTimestamp() });
+                      } catch { toast.error("Failed to save preference"); }
+                    }}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${profile.hideOnlineStatus ? "bg-slate-200" : "bg-indigo-600"}`}
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${profile.hideOnlineStatus ? "translate-x-1" : "translate-x-6"}`} />
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Card 3 — Purpose-Identifying Details */}
             <SectionCard
               title="Purpose-Identifying Details"

@@ -129,6 +129,9 @@ export interface UserProfile {
   isLLGLI?: boolean;
   llgliCohort?: string;
 
+  // Privacy
+  hideOnlineStatus?: boolean;
+
   isActive: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;

@@ -412,7 +412,9 @@ export default function DashboardPage() {
           getDocs(query(collection(db, COLLECTIONS.REACTIONS), where("userId", "==", profile.id), limit(50))),
         ]);
         setAnnouncements(annSnap.docs.map(d => ({ id: d.id, ...d.data() } as Announcement)));
-        setActiveMembers(membersSnap.docs.map(d => ({ id: d.id, ...d.data() } as UserProfile)));
+        setActiveMembers(membersSnap.docs
+          .map(d => ({ id: d.id, ...d.data() } as UserProfile))
+          .filter(m => !m.hideOnlineStatus));
         setSpotlights(spotlightSnap.docs.map(d => ({ id: d.id, ...d.data() } as Spotlight)));
         const map: Record<string, string> = {};
         reactSnap.docs.forEach(d => { const x = d.data(); map[x.postId] = x.type; });
@@ -675,7 +677,8 @@ export default function DashboardPage() {
                 <FeedPostCard key={post.id} post={post} myReaction={reacted[post.id]}
                   onReact={handleReact} commentingOn={commentingOn} commentText={commentText}
                   onCommentToggle={id => { setCommentingOn(p => p === id ? null : id); setCommentText(""); }}
-                  onCommentChange={setCommentText} onCommentSubmit={handleComment} />
+                  onCommentChange={setCommentText} onCommentSubmit={handleComment}
+                  currentUserId={profile.id} currentUserPhoto={profile.photoURL} />
               ))}
             </div>
           ) : (
@@ -692,7 +695,8 @@ export default function DashboardPage() {
                   <FeedPostCard key={post.id} post={post} myReaction={reacted[post.id]}
                     onReact={handleReact} commentingOn={commentingOn} commentText={commentText}
                     onCommentToggle={id => { setCommentingOn(p => p === id ? null : id); setCommentText(""); }}
-                    onCommentChange={setCommentText} onCommentSubmit={handleComment} />
+                    onCommentChange={setCommentText} onCommentSubmit={handleComment}
+                    currentUserId={profile.id} currentUserPhoto={profile.photoURL} />
                 ))}
               </div>
             )
@@ -1012,14 +1016,19 @@ interface FeedPostCardProps {
   onCommentToggle: (postId: string) => void;
   onCommentChange: (text: string) => void;
   onCommentSubmit: (postId: string) => void;
+  currentUserId?: string;
+  currentUserPhoto?: string | null;
 }
 
 function FeedPostCard({
   post, myReaction, onReact,
   commentingOn, commentText,
   onCommentToggle, onCommentChange, onCommentSubmit,
+  currentUserId, currentUserPhoto,
 }: FeedPostCardProps) {
   const meta = TYPE_META[post.type] ?? { label: post.type, colors: "bg-slate-100 text-slate-600", emoji: "" };
+  // Use fresh profile photo for current user's own posts (stored authorPhoto may be stale)
+  const displayPhoto = (currentUserId && post.authorId === currentUserId) ? (currentUserPhoto ?? post.authorPhoto) : post.authorPhoto;
 
   function copyLink() {
     navigator.clipboard.writeText(`${window.location.origin}/dashboard?post=${post.id}`);
@@ -1031,7 +1040,7 @@ function FeedPostCard({
       {/* Header */}
       <div className="flex items-start justify-between px-4 pt-4 pb-2">
         <Link href={`/profile/${post.authorId}`} className="flex items-center gap-3">
-          <Avatar name={post.authorName} photoURL={post.authorPhoto} size="md" className="flex-shrink-0" />
+          <Avatar name={post.authorName} photoURL={displayPhoto} size="md" className="flex-shrink-0" />
           <div>
             <div className="flex items-center gap-1.5">
               <span className="font-bold text-slate-900 text-sm">{post.authorName}</span>

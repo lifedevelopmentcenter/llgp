@@ -1,4 +1,5 @@
-import React from "react";
+"use client";
+import React, { useState } from "react";
 import { cn, getInitials } from "@/lib/utils";
 
 interface AvatarProps {
@@ -35,12 +36,16 @@ function getColor(name: string): string {
 }
 
 export function Avatar({ name, photoURL, size = "md", className }: AvatarProps) {
-  if (photoURL) {
+  const [imgError, setImgError] = useState(false);
+  const safeName = name || "?";
+
+  if (photoURL && !imgError) {
     return (
       <img
         src={photoURL}
-        alt={name}
+        alt={safeName}
         className={cn("rounded-full object-cover flex-shrink-0", sizes[size], className)}
+        onError={() => setImgError(true)}
       />
     );
   }
@@ -50,11 +55,11 @@ export function Avatar({ name, photoURL, size = "md", className }: AvatarProps) 
       className={cn(
         "rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0",
         sizes[size],
-        getColor(name || "?"),
+        getColor(safeName),
         className
       )}
     >
-      {getInitials(name)}
+      {getInitials(safeName)}
     </div>
   );
 }
