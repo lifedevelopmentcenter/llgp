@@ -16,7 +16,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Textarea, Select } from "@/components/ui/Input";
 import { timeAgo } from "@/lib/utils";
 import type { Post, Announcement, UserProfile, Story, LiveEvent, Spotlight } from "@/lib/types";
-import { Radio, Plus, Globe, MessageSquare, Check, ChevronRight, X, Image, Link2, ChevronLeft, ExternalLink } from "lucide-react";
+import { Radio, Plus, Globe, MessageSquare, Check, ChevronRight, X, Image, Link2, ChevronLeft, ExternalLink, Rocket } from "lucide-react";
 import toast from "react-hot-toast";
 
 // ── Helpers ────────────────────────────────────────────────
@@ -97,14 +97,14 @@ const GRADIENT_FALLBACKS = [
   "from-fuchsia-500 to-purple-700",
 ];
 
-function FeaturedCarousel({ spotlights }: { spotlights: Spotlight[] }) {
+function FeaturedCarousel({ spotlights, onSubmit }: { spotlights: Spotlight[]; onSubmit: () => void }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [activeIdx, setActiveIdx] = useState(0);
 
   const scroll = (dir: "left" | "right") => {
     const el = scrollRef.current;
     if (!el) return;
-    const cardW = el.clientWidth + 12; // card width + gap
+    const cardW = el.clientWidth + 12;
     el.scrollBy({ left: dir === "right" ? cardW : -cardW, behavior: "smooth" });
   };
 
@@ -114,7 +114,26 @@ function FeaturedCarousel({ spotlights }: { spotlights: Spotlight[] }) {
     setActiveIdx(Math.round(el.scrollLeft / (el.clientWidth + 12)));
   };
 
-  if (spotlights.length === 0) return null;
+  if (spotlights.length === 0) {
+    return (
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+        <p className="text-sm font-black uppercase tracking-widest text-slate-700 mb-3">Featured</p>
+        <div className="flex flex-col items-center text-center py-4 gap-3">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-md">
+            <Rocket className="w-7 h-7 text-white" />
+          </div>
+          <div>
+            <p className="font-bold text-slate-900 text-sm">Spotlight your initiative</p>
+            <p className="text-xs text-slate-400 mt-0.5">Share a podcast, article, video or project with the community</p>
+          </div>
+          <button onClick={onSubmit}
+            className="px-4 py-2 bg-indigo-600 text-white text-xs font-bold rounded-full hover:bg-indigo-700 transition-colors shadow-sm">
+            Share your initiative →
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative">
@@ -300,6 +319,12 @@ export default function DashboardPage() {
   const [liveEvents, setLiveEvents] = useState<LiveEvent[]>([]);
   const [spotlights, setSpotlights] = useState<Spotlight[]>([]);
 
+  // Spotlight submit (from composer)
+  const [spotlightOpen, setSpotlightOpen] = useState(false);
+  const [spotlightForm, setSpotlightForm] = useState({ title: "", url: "", description: "", type: "initiative" as Spotlight["type"] });
+  const [spotlightSaving, setSpotlightSaving] = useState(false);
+  const [ogLoading, setOgLoading] = useState(false);
+
   // ── Real-time feed ──────────────────────────────────────
 
   useEffect(() => {
@@ -420,8 +445,71 @@ export default function DashboardPage() {
       });
       setComposeBody(""); setComposeType("update"); setComposeScope("global"); setComposeOpen(false);
       toast.success("Posted!");
+      // One-time spotlight nudge after first post
+      const key = `llgp_spotlight_nudge_${profile.id}`;
+      if (!localStorage.getItem(key)) {
+        localStorage.setItem(key, "1");
+        setTimeout(() => {
+          toast((t) => (
+            <span className="flex items-center gap-2 text-sm">
+              <Rocket className="w-4 h-4 text-indigo-600 shrink-0" />
+              <span>Have a podcast, initiative, or article?{" "}
+                <button className="font-bold text-indigo-600 underline" onClick={() => { toast.dismiss(t.id); setSpotlightOpen(true); }}>
+                  Share it in Spotlights →
+                </button>
+              </span>
+            </span>
+          ), { duration: 8000 });
+        }, 1500);
+      }
     } catch { toast.error("Failed to post"); }
     finally { setComposeSaving(false); }
+  };
+
+  const fetchOG = async (url: string) => {
+    if (!url.startsWith("http")) { toast.error("Enter a valid URL first"); return; }
+    setOgLoading(true);
+    try {
+      const res = await fetch(`/api/og-preview?url=${encodeURIComponent(url)}`);
+      const data = await res.json();
+      setSpotlightForm(f => ({
+        ...f,
+        title: f.title || data.title || "",
+        description: f.description || data.description || "",
+      }));
+      if (data.image || data.title) toast.success("Preview fetched!");
+      else toast("No preview found — fill in details manually.", { icon: "ℹ️" });
+    } catch { toast.error("Couldn't fetch preview."); }
+    finally { setOgLoading(false); }
+  };
+
+  const handleSpotlightSubmit = async () => {
+    if (!profile || !spotlightForm.title.trim() || !spotlightForm.url.trim()) {
+      toast.error("Title and URL are required"); return;
+    }
+    setSpotlightSaving(true);
+    try {
+      await addDoc(collection(db, COLLECTIONS.SPOTLIGHTS), {
+        title: spotlightForm.title.trim(),
+        description: spotlightForm.description.trim() || null,
+        url: spotlightForm.url.trim(),
+        type: spotlightForm.type,
+        thumbnailUrl: null,
+        personName: profile.displayName,
+        personPhoto: profile.photoURL ?? null,
+        personId: profile.id,
+        nationName: profile.nationName ?? null,
+        isApproved: false,
+        isPinned: false,
+        submittedBy: profile.id,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+      toast.success("Submitted for review! We'll publish it shortly.");
+      setSpotlightOpen(false);
+      setSpotlightForm({ title: "", url: "", description: "", type: "initiative" });
+    } catch { toast.error("Failed to submit"); }
+    finally { setSpotlightSaving(false); }
   };
 
   const handleStoryImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -496,15 +584,17 @@ export default function DashboardPage() {
                   <span className="hidden sm:inline">{item.label}</span>
                 </button>
               ))}
+              <button
+                onClick={() => setSpotlightOpen(true)}
+                className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-xs font-semibold text-indigo-600 hover:bg-indigo-50 transition-colors">
+                <Rocket className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Spotlight</span>
+              </button>
             </div>
           </div>
 
           {/* 4. Featured initiatives carousel */}
-          {spotlights.length > 0 && (
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
-              <FeaturedCarousel spotlights={spotlights} />
-            </div>
-          )}
+          <FeaturedCarousel spotlights={spotlights} onSubmit={() => setSpotlightOpen(true)} />
 
           {/* 5. Active members strip */}
           <MembersStrip members={activeMembers} />
@@ -598,6 +688,66 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Modals ── */}
+
+      {/* Spotlight submit */}
+      <Modal open={spotlightOpen} onClose={() => setSpotlightOpen(false)} title="Share a Spotlight" size="md">
+        <div className="space-y-4">
+          <div className="bg-indigo-50 rounded-xl p-3 text-xs text-indigo-700 font-medium">
+            🚀 Share a podcast, initiative, article, video or website with the community. It'll be reviewed before publishing.
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">URL</label>
+            <div className="flex gap-2">
+              <input
+                className="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                value={spotlightForm.url}
+                onChange={e => setSpotlightForm(f => ({ ...f, url: e.target.value }))}
+                placeholder="https://..."
+                type="url"
+              />
+              <button type="button" onClick={() => fetchOG(spotlightForm.url)} disabled={ogLoading}
+                className="px-3 py-2 rounded-xl bg-indigo-50 text-indigo-700 text-xs font-bold hover:bg-indigo-100 transition-colors disabled:opacity-50 whitespace-nowrap">
+                {ogLoading ? "…" : "Fetch Preview"}
+              </button>
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Title</label>
+            <input
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              value={spotlightForm.title}
+              onChange={e => setSpotlightForm(f => ({ ...f, title: e.target.value }))}
+              placeholder="e.g. The Marketplace Podcast"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Type</label>
+            <select
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              value={spotlightForm.type}
+              onChange={e => setSpotlightForm(f => ({ ...f, type: e.target.value as Spotlight["type"] }))}>
+              <option value="initiative">Initiative</option>
+              <option value="podcast">Podcast</option>
+              <option value="video">Video</option>
+              <option value="article">Article</option>
+              <option value="website">Website</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Description (optional)</label>
+            <textarea
+              rows={2}
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+              value={spotlightForm.description}
+              onChange={e => setSpotlightForm(f => ({ ...f, description: e.target.value }))}
+              placeholder="Brief description…"
+            />
+          </div>
+          <Button onClick={handleSpotlightSubmit} disabled={!spotlightForm.title.trim() || !spotlightForm.url.trim() || spotlightSaving} className="w-full">
+            {spotlightSaving ? "Submitting…" : "Submit for Review"}
+          </Button>
+        </div>
+      </Modal>
 
       {/* Compose */}
       <Modal open={composeOpen} onClose={() => setComposeOpen(false)} title="Create Post" size="md">
