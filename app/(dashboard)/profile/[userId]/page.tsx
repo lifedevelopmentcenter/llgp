@@ -503,9 +503,9 @@ export default function ProfilePage() {
                 }}
                 shape="rect"
                 size="lg"
+                cropAspect={4}
                 placeholder={
                   <div className="flex flex-col items-center gap-1 opacity-0 group-hover:opacity-100">
-                    {/* placeholder invisible; the overlay handles it */}
                   </div>
                 }
                 className="absolute inset-0 w-full h-full opacity-0 hover:opacity-100 transition-opacity"
@@ -531,6 +531,7 @@ export default function ProfilePage() {
                   }}
                   shape="circle"
                   size="md"
+                  cropAspect={1}
                   placeholder={<Avatar name={profile.displayName ?? "?"} size="xl" />}
                   className="w-24 h-24"
                 />

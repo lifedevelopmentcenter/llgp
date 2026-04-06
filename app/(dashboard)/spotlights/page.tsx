@@ -13,7 +13,7 @@ import {
   doc,
   serverTimestamp,
 } from "firebase/firestore";
-import { ExternalLink, Radio, Video, Lightbulb, FileText, Globe, Pencil } from "lucide-react";
+import { ExternalLink, Radio, Video, Lightbulb, FileText, Globe, Pencil, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { db } from "@/lib/firebase/config";
 import { COLLECTIONS } from "@/lib/firebase/firestore";
@@ -94,6 +94,7 @@ function SpotlightCard({
   onApprove,
   onReject,
   onEdit,
+  onDelete,
   isAdmin,
   isPending,
   currentUserId,
@@ -102,6 +103,7 @@ function SpotlightCard({
   onApprove?: (id: string) => void;
   onReject?: (id: string) => void;
   onEdit?: (s: Spotlight) => void;
+  onDelete?: (id: string) => void;
   isAdmin?: boolean;
   isPending?: boolean;
   currentUserId?: string;
@@ -117,14 +119,24 @@ function SpotlightCard({
             {TYPE_ICON[spotlight.type]}
           </div>
         )}
-        {/* Edit button — top right overlay */}
-        {(isAdmin || spotlight.submittedBy === currentUserId) && onEdit && (
-          <button
-            onClick={() => onEdit(spotlight)}
-            className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center hover:bg-black/60 transition-colors"
-            title="Edit spotlight">
-            <Pencil className="w-3.5 h-3.5 text-white" />
-          </button>
+        {/* Edit / Delete overlay buttons */}
+        {(isAdmin || spotlight.submittedBy === currentUserId) && (
+          <div className="absolute top-2 right-2 flex gap-1">
+            {onEdit && (
+              <button onClick={() => onEdit(spotlight)}
+                className="w-7 h-7 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center hover:bg-black/60 transition-colors"
+                title="Edit">
+                <Pencil className="w-3.5 h-3.5 text-white" />
+              </button>
+            )}
+            {onDelete && (
+              <button onClick={() => onDelete(spotlight.id)}
+                className="w-7 h-7 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center hover:bg-rose-500/80 transition-colors"
+                title="Delete">
+                <Trash2 className="w-3.5 h-3.5 text-white" />
+              </button>
+            )}
+          </div>
         )}
       </div>
 
@@ -300,6 +312,15 @@ export default function SpotlightsPage() {
     }
   };
 
+  const handleDeleteApproved = async (id: string) => {
+    if (!confirm("Delete this spotlight?")) return;
+    try {
+      await deleteDoc(doc(db, COLLECTIONS.SPOTLIGHTS, id));
+      toast.success("Spotlight deleted.");
+      setSpotlights((prev) => prev.filter((s) => s.id !== id));
+    } catch { toast.error("Failed to delete"); }
+  };
+
   const handleReject = async (id: string) => {
     try {
       await deleteDoc(doc(db, COLLECTIONS.SPOTLIGHTS, id));
@@ -452,7 +473,7 @@ export default function SpotlightsPage() {
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
           {filtered.map((s) => (
-            <SpotlightCard key={s.id} spotlight={s} onEdit={openEdit} isAdmin={isAdmin} currentUserId={profile?.id} />
+            <SpotlightCard key={s.id} spotlight={s} onEdit={openEdit} onDelete={handleDeleteApproved} isAdmin={isAdmin} currentUserId={profile?.id} />
           ))}
         </div>
       )}

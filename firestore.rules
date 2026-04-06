@@ -163,8 +163,9 @@ service cloud.firestore {
     // ── Phase 2 (Social) — schema placeholders ────────────────
     match /posts/{postId} {
       allow read: if isAuth();
-      allow create: if isAuth();
-      allow update, delete: if isAuth() && (resource.data.authorId == uid() || isGlobalAdmin());
+      allow create: if isAuth() && request.resource.data.authorId == uid();
+      allow update: if isAuth(); // any member can update reaction counts, praying counts, etc.
+      allow delete: if isAuth() && (resource.data.authorId == uid() || isGlobalAdmin());
     }
 
     match /events/{eventId} {
@@ -214,8 +215,8 @@ service cloud.firestore {
     match /spotlights/{spotlightId} {
       allow read: if isAuth();
       allow create: if isAuth();
-      allow update: if isGlobalAdmin();
-      allow delete: if isGlobalAdmin();
+      allow update: if isAuth() && (isGlobalAdmin() || resource.data.submittedBy == uid());
+      allow delete: if isAuth() && (isGlobalAdmin() || resource.data.submittedBy == uid());
     }
 
     // ── Community Courses ─────────────────────────────────────

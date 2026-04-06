@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import React, { useEffect, useState } from "react";
 import {
   collection, query, where, getDocs, orderBy, limit,
-  Timestamp,
+  Timestamp, deleteDoc, doc, updateDoc, arrayUnion,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import { COLLECTIONS } from "@/lib/firebase/firestore";
@@ -14,7 +14,8 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { PageLoader } from "@/components/ui/Spinner";
 import { StoriesStrip } from "@/components/features/StoriesStrip";
 import { timeAgo } from "@/lib/utils";
-import { Eye, BookOpen } from "lucide-react";
+import { Eye, BookOpen, Trash2 } from "lucide-react";
+import toast from "react-hot-toast";
 import type { Story } from "@/lib/types";
 
 export default function StoriesPage() {
@@ -40,6 +41,15 @@ export default function StoriesPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDeleteStory = async (id: string) => {
+    if (!confirm("Delete this story?")) return;
+    try {
+      await deleteDoc(doc(db, COLLECTIONS.STORIES, id));
+      setStories(prev => prev.filter(s => s.id !== id));
+      toast.success("Story deleted");
+    } catch { toast.error("Failed to delete"); }
   };
 
   useEffect(() => { loadStories(); }, []);
@@ -72,7 +82,7 @@ export default function StoriesPage() {
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
             {stories.map((story) => (
-              <StoryCard key={story.id} story={story} currentUserId={user?.uid ?? ""} />
+              <StoryCard key={story.id} story={story} currentUserId={user?.uid ?? ""} onDelete={handleDeleteStory} />
             ))}
           </div>
         )}
@@ -83,7 +93,7 @@ export default function StoriesPage() {
 
 // ─── Story Card ───────────────────────────────────────────────────────────────
 
-function StoryCard({ story, currentUserId }: { story: Story; currentUserId: string }) {
+function StoryCard({ story, currentUserId, onDelete }: { story: Story; currentUserId: string; onDelete?: (id: string) => void }) {
   const [viewerOpen, setViewerOpen] = useState(false);
   const viewed = story.viewerIds?.includes(currentUserId);
   const isOwn = story.authorId === currentUserId;
@@ -138,6 +148,14 @@ function StoryCard({ story, currentUserId }: { story: Story; currentUserId: stri
               {story.viewerIds?.length ?? 0}
             </p>
           )}
+          {isOwn && onDelete && (
+            <button
+              onClick={e => { e.stopPropagation(); onDelete(story.id); }}
+              className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/50 flex items-center justify-center hover:bg-rose-500/80 transition-colors"
+              title="Delete story">
+              <Trash2 className="w-3 h-3 text-white" />
+            </button>
+          )}
         </div>
       </button>
 
@@ -155,9 +173,6 @@ function StoryCard({ story, currentUserId }: { story: Story; currentUserId: stri
 
 // ─── Minimal single-story viewer for the grid ─────────────────────────────────
 
-import {
-  updateDoc, doc, arrayUnion,
-} from "firebase/firestore";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
 
 function SingleStoryViewer({

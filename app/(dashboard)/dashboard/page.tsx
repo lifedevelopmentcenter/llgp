@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   collection, query, where, orderBy, limit, onSnapshot,
   addDoc, serverTimestamp, doc, setDoc, getDocs, Timestamp,
+  deleteDoc, increment, updateDoc,
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage } from "@/lib/firebase/config";
@@ -16,7 +17,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Textarea, Select } from "@/components/ui/Input";
 import { timeAgo } from "@/lib/utils";
 import type { Post, Announcement, UserProfile, Story, LiveEvent, Spotlight } from "@/lib/types";
-import { Radio, Plus, Globe, MessageSquare, Check, ChevronRight, X, Image, Link2, ChevronLeft, ExternalLink, Rocket } from "lucide-react";
+import { Radio, Plus, Globe, MessageSquare, Check, ChevronRight, X, Image, Link2, ChevronLeft, ExternalLink, Rocket, MoreHorizontal, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
 
 // ── Helpers ────────────────────────────────────────────────
@@ -51,7 +52,20 @@ function renderHashtags(text: string): React.ReactNode {
 // ── Live Events Carousel ───────────────────────────────────
 
 function LiveEventsCarousel({ events }: { events: LiveEvent[] }) {
-  if (events.length === 0) return null;
+  if (events.length === 0) {
+    return (
+      <div className="rounded-2xl bg-gradient-to-r from-slate-800 to-slate-900 p-4 flex items-center gap-4 shadow-lg">
+        <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center flex-shrink-0">
+          <Radio className="w-6 h-6 text-slate-400" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Watch this space</span>
+          <p className="font-bold text-white text-sm mt-0.5">No live events right now</p>
+          <p className="text-xs text-slate-400 mt-0.5">This banner updates automatically when a live event starts</p>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="overflow-x-auto no-scrollbar -mx-0">
       <div className="flex gap-3 pb-1" style={{ scrollSnapType: "x mandatory" }}>
@@ -431,15 +445,43 @@ export default function DashboardPage() {
     if (!profile) return;
     const existing = reacted[postId];
     const reactId = `${postId}_${profile.id}`;
+
+    // Optimistic UI — update both feeds and reacted map immediately
+    const updateCounts = (posts: Post[]) => posts.map(p => {
+      if (p.id !== postId) return p;
+      const counts = { ...(p.reactionCounts ?? { like: 0, heart: 0, pray: 0 }) };
+      if (existing === type) {
+        counts[type] = Math.max(0, (counts[type] || 0) - 1);
+      } else {
+        if (existing) counts[existing as keyof typeof counts] = Math.max(0, (counts[existing as keyof typeof counts] || 0) - 1);
+        counts[type] = (counts[type] || 0) + 1;
+      }
+      return { ...p, reactionCounts: counts };
+    });
+    if (existing === type) {
+      setReacted(prev => { const n = { ...prev }; delete n[postId]; return n; });
+    } else {
+      setReacted(prev => ({ ...prev, [postId]: type }));
+    }
+    setFeed(updateCounts);
+    setFollowingFeed(updateCounts);
+
     try {
       if (existing === type) {
-        setReacted(prev => { const n = { ...prev }; delete n[postId]; return n; });
         await setDoc(doc(db, COLLECTIONS.REACTIONS, reactId), { postId, userId: profile.id, type: null, deletedAt: serverTimestamp() }, { merge: true });
+        await updateDoc(doc(db, COLLECTIONS.POSTS, postId), { [`reactionCounts.${type}`]: increment(-1) });
       } else {
-        setReacted(prev => ({ ...prev, [postId]: type }));
         await setDoc(doc(db, COLLECTIONS.REACTIONS, reactId), { postId, postType: "post", userId: profile.id, type, createdAt: serverTimestamp() });
+        const updates: Record<string, any> = { [`reactionCounts.${type}`]: increment(1) };
+        if (existing) updates[`reactionCounts.${existing}`] = increment(-1);
+        await updateDoc(doc(db, COLLECTIONS.POSTS, postId), updates);
       }
     } catch { toast.error("Reaction failed"); }
+  };
+
+  const handleDeletePost = (postId: string) => {
+    setFeed(prev => prev.filter(p => p.id !== postId));
+    setFollowingFeed(prev => prev.filter(p => p.id !== postId));
   };
 
   const handleComment = async (postId: string) => {
@@ -678,7 +720,8 @@ export default function DashboardPage() {
                   onReact={handleReact} commentingOn={commentingOn} commentText={commentText}
                   onCommentToggle={id => { setCommentingOn(p => p === id ? null : id); setCommentText(""); }}
                   onCommentChange={setCommentText} onCommentSubmit={handleComment}
-                  currentUserId={profile.id} currentUserPhoto={profile.photoURL} />
+                  currentUserId={profile.id} currentUserPhoto={profile.photoURL}
+                  isAdmin={profile.role === "global_admin"} onDelete={handleDeletePost} />
               ))}
             </div>
           ) : (
@@ -696,7 +739,8 @@ export default function DashboardPage() {
                     onReact={handleReact} commentingOn={commentingOn} commentText={commentText}
                     onCommentToggle={id => { setCommentingOn(p => p === id ? null : id); setCommentText(""); }}
                     onCommentChange={setCommentText} onCommentSubmit={handleComment}
-                    currentUserId={profile.id} currentUserPhoto={profile.photoURL} />
+                    currentUserId={profile.id} currentUserPhoto={profile.photoURL}
+                    isAdmin={profile.role === "global_admin"} onDelete={handleDeletePost} />
                 ))}
               </div>
             )
@@ -1018,17 +1062,20 @@ interface FeedPostCardProps {
   onCommentSubmit: (postId: string) => void;
   currentUserId?: string;
   currentUserPhoto?: string | null;
+  isAdmin?: boolean;
+  onDelete?: (postId: string) => void;
 }
 
 function FeedPostCard({
   post, myReaction, onReact,
   commentingOn, commentText,
   onCommentToggle, onCommentChange, onCommentSubmit,
-  currentUserId, currentUserPhoto,
+  currentUserId, currentUserPhoto, isAdmin, onDelete,
 }: FeedPostCardProps) {
+  const [menuOpen, setMenuOpen] = React.useState(false);
   const meta = TYPE_META[post.type] ?? { label: post.type, colors: "bg-slate-100 text-slate-600", emoji: "" };
-  // Use fresh profile photo for current user's own posts (stored authorPhoto may be stale)
   const displayPhoto = (currentUserId && post.authorId === currentUserId) ? (currentUserPhoto ?? post.authorPhoto) : post.authorPhoto;
+  const canDelete = currentUserId && (post.authorId === currentUserId || isAdmin);
 
   function copyLink() {
     navigator.clipboard.writeText(`${window.location.origin}/dashboard?post=${post.id}`);
@@ -1056,9 +1103,35 @@ function FeedPostCard({
             </div>
           </div>
         </Link>
-        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${meta.colors}`}>
-          {meta.emoji} {meta.label}
-        </span>
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${meta.colors}`}>
+            {meta.emoji} {meta.label}
+          </span>
+          {canDelete && (
+            <div className="relative">
+              <button onClick={() => setMenuOpen(v => !v)}
+                className="w-7 h-7 rounded-full hover:bg-slate-100 flex items-center justify-center transition-colors">
+                <MoreHorizontal className="w-4 h-4 text-slate-400" />
+              </button>
+              {menuOpen && (
+                <div className="absolute right-0 top-8 z-20 bg-white rounded-xl shadow-lg border border-slate-100 py-1 min-w-[130px]"
+                  onMouseLeave={() => setMenuOpen(false)}>
+                  <button onClick={async () => {
+                    setMenuOpen(false);
+                    try {
+                      await deleteDoc(doc(db, COLLECTIONS.POSTS, post.id));
+                      onDelete?.(post.id);
+                      toast.success("Post deleted");
+                    } catch { toast.error("Failed to delete"); }
+                  }}
+                    className="w-full text-left px-4 py-2 text-sm text-rose-600 font-semibold hover:bg-rose-50 flex items-center gap-2">
+                    <Trash2 className="w-3.5 h-3.5" /> Delete
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Body */}

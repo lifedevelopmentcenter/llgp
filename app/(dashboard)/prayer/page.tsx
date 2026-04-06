@@ -3,9 +3,9 @@ export const dynamic = "force-dynamic";
 import React, { useEffect, useRef, useState } from "react";
 import {
   collection, query, orderBy, addDoc, serverTimestamp,
-  updateDoc, doc, increment, onSnapshot, where,
+  updateDoc, doc, increment, onSnapshot, where, deleteDoc,
 } from "firebase/firestore";
-import { Send } from "lucide-react";
+import { Send, Trash2 } from "lucide-react";
 import { db } from "@/lib/firebase/config";
 import { COLLECTIONS } from "@/lib/firebase/firestore";
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -172,6 +172,14 @@ export default function PrayerWallPage() {
     }
   };
 
+  // ── Delete prayer post ───────────────────────────────────────────────────
+  const handleDelete = async (postId: string) => {
+    try {
+      await deleteDoc(doc(db, COLLECTIONS.POSTS, postId));
+      toast.success("Deleted");
+    } catch { toast.error("Failed to delete"); }
+  };
+
   // ── Filtered list ─────────────────────────────────────────────────────────
   const filtered = tab === "mine"
     ? posts.filter((p) => p.authorId === profile?.id)
@@ -289,9 +297,18 @@ export default function PrayerWallPage() {
                         {timeAgo(post.createdAt)}
                       </p>
                     </div>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 flex-shrink-0">
-                      🙏 Prayer
-                    </span>
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                        🙏 Prayer
+                      </span>
+                      {(post.authorId === profile?.id || profile?.role === "global_admin") && (
+                        <button onClick={() => handleDelete(post.id)}
+                          className="w-6 h-6 rounded-full hover:bg-rose-50 flex items-center justify-center transition-colors"
+                          title="Delete">
+                          <Trash2 className="w-3 h-3 text-rose-400" />
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   {/* Body */}
