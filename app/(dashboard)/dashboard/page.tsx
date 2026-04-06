@@ -341,6 +341,10 @@ export default function DashboardPage() {
   const [composeScope, setComposeScope] = useState<"global" | "national" | "city">("global");
   const [composeSaving, setComposeSaving] = useState(false);
 
+  // Link preview
+  const [linkPreview, setLinkPreview] = useState<{ url: string; title: string | null; description: string | null; image: string | null } | null>(null);
+  const [linkFetching, setLinkFetching] = useState(false);
+
   // Reactions & Comments
   const [reacted, setReacted] = useState<Record<string, string>>({});
   const [commentingOn, setCommentingOn] = useState<string | null>(null);
@@ -439,6 +443,26 @@ export default function DashboardPage() {
     return () => { unsubStories(); unsubLive(); };
   }, [profile]);
 
+  // ── Link preview detector ───────────────────────────────
+
+  useEffect(() => {
+    const urlMatch = composeBody.match(/https?:\/\/[^\s]+/);
+    if (!urlMatch) { setLinkPreview(null); return; }
+    const url = urlMatch[0];
+    if (linkPreview?.url === url) return; // already fetched this URL
+    const timer = setTimeout(async () => {
+      setLinkFetching(true);
+      try {
+        const res = await fetch(`/api/og-preview?url=${encodeURIComponent(url)}`);
+        const data = await res.json();
+        setLinkPreview({ url, title: data.title, description: data.description, image: data.image });
+      } catch { /* silent */ }
+      finally { setLinkFetching(false); }
+    }, 800);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [composeBody]);
+
   // ── Actions ─────────────────────────────────────────────
 
   const handleReact = async (postId: string, type: "like" | "heart" | "pray") => {
@@ -507,9 +531,10 @@ export default function DashboardPage() {
         body: composeBody.trim(), type: composeType, scope: composeScope,
         nationId: profile.nationId || null, cityId: profile.cityId || null,
         mediaUrls: [], commentCount: 0, reactionCounts: { like: 0, heart: 0, pray: 0 },
+        linkPreview: linkPreview ?? null,
         createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
       });
-      setComposeBody(""); setComposeType("update"); setComposeScope("global"); setComposeOpen(false);
+      setComposeBody(""); setComposeType("update"); setComposeScope("global"); setComposeOpen(false); setLinkPreview(null);
       toast.success("Posted!");
       // One-time spotlight nudge after first post
       const key = `llgp_spotlight_nudge_${profile.id}`;
@@ -944,6 +969,20 @@ export default function DashboardPage() {
       <Modal open={composeOpen} onClose={() => setComposeOpen(false)} title="Create Post" size="md">
         <div className="space-y-4">
           <Textarea placeholder="What's on your mind?" rows={5} value={composeBody} onChange={e => setComposeBody(e.target.value)} />
+          {linkFetching && (
+            <div className="text-xs text-slate-400 animate-pulse">Fetching preview…</div>
+          )}
+          {linkPreview && (
+            <div className="relative rounded-xl border border-slate-200 overflow-hidden bg-slate-50 flex gap-3 p-3">
+              {linkPreview.image && <img src={linkPreview.image} alt="" className="w-20 h-16 object-cover rounded-lg flex-shrink-0" onError={e => (e.currentTarget.style.display="none")} />}
+              <div className="flex-1 min-w-0">
+                {linkPreview.title && <p className="text-xs font-bold text-slate-900 line-clamp-1">{linkPreview.title}</p>}
+                {linkPreview.description && <p className="text-xs text-slate-500 line-clamp-2 mt-0.5">{linkPreview.description}</p>}
+                <p className="text-[10px] text-slate-400 mt-0.5 truncate">{linkPreview.url}</p>
+              </div>
+              <button onClick={() => setLinkPreview(null)} className="flex-shrink-0 text-slate-400 hover:text-slate-600">✕</button>
+            </div>
+          )}
           <div className="flex gap-3">
             <div className="flex-1">
               <Select label="Type" value={composeType} onChange={e => setComposeType(e.target.value as Post["type"])}>
@@ -1138,6 +1177,49 @@ function FeedPostCard({
       <div className="px-4 pb-3 text-sm text-slate-800 leading-relaxed whitespace-pre-wrap">
         {renderHashtags(post.body ?? "")}
       </div>
+
+      {/* Link preview */}
+      {post.linkPreview && (
+        <a href={post.linkPreview.url} target="_blank" rel="noopener noreferrer"
+          className="mx-4 mb-3 rounded-xl border border-slate-200 overflow-hidden bg-slate-50 flex gap-3 p-3 hover:bg-slate-100 transition-colors">
+          {post.linkPreview.image && (
+            <img src={post.linkPreview.image} alt="" className="w-20 h-16 object-cover rounded-lg flex-shrink-0"
+              onError={e => (e.currentTarget.style.display="none")} />
+          )}
+          <div className="flex-1 min-w-0">
+            {post.linkPreview.title && <p className="text-xs font-bold text-slate-900 line-clamp-1">{post.linkPreview.title}</p>}
+            {post.linkPreview.description && <p className="text-xs text-slate-500 line-clamp-2 mt-0.5">{post.linkPreview.description}</p>}
+            <p className="text-[10px] text-slate-400 mt-1 truncate">{post.linkPreview.url}</p>
+          </div>
+        </a>
+      )}
+
+      {/* Video embed */}
+      {(() => {
+        const ytMatch = post.body?.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+        const vimeoMatch = post.body?.match(/vimeo\.com\/(\d+)/);
+        if (ytMatch) return (
+          <div className="mx-4 mb-3 rounded-xl overflow-hidden aspect-video bg-black">
+            <iframe
+              src={`https://www.youtube.com/embed/${ytMatch[1]}`}
+              className="w-full h-full"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          </div>
+        );
+        if (vimeoMatch) return (
+          <div className="mx-4 mb-3 rounded-xl overflow-hidden aspect-video bg-black">
+            <iframe
+              src={`https://player.vimeo.com/video/${vimeoMatch[1]}`}
+              className="w-full h-full"
+              allow="autoplay; fullscreen; picture-in-picture"
+              allowFullScreen
+            />
+          </div>
+        );
+        return null;
+      })()}
 
       {/* Media */}
       {(post.mediaUrls?.length ?? 0) > 0 && (

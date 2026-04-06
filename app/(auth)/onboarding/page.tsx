@@ -2,18 +2,20 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { collection, getDocs, query, orderBy, doc, updateDoc, serverTimestamp } from "firebase/firestore";
-import { Globe, ChevronRight, Check } from "lucide-react";
+import { ChevronRight, Check } from "lucide-react";
+import { Logo } from "@/components/ui/Logo";
 import { db } from "@/lib/firebase/config";
 import { COLLECTIONS } from "@/lib/firebase/firestore";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { Button } from "@/components/ui/Button";
 import { Input, Textarea, Select } from "@/components/ui/Input";
 import { PageLoader } from "@/components/ui/Spinner";
+import { ImageUpload } from "@/components/ui/ImageUpload";
 import toast from "react-hot-toast";
 import type { Nation, City } from "@/lib/types";
 
 const SPHERES = ["Business", "Government", "Education", "Media", "Church", "Arts & Entertainment", "Family", "Health", "Technology", "Sports", "Other"];
-const STEPS = ["Location", "About You", "Done"];
+const STEPS = ["Photo", "Location", "About You", "Done"];
 
 export default function OnboardingPage() {
   const { profile, refreshProfile } = useAuth();
@@ -84,7 +86,7 @@ export default function OnboardingPage() {
         updatedAt: serverTimestamp(),
       });
       await refreshProfile();
-      setStep(2);
+      setStep(3);
     } catch (e) {
       toast.error("Failed to save. Please try again.");
     } finally {
@@ -99,9 +101,7 @@ export default function OnboardingPage() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
-          <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center mb-4 shadow-lg">
-            <Globe className="w-6 h-6 text-white" />
-          </div>
+          <Logo variant="dark" size="lg" className="mb-3" />
           <h1 className="text-2xl font-bold text-slate-900">Welcome to LLGP</h1>
           <p className="text-sm text-slate-500 mt-1">Let's set up your profile — takes 1 minute</p>
         </div>
@@ -124,8 +124,40 @@ export default function OnboardingPage() {
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-          {/* Step 0: Location */}
+          {/* Step 0: Photo */}
           {step === 0 && (
+            <div className="space-y-5">
+              <div>
+                <h2 className="text-base font-semibold text-slate-900 mb-0.5">Add a profile photo</h2>
+                <p className="text-sm text-slate-500">Help your community recognize you.</p>
+              </div>
+              <div className="flex justify-center">
+                <ImageUpload
+                  currentUrl={profile.photoURL || null}
+                  storagePath={`avatars/${profile.id}`}
+                  onUploadComplete={async (url) => {
+                    await updateDoc(doc(db, COLLECTIONS.USERS, profile.id), { photoURL: url, updatedAt: serverTimestamp() });
+                    await refreshProfile();
+                    toast.success("Photo saved!");
+                  }}
+                  shape="circle"
+                  size="lg"
+                  cropAspect={1}
+                  className="w-32 h-32"
+                />
+              </div>
+              <p className="text-xs text-center text-slate-400">Tap the circle to upload · You can change this later</p>
+              <div className="flex gap-2 pt-2">
+                <Button variant="secondary" className="flex-1" onClick={() => setStep(1)}>Skip for now</Button>
+                <Button className="flex-1" onClick={() => setStep(1)}>
+                  Continue <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 1: Location */}
+          {step === 1 && (
             <div className="space-y-4">
               <div>
                 <h2 className="text-base font-semibold text-slate-900 mb-0.5">Where are you based?</h2>
@@ -154,16 +186,16 @@ export default function OnboardingPage() {
                 </p>
               )}
               <div className="flex gap-2 pt-2">
-                <Button variant="secondary" className="flex-1" onClick={() => setStep(1)}>Skip</Button>
-                <Button className="flex-1" onClick={() => setStep(1)}>
+                <Button variant="secondary" className="flex-1" onClick={() => setStep(0)}>Back</Button>
+                <Button className="flex-1" onClick={() => setStep(2)}>
                   Continue <ChevronRight className="w-4 h-4" />
                 </Button>
               </div>
             </div>
           )}
 
-          {/* Step 1: About You */}
-          {step === 1 && (
+          {/* Step 2: About You */}
+          {step === 2 && (
             <div className="space-y-4">
               <div>
                 <h2 className="text-base font-semibold text-slate-900 mb-0.5">Tell us about yourself</h2>
@@ -198,7 +230,7 @@ export default function OnboardingPage() {
                 rows={3}
               />
               <div className="flex gap-2 pt-2">
-                <Button variant="secondary" className="flex-1" onClick={() => setStep(0)}>Back</Button>
+                <Button variant="secondary" className="flex-1" onClick={() => setStep(1)}>Back</Button>
                 <Button className="flex-1" onClick={saveAndContinue} loading={saving}>
                   Save Profile <ChevronRight className="w-4 h-4" />
                 </Button>
@@ -206,8 +238,8 @@ export default function OnboardingPage() {
             </div>
           )}
 
-          {/* Step 2: Done */}
-          {step === 2 && (
+          {/* Step 3: Done */}
+          {step === 3 && (
             <div className="text-center py-4 space-y-4">
               <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto">
                 <Check className="w-8 h-8 text-green-600" />

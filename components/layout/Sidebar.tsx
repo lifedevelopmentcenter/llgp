@@ -4,10 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, BookOpen, Users, Building2, FileText,
-  Globe, Settings,
+  Settings,
   ChevronDown, ChevronRight, LogOut, X,
-  Calendar, Radio, Search, Film, Heart, BarChart2,
+  Calendar, Radio, Search, Film, Heart, BarChart2, Bell,
 } from "lucide-react";
+import { Logo } from "@/components/ui/Logo";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { Avatar } from "@/components/ui/Avatar";
@@ -115,6 +116,8 @@ const navItems: NavItem[] = [
       { label: "Courses", href: "/admin/courses", roles: ["global_admin"] },
       { label: "LLGLI Submissions", href: "/admin/submissions", roles: ["global_admin"] },
       { label: "Moderation", href: "/admin/moderation", roles: ["global_admin"] },
+      { label: "Push Broadcast", href: "/admin/broadcast", roles: ["global_admin"] },
+      { label: "Bulk Groups", href: "/admin/groups", roles: ["global_admin"] },
     ],
   },
 ];
@@ -214,15 +217,7 @@ export function Sidebar({ mobile, onClose }: SidebarProps) {
     <div className="flex flex-col h-full bg-white">
       {/* Logo */}
       <div className="lg:hidden flex items-center justify-between px-4 py-4 border-b border-slate-100">
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center shadow-sm">
-            <Globe className="w-4.5 h-4.5 text-white" />
-          </div>
-          <div>
-            <p className="text-sm font-black text-slate-900 leading-tight tracking-tight">Leading Lights</p>
-            <p className="text-[10px] text-slate-400 leading-tight font-medium">Global Platform</p>
-          </div>
-        </div>
+        <Logo variant="dark" size="sm" />
         {mobile && (
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400">
             <X className="w-4 h-4" />

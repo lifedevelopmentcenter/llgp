@@ -155,6 +155,7 @@ export default function ProfilePage() {
   // Additional form
   const [additionalForm, setAdditionalForm] = useState({
     phone: "", education: "", languages: "", profession: "",
+    websiteUrl: "", podcastUrl: "", youtubeUrl: "",
   });
 
   // Purpose form
@@ -214,6 +215,9 @@ export default function ProfilePage() {
               education: p.education || "",
               languages: (p.languages || []).join(", "),
               profession: p.profession || "",
+              websiteUrl: p.websiteUrl || "",
+              podcastUrl: p.podcastUrl || "",
+              youtubeUrl: p.youtubeUrl || "",
             });
             setPurposeForm({
               nameAcronymHeader: p.nameAcronymHeader || "",
@@ -416,6 +420,9 @@ export default function ProfilePage() {
         education: additionalForm.education,
         profession: additionalForm.profession,
         languages: additionalForm.languages.split(",").map(l => l.trim()).filter(Boolean),
+        websiteUrl: additionalForm.websiteUrl,
+        podcastUrl: additionalForm.podcastUrl,
+        youtubeUrl: additionalForm.youtubeUrl,
         updatedAt: serverTimestamp(),
       };
       await updateDoc(doc(db, COLLECTIONS.USERS, profile.id), data);
@@ -770,6 +777,13 @@ export default function ProfilePage() {
                 }
               />
               <FieldRow label="Profession" value={profile.profession} />
+              {(profile.websiteUrl || profile.podcastUrl || profile.youtubeUrl) && (
+                <div className="flex flex-wrap gap-2 pt-2">
+                  {profile.websiteUrl && <a href={profile.websiteUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700 bg-indigo-50 px-3 py-1.5 rounded-full">🌐 Website</a>}
+                  {profile.podcastUrl && <a href={profile.podcastUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs font-semibold text-violet-600 hover:text-violet-700 bg-violet-50 px-3 py-1.5 rounded-full">🎙️ Podcast</a>}
+                  {profile.youtubeUrl && <a href={profile.youtubeUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 px-3 py-1.5 rounded-full">▶ YouTube</a>}
+                </div>
+              )}
             </SectionCard>
 
             {/* Card 2b — Privacy (own profile only) */}
@@ -793,6 +807,38 @@ export default function ProfilePage() {
                   >
                     <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${profile.hideOnlineStatus ? "translate-x-1" : "translate-x-6"}`} />
                   </button>
+                </div>
+                {/* Email notification preferences */}
+                <div className="mt-4 pt-4 border-t border-slate-100">
+                  <p className="text-sm font-semibold text-slate-700 mb-3">Email Notifications</p>
+                  <div className="space-y-3">
+                    {([
+                      { key: "newFollower", label: "New follower" },
+                      { key: "newComment", label: "Comments on my posts" },
+                      { key: "newPrayer", label: "Prayer responses" },
+                      { key: "weeklyDigest", label: "Weekly digest" },
+                    ] as const).map(({ key, label }) => {
+                      const enabled = profile.emailNotifications?.[key] !== false; // default on
+                      return (
+                        <div key={key} className="flex items-center justify-between">
+                          <span className="text-sm text-slate-700">{label}</span>
+                          <button
+                            onClick={async () => {
+                              const next = { ...(profile.emailNotifications ?? {}), [key]: !enabled };
+                              setProfile(prev => prev ? { ...prev, emailNotifications: next } : prev);
+                              try {
+                                await updateDoc(doc(db, COLLECTIONS.USERS, profile.id), { emailNotifications: next, updatedAt: serverTimestamp() });
+                              } catch { toast.error("Failed to save"); }
+                            }}
+                            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${enabled ? "bg-indigo-600" : "bg-slate-200"}`}
+                          >
+                            <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${enabled ? "translate-x-4" : "translate-x-0.5"}`} />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-slate-400 mt-3">Email notifications require the Firebase Trigger Email extension to be installed by the admin.</p>
                 </div>
               </div>
             )}
@@ -1146,6 +1192,9 @@ export default function ProfilePage() {
               onChange={e => setAdditionalForm(p => ({ ...p, profession: e.target.value }))}
               placeholder="e.g. Teacher, Engineer, Pastor"
             />
+            <Input label="Website" type="url" placeholder="https://yoursite.com" value={additionalForm.websiteUrl} onChange={e => setAdditionalForm(f => ({...f, websiteUrl: e.target.value}))} />
+            <Input label="Podcast URL" type="url" placeholder="https://podcast.com/..." value={additionalForm.podcastUrl} onChange={e => setAdditionalForm(f => ({...f, podcastUrl: e.target.value}))} />
+            <Input label="YouTube Channel" type="url" placeholder="https://youtube.com/@..." value={additionalForm.youtubeUrl} onChange={e => setAdditionalForm(f => ({...f, youtubeUrl: e.target.value}))} />
             <div className="flex gap-2 pt-2">
               <Button variant="secondary" className="flex-1" onClick={() => setEditAdditional(false)}>Cancel</Button>
               <Button className="flex-1" onClick={saveAdditional} loading={saving}>Save</Button>

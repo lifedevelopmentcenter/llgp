@@ -8,6 +8,8 @@ import {
   signOut,
   sendPasswordResetEmail,
   updateProfile,
+  GoogleAuthProvider,
+  signInWithPopup,
   User,
 } from "firebase/auth";
 import {
@@ -34,6 +36,7 @@ interface AuthContextType {
   logOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   refreshProfile: () => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType | null>(null);
@@ -96,9 +99,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await sendPasswordResetEmail(auth, email);
   };
 
+  const signInWithGoogle = async () => {
+    const provider = new GoogleAuthProvider();
+    const cred = await signInWithPopup(auth, provider);
+    // Create/update Firestore profile
+    const existing = await fetchProfile(cred.user.uid);
+    if (!existing) {
+      await setDoc(doc(db, COLLECTIONS.USERS, cred.user.uid), {
+        email: cred.user.email ?? "",
+        displayName: cred.user.displayName ?? "Member",
+        photoURL: cred.user.photoURL ?? undefined,
+        role: "participant" as const,
+        isActive: true,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+    }
+  };
+
   return (
     <AuthContext.Provider
-      value={{ user, profile, loading, signIn, signUp, logOut, resetPassword, refreshProfile }}
+      value={{ user, profile, loading, signIn, signUp, logOut, resetPassword, refreshProfile, signInWithGoogle }}
     >
       {children}
     </AuthContext.Provider>

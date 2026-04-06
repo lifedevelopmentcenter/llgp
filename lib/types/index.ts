@@ -125,12 +125,25 @@ export interface UserProfile {
   followerCount?: number;
   followingCount?: number;
 
+  // Social links
+  websiteUrl?: string;
+  podcastUrl?: string;
+  youtubeUrl?: string;
+
   isVenture100?: boolean;
   isLLGLI?: boolean;
   llgliCohort?: string;
 
   // Privacy
   hideOnlineStatus?: boolean;
+
+  // Notification preferences
+  emailNotifications?: {
+    newFollower?: boolean;
+    newComment?: boolean;
+    newPrayer?: boolean;
+    weeklyDigest?: boolean;
+  };
 
   isActive: boolean;
   createdAt: Timestamp;
@@ -395,6 +408,7 @@ export interface Post {
   sharedFromBody?: string;
   pollId?: string;
   isPinned?: boolean;
+  linkPreview?: { url: string; title: string | null; description: string | null; image: string | null } | null;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
