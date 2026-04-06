@@ -50,6 +50,13 @@ export function ImageUpload({
     reader.readAsDataURL(file);
 
     setUploading(true);
+    // Safety: stop spinner after 30 s no matter what
+    const timeoutId = setTimeout(() => {
+      setUploading(false);
+      setPreview(null);
+      toast.error("Upload timed out. Check your internet connection and try again.");
+    }, 30_000);
+
     try {
       const storageRef = ref(storage, storagePath);
       const snapshot = await uploadBytes(storageRef, file);
@@ -58,15 +65,17 @@ export function ImageUpload({
       toast.success("Photo updated.");
     } catch (err: any) {
       console.error("Upload error:", err);
-      setPreview(null); // revert preview
-      if (err?.code === "storage/unauthorized") {
-        toast.error("Upload blocked — deploy Firebase Storage rules first:\nfirebase deploy --only storage");
-      } else if (err?.code === "storage/unknown" || err?.message?.includes("CORS")) {
-        toast.error("CORS error — run: gsutil cors set cors.json gs://leading-lights-global-platform.firebasestorage.app");
+      setPreview(null);
+      const code = err?.code ?? "";
+      if (code === "storage/unauthorized") {
+        toast.error("Upload blocked — run: firebase deploy --only storage");
+      } else if (code === "storage/unknown" || err?.message?.includes("CORS") || code === "storage/cors") {
+        toast.error("CORS error — run the gsutil cors command (see README)");
       } else {
         toast.error(`Upload failed: ${err?.message || "Unknown error"}`);
       }
     } finally {
+      clearTimeout(timeoutId);
       setUploading(false);
     }
   };

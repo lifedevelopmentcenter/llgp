@@ -31,6 +31,13 @@ service firebase.storage {
       allow write: if isAuth() && isOwner(userId) && isImage() && isUnder5MB();
     }
 
+    // ── Profile Covers ────────────────────────────────────────
+    // Path: covers/{userId}
+    match /covers/{userId} {
+      allow read: if isAuth();
+      allow write: if isAuth() && isOwner(userId) && isImage() && isUnder5MB();
+    }
+
     // ── Group Covers ──────────────────────────────────────────
     // Path: groups/{groupId}/cover
     match /groups/{groupId}/cover {

@@ -497,10 +497,11 @@ export default function DashboardPage() {
       setSpotlightForm(f => ({
         ...f,
         thumbnailUrl: data.image || f.thumbnailUrl,
-        title: f.title || data.title || "",
-        description: f.description || data.description || "",
+        title: data.title || f.title,
+        description: data.description || f.description,
       }));
-      if (data.image || data.title) toast.success("Preview fetched!");
+      if (data.image) toast.success("Preview image fetched!");
+      else if (data.title) toast("Title fetched — no image found. Paste a thumbnail URL manually.", { icon: "ℹ️" });
       else toast("No preview found — fill in details manually.", { icon: "ℹ️" });
     } catch { toast.error("Couldn't fetch preview."); }
     finally { setOgLoading(false); }
@@ -757,8 +758,10 @@ export default function DashboardPage() {
                 try {
                   const res = await fetch(`/api/og-preview?url=${encodeURIComponent(editForm.url)}`);
                   const data = await res.json();
-                  setEditForm(f => ({ ...f, thumbnailUrl: data.image || f.thumbnailUrl, title: f.title || data.title || "", description: f.description || data.description || "" }));
-                  if (data.image || data.title) toast.success("Preview fetched!");
+                  setEditForm(f => ({ ...f, thumbnailUrl: data.image || f.thumbnailUrl, title: data.title || f.title, description: data.description || f.description }));
+                  if (data.image) toast.success("Preview image fetched!");
+                  else if (data.title) toast("Title fetched — no image. Paste a thumbnail URL manually.", { icon: "ℹ️" });
+                  else toast("No preview found.", { icon: "ℹ️" });
                 } catch { toast.error("Couldn't fetch preview"); }
                 finally { setOgLoading(false); }
               }} disabled={ogLoading}
@@ -767,15 +770,26 @@ export default function DashboardPage() {
               </button>
             </div>
           </div>
-          {editForm.thumbnailUrl && (
-            <img src={editForm.thumbnailUrl} alt="preview" className="w-full h-36 object-cover rounded-xl"
-              onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
-          )}
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-1.5">Title</label>
             <input className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               value={editForm.title} onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))} />
           </div>
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Thumbnail URL <span className="font-normal text-slate-400">(auto-filled or paste your own)</span></label>
+            <input className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              value={editForm.thumbnailUrl} onChange={e => setEditForm(f => ({ ...f, thumbnailUrl: e.target.value }))}
+              placeholder="https://example.com/image.jpg" type="url" />
+          </div>
+          {editForm.thumbnailUrl && (
+            <div className="w-full h-36 rounded-xl overflow-hidden bg-slate-100 flex items-center justify-center">
+              <img src={editForm.thumbnailUrl} alt="preview" className="w-full h-full object-cover"
+                onError={e => {
+                  e.currentTarget.style.display = "none";
+                  e.currentTarget.parentElement!.innerHTML = '<span class="text-xs text-slate-400 p-3 text-center">Image blocked by source site — URL saved, will show on card</span>';
+                }} />
+            </div>
+          )}
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-1.5">Type</label>
             <select className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -829,10 +843,25 @@ export default function DashboardPage() {
               placeholder="e.g. The Marketplace Podcast"
             />
           </div>
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Thumbnail URL <span className="font-normal text-slate-400">(auto-filled or paste your own)</span></label>
+            <input
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              value={spotlightForm.thumbnailUrl}
+              onChange={e => setSpotlightForm(f => ({ ...f, thumbnailUrl: e.target.value }))}
+              placeholder="https://example.com/image.jpg"
+              type="url"
+            />
+          </div>
           {spotlightForm.thumbnailUrl && (
-            <img src={spotlightForm.thumbnailUrl} alt="preview"
-              className="w-full h-36 object-cover rounded-xl"
-              onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+            <div className="w-full h-36 rounded-xl overflow-hidden bg-slate-100 flex items-center justify-center">
+              <img src={spotlightForm.thumbnailUrl} alt="preview"
+                className="w-full h-full object-cover"
+                onError={e => {
+                  e.currentTarget.style.display = "none";
+                  e.currentTarget.parentElement!.innerHTML = '<span class="text-xs text-slate-400">Image blocked by source site — URL saved, will show on card</span>';
+                }} />
+            </div>
           )}
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-1.5">Type</label>
