@@ -109,19 +109,24 @@ function SpotlightCard({
   return (
     <Card className={`flex flex-col gap-0 p-0 overflow-hidden ${isPending ? "border-amber-200 bg-amber-50" : ""}`}>
       {/* Thumbnail */}
-      {spotlight.thumbnailUrl ? (
-        <img
-          src={spotlight.thumbnailUrl}
-          alt={spotlight.title}
-          className="w-full h-36 object-cover"
-        />
-      ) : (
-        <div
-          className={`w-full h-36 bg-gradient-to-br ${TYPE_GRADIENT[spotlight.type]} flex items-center justify-center`}
-        >
-          {TYPE_ICON[spotlight.type]}
-        </div>
-      )}
+      <div className="relative">
+        {spotlight.thumbnailUrl ? (
+          <img src={spotlight.thumbnailUrl} alt={spotlight.title} className="w-full h-36 object-cover" />
+        ) : (
+          <div className={`w-full h-36 bg-gradient-to-br ${TYPE_GRADIENT[spotlight.type]} flex items-center justify-center`}>
+            {TYPE_ICON[spotlight.type]}
+          </div>
+        )}
+        {/* Edit button — top right overlay */}
+        {(isAdmin || spotlight.submittedBy === currentUserId) && onEdit && (
+          <button
+            onClick={() => onEdit(spotlight)}
+            className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center hover:bg-black/60 transition-colors"
+            title="Edit spotlight">
+            <Pencil className="w-3.5 h-3.5 text-white" />
+          </button>
+        )}
+      </div>
 
       {/* Content */}
       <div className="p-3 flex flex-col gap-2 flex-1">
@@ -151,14 +156,6 @@ function SpotlightCard({
           >
             Visit <ExternalLink className="w-3 h-3" />
           </a>
-          {(isAdmin || spotlight.submittedBy === currentUserId) && onEdit && (
-            <button
-              onClick={() => onEdit(spotlight)}
-              className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-slate-700"
-            >
-              <Pencil className="w-3 h-3" /> Edit
-            </button>
-          )}
           {isPending && isAdmin && onApprove && onReject && (
             <>
               <Button size="sm" onClick={() => onApprove(spotlight.id)}>

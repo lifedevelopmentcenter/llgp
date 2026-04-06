@@ -321,7 +321,7 @@ export default function DashboardPage() {
 
   // Spotlight submit (from composer)
   const [spotlightOpen, setSpotlightOpen] = useState(false);
-  const [spotlightForm, setSpotlightForm] = useState({ title: "", url: "", description: "", type: "initiative" as Spotlight["type"] });
+  const [spotlightForm, setSpotlightForm] = useState({ title: "", url: "", description: "", type: "initiative" as Spotlight["type"], thumbnailUrl: "" });
   const [spotlightSaving, setSpotlightSaving] = useState(false);
   const [ogLoading, setOgLoading] = useState(false);
 
@@ -474,6 +474,7 @@ export default function DashboardPage() {
       const data = await res.json();
       setSpotlightForm(f => ({
         ...f,
+        thumbnailUrl: data.image || f.thumbnailUrl,
         title: f.title || data.title || "",
         description: f.description || data.description || "",
       }));
@@ -494,7 +495,7 @@ export default function DashboardPage() {
         description: spotlightForm.description.trim() || null,
         url: spotlightForm.url.trim(),
         type: spotlightForm.type,
-        thumbnailUrl: null,
+        thumbnailUrl: spotlightForm.thumbnailUrl.trim() || null,
         personName: profile.displayName,
         personPhoto: profile.photoURL ?? null,
         personId: profile.id,
@@ -507,7 +508,7 @@ export default function DashboardPage() {
       });
       toast.success("Submitted for review! We'll publish it shortly.");
       setSpotlightOpen(false);
-      setSpotlightForm({ title: "", url: "", description: "", type: "initiative" });
+      setSpotlightForm({ title: "", url: "", description: "", type: "initiative", thumbnailUrl: "" });
     } catch { toast.error("Failed to submit"); }
     finally { setSpotlightSaving(false); }
   };
@@ -720,6 +721,11 @@ export default function DashboardPage() {
               placeholder="e.g. The Marketplace Podcast"
             />
           </div>
+          {spotlightForm.thumbnailUrl && (
+            <img src={spotlightForm.thumbnailUrl} alt="preview"
+              className="w-full h-36 object-cover rounded-xl"
+              onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+          )}
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-1.5">Type</label>
             <select
