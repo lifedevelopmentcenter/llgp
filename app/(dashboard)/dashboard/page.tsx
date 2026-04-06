@@ -1,6 +1,6 @@
 "use client";
 export const dynamic = "force-dynamic";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   collection, query, where, orderBy, limit, onSnapshot,
@@ -15,20 +15,20 @@ import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { Textarea, Select } from "@/components/ui/Input";
 import { timeAgo } from "@/lib/utils";
-import type { Post, Announcement, UserProfile, Story, LiveEvent } from "@/lib/types";
-import { Radio, Plus, Globe, MessageSquare, Check, ChevronRight, X, Image, Link2 } from "lucide-react";
+import type { Post, Announcement, UserProfile, Story, LiveEvent, Spotlight } from "@/lib/types";
+import { Radio, Plus, Globe, MessageSquare, Check, ChevronRight, X, Image, Link2, ChevronLeft, ExternalLink } from "lucide-react";
 import toast from "react-hot-toast";
 
 // ── Helpers ────────────────────────────────────────────────
 
 const TYPE_META: Record<string, { label: string; colors: string; emoji: string }> = {
-  testimony:     { label: "Testimony",  colors: "bg-green-100 text-green-700",  emoji: "✦" },
-  prayer_request:{ label: "Prayer",     colors: "bg-blue-100 text-blue-700",    emoji: "🙏" },
-  update:        { label: "Update",     colors: "bg-amber-100 text-amber-700",  emoji: "📢" },
-  insight:       { label: "Insight",    colors: "bg-violet-100 text-violet-700",emoji: "💡" },
-  event:         { label: "Event",      colors: "bg-rose-100 text-rose-700",    emoji: "📅" },
-  poll:          { label: "Poll",       colors: "bg-cyan-100 text-cyan-700",    emoji: "📊" },
-  share:         { label: "Shared",     colors: "bg-slate-100 text-slate-600",  emoji: "↗️" },
+  testimony:      { label: "Testimony",  colors: "bg-green-100 text-green-700",  emoji: "✦" },
+  prayer_request: { label: "Prayer",     colors: "bg-blue-100 text-blue-700",    emoji: "🙏" },
+  update:         { label: "Update",     colors: "bg-amber-100 text-amber-700",  emoji: "📢" },
+  insight:        { label: "Insight",    colors: "bg-violet-100 text-violet-700",emoji: "💡" },
+  event:          { label: "Event",      colors: "bg-rose-100 text-rose-700",    emoji: "📅" },
+  poll:           { label: "Poll",       colors: "bg-cyan-100 text-cyan-700",    emoji: "📊" },
+  share:          { label: "Shared",     colors: "bg-slate-100 text-slate-600",  emoji: "↗️" },
 };
 
 const isVerifiedRole = (role?: string) =>
@@ -48,6 +48,219 @@ function renderHashtags(text: string): React.ReactNode {
   );
 }
 
+// ── Live Events Carousel ───────────────────────────────────
+
+function LiveEventsCarousel({ events }: { events: LiveEvent[] }) {
+  if (events.length === 0) return null;
+  return (
+    <div className="overflow-x-auto no-scrollbar -mx-0">
+      <div className="flex gap-3 pb-1" style={{ scrollSnapType: "x mandatory" }}>
+        {events.map(event => (
+          <Link key={event.id} href={`/live/${event.id}`}
+            className="flex-shrink-0 w-full"
+            style={{ scrollSnapAlign: "start" }}>
+            <div className="relative overflow-hidden bg-gradient-to-r from-rose-600 via-pink-600 to-fuchsia-600 rounded-2xl p-5 text-white flex items-center gap-4 shadow-xl hover:shadow-2xl hover:-translate-y-0.5 transition-all duration-200">
+              {/* Decorative blobs */}
+              <div className="absolute -top-8 -right-8 w-32 h-32 bg-white/10 rounded-full blur-2xl pointer-events-none" />
+              <div className="absolute -bottom-6 -left-6 w-24 h-24 bg-white/10 rounded-full blur-xl pointer-events-none" />
+              <div className="relative flex-shrink-0">
+                <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-inner">
+                  <Radio className="w-7 h-7 text-white" />
+                </div>
+                <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-60" />
+                  <span className="relative inline-flex rounded-full h-4 w-4 bg-white" />
+                </span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <span className="inline-block text-[10px] font-black uppercase tracking-widest bg-white/25 backdrop-blur-sm px-2.5 py-0.5 rounded-full mb-1">● LIVE NOW</span>
+                <p className="font-black text-base leading-snug truncate">{event.title}</p>
+                <p className="text-sm text-white/75 mt-0.5">{event.hostName} · Tap to join</p>
+              </div>
+              <ChevronRight className="w-6 h-6 text-white/80 flex-shrink-0" />
+            </div>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Featured Initiatives Carousel ─────────────────────────
+
+const GRADIENT_FALLBACKS = [
+  "from-indigo-600 to-violet-700",
+  "from-rose-500 to-pink-700",
+  "from-amber-500 to-orange-600",
+  "from-emerald-500 to-teal-700",
+  "from-sky-500 to-blue-700",
+  "from-fuchsia-500 to-purple-700",
+];
+
+function FeaturedCarousel({ spotlights }: { spotlights: Spotlight[] }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [activeIdx, setActiveIdx] = useState(0);
+
+  const scroll = (dir: "left" | "right") => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const cardW = el.clientWidth + 12; // card width + gap
+    el.scrollBy({ left: dir === "right" ? cardW : -cardW, behavior: "smooth" });
+  };
+
+  const onScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setActiveIdx(Math.round(el.scrollLeft / (el.clientWidth + 12)));
+  };
+
+  if (spotlights.length === 0) return null;
+
+  return (
+    <div className="relative">
+      <div className="flex items-center justify-between mb-3 px-0.5">
+        <p className="text-sm font-black uppercase tracking-widest text-slate-700">Featured</p>
+        <div className="flex items-center gap-2">
+          {spotlights.length > 1 && (
+            <div className="flex gap-1">
+              {spotlights.map((_, i) => (
+                <span key={i} className={`block rounded-full transition-all duration-300 ${i === activeIdx ? "w-4 h-1.5 bg-indigo-600" : "w-1.5 h-1.5 bg-slate-300"}`} />
+              ))}
+            </div>
+          )}
+          {spotlights.length > 1 && (
+            <div className="flex gap-1">
+              <button onClick={() => scroll("left")} className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors">
+                <ChevronLeft className="w-4 h-4 text-slate-600" />
+              </button>
+              <button onClick={() => scroll("right")} className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors">
+                <ChevronRight className="w-4 h-4 text-slate-600" />
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div
+        ref={scrollRef}
+        onScroll={onScroll}
+        className="overflow-x-auto no-scrollbar flex gap-3"
+        style={{ scrollSnapType: "x mandatory" }}
+      >
+        {spotlights.map((s, i) => (
+          <a key={s.id} href={s.url} target="_blank" rel="noopener noreferrer"
+            className="flex-shrink-0 w-[85vw] max-w-xs lg:w-72 rounded-2xl overflow-hidden shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 group"
+            style={{ scrollSnapAlign: "start" }}>
+            {/* Card image / gradient */}
+            <div className={`relative h-40 bg-gradient-to-br ${GRADIENT_FALLBACKS[i % GRADIENT_FALLBACKS.length]}`}>
+              {s.thumbnailUrl && (
+                <img src={s.thumbnailUrl} alt={s.title}
+                  className="absolute inset-0 w-full h-full object-cover" />
+              )}
+              {/* Gradient overlay */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+              {/* Type badge */}
+              <span className="absolute top-3 left-3 text-[10px] font-black uppercase tracking-widest bg-white/20 backdrop-blur-sm text-white px-2.5 py-0.5 rounded-full">
+                {s.type}
+              </span>
+              {/* External link icon */}
+              <div className="absolute top-3 right-3 w-7 h-7 rounded-full bg-black/30 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <ExternalLink className="w-3.5 h-3.5 text-white" />
+              </div>
+              {/* Bottom title overlay */}
+              <div className="absolute bottom-0 left-0 right-0 p-3">
+                <p className="text-white font-black text-sm leading-tight line-clamp-2">{s.title}</p>
+              </div>
+            </div>
+            {/* Card footer */}
+            <div className="bg-white p-3 flex items-center gap-2.5">
+              <Avatar name={s.personName} photoURL={s.personPhoto} size="xs" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold text-slate-900 truncate">{s.personName}</p>
+                {s.nationName && <p className="text-[10px] text-slate-400 truncate">{s.nationName}</p>}
+              </div>
+              {s.description && (
+                <p className="text-[10px] text-slate-400 line-clamp-1 hidden sm:block">{s.description}</p>
+              )}
+            </div>
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Active Members Strip ───────────────────────────────────
+
+function MembersStrip({ members }: { members: UserProfile[] }) {
+  if (members.length === 0) return null;
+  return (
+    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs font-black uppercase tracking-widest text-slate-500">Online Now</p>
+        <Link href="/community/directory" className="text-xs text-indigo-600 font-semibold hover:underline">See all →</Link>
+      </div>
+      <div className="overflow-x-auto no-scrollbar">
+        <div className="flex gap-4 pb-1">
+          {members.map(m => (
+            <Link key={m.id} href={`/profile/${m.id}`}
+              className="flex-shrink-0 flex flex-col items-center gap-1.5 hover:opacity-80 transition-opacity">
+              <div className="relative">
+                <Avatar name={m.displayName ?? "?"} photoURL={m.photoURL} size="md" />
+                <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-400 rounded-full ring-2 ring-white" />
+              </div>
+              <span className="text-[10px] font-semibold text-slate-600 text-center w-14 truncate leading-tight">
+                {(m.displayName ?? "?").split(" ")[0]}
+              </span>
+            </Link>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Stories Strip ──────────────────────────────────────────
+
+function StoriesStrip({
+  stories, onAdd, onView,
+}: {
+  stories: Story[];
+  onAdd: () => void;
+  onView: (s: Story) => void;
+}) {
+  return (
+    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+      <div className="overflow-x-auto no-scrollbar">
+        <div className="flex gap-3 pb-1">
+          {/* Add Story */}
+          <button onClick={onAdd} className="flex-shrink-0 flex flex-col items-center gap-1.5">
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center ring-2 ring-white shadow-md">
+              <Plus className="w-6 h-6 text-white" />
+            </div>
+            <span className="text-[10px] text-slate-500 font-semibold text-center leading-tight">Your Story</span>
+          </button>
+          {stories.map(s => (
+            <button key={s.id} onClick={() => onView(s)} className="flex-shrink-0 flex flex-col items-center gap-1.5">
+              <div className="w-16 h-16 rounded-full ring-2 ring-indigo-500 ring-offset-2 overflow-hidden shadow-md">
+                {s.imageUrl
+                  ? <img src={s.imageUrl} className="w-full h-full object-cover" alt={s.authorName} />
+                  : <div className="w-full h-full bg-gradient-to-br from-indigo-400 to-violet-500 flex items-center justify-center">
+                      <span className="text-white text-lg font-black">{s.authorName?.[0]}</span>
+                    </div>
+                }
+              </div>
+              <span className="text-[10px] text-slate-600 font-semibold text-center truncate w-20 leading-tight">
+                {s.authorName.split(" ")[0]}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Page ───────────────────────────────────────────────────
 
 export default function DashboardPage() {
@@ -56,6 +269,9 @@ export default function DashboardPage() {
   // Feed
   const [feed, setFeed] = useState<Post[]>([]);
   const [feedLoading, setFeedLoading] = useState(true);
+  const [feedTab, setFeedTab] = useState<"global" | "following">("global");
+  const [followingFeed, setFollowingFeed] = useState<Post[]>([]);
+  const [followingLoading, setFollowingLoading] = useState(false);
 
   // Stories
   const [stories, setStories] = useState<Story[]>([]);
@@ -73,22 +289,18 @@ export default function DashboardPage() {
   const [composeScope, setComposeScope] = useState<"global" | "national" | "city">("global");
   const [composeSaving, setComposeSaving] = useState(false);
 
-  // Feed tabs
-  const [feedTab, setFeedTab] = useState<"global" | "following">("global");
-  const [followingFeed, setFollowingFeed] = useState<Post[]>([]);
-  const [followingLoading, setFollowingLoading] = useState(false);
-
   // Reactions & Comments
   const [reacted, setReacted] = useState<Record<string, string>>({});
   const [commentingOn, setCommentingOn] = useState<string | null>(null);
   const [commentText, setCommentText] = useState("");
 
-  // Right panel
+  // Panels
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [activeMembers, setActiveMembers] = useState<UserProfile[]>([]);
-  const [liveEvent, setLiveEvent] = useState<LiveEvent | null>(null);
+  const [liveEvents, setLiveEvents] = useState<LiveEvent[]>([]);
+  const [spotlights, setSpotlights] = useState<Spotlight[]>([]);
 
-  // ── Real-time feed ─────────────────────────────────────
+  // ── Real-time feed ──────────────────────────────────────
 
   useEffect(() => {
     if (!profile) return;
@@ -99,105 +311,68 @@ export default function DashboardPage() {
       limit(20)
     );
     const unsub = onSnapshot(q, snap => {
-      const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as Post));
-      setFeed(items);
+      setFeed(snap.docs.map(d => ({ id: d.id, ...d.data() } as Post)));
       setFeedLoading(false);
     });
     return unsub;
   }, [profile]);
 
-  // ── Following feed ────────────────────────────────────
+  // ── Following feed ──────────────────────────────────────
 
   useEffect(() => {
     if (!profile || feedTab !== "following") return;
     setFollowingLoading(true);
-    const loadFollowingFeed = async () => {
+    const load = async () => {
       try {
         const followsSnap = await getDocs(
-          query(
-            collection(db, COLLECTIONS.FOLLOWS),
-            where("followerId", "==", profile.id)
-          )
+          query(collection(db, COLLECTIONS.FOLLOWS), where("followerId", "==", profile.id))
         );
-        const followingIds = followsSnap.docs.map(d => d.data().followingId as string);
-        if (followingIds.length === 0) {
-          setFollowingFeed([]);
-          setFollowingLoading(false);
-          return;
-        }
+        const ids = followsSnap.docs.map(d => d.data().followingId as string);
+        if (ids.length === 0) { setFollowingFeed([]); setFollowingLoading(false); return; }
         const postsSnap = await getDocs(
-          query(
-            collection(db, COLLECTIONS.POSTS),
-            where("authorId", "in", followingIds),
-            orderBy("createdAt", "desc"),
-            limit(20)
-          )
+          query(collection(db, COLLECTIONS.POSTS), where("authorId", "in", ids), orderBy("createdAt", "desc"), limit(20))
         );
         setFollowingFeed(postsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Post)));
-      } catch (e) {
-        console.error(e);
-      } finally {
-        setFollowingLoading(false);
-      }
+      } catch (e) { console.error(e); }
+      finally { setFollowingLoading(false); }
     };
-    loadFollowingFeed();
+    load();
   }, [profile, feedTab]);
 
-  // ── Side data (stories, announcements, members, live) ─
+  // ── Side data ───────────────────────────────────────────
 
   useEffect(() => {
     if (!profile) return;
     const now = Timestamp.now();
 
-    // Stories
-    const storyQ = query(
-      collection(db, COLLECTIONS.STORIES),
-      where("expiresAt", ">", now),
-      orderBy("expiresAt"),
-      orderBy("createdAt", "desc"),
-      limit(20)
+    const unsubStories = onSnapshot(
+      query(collection(db, COLLECTIONS.STORIES), where("expiresAt", ">", now), orderBy("expiresAt"), orderBy("createdAt", "desc"), limit(20)),
+      snap => setStories(snap.docs.map(d => ({ id: d.id, ...d.data() } as Story)))
     );
-    const unsubStories = onSnapshot(storyQ, snap => {
-      setStories(snap.docs.map(d => ({ id: d.id, ...d.data() } as Story)));
-    });
 
-    // Announcements, members, live (one-time)
-    const loadSide = async () => {
+    const load = async () => {
       try {
-        const [annSnap, membersSnap, liveSnap] = await Promise.all([
+        const [annSnap, membersSnap, liveSnap, spotlightSnap, reactSnap] = await Promise.all([
           getDocs(query(collection(db, COLLECTIONS.ANNOUNCEMENTS), orderBy("createdAt", "desc"), limit(3))),
-          getDocs(query(collection(db, COLLECTIONS.USERS), where("isActive", "==", true), orderBy("displayName"), limit(10))),
-          getDocs(query(collection(db, COLLECTIONS.LIVE_EVENTS), where("isLive", "==", true), limit(1))),
+          getDocs(query(collection(db, COLLECTIONS.USERS), where("isActive", "==", true), orderBy("displayName"), limit(12))),
+          getDocs(query(collection(db, COLLECTIONS.LIVE_EVENTS), where("isLive", "==", true), limit(5))),
+          getDocs(query(collection(db, COLLECTIONS.SPOTLIGHTS), where("isApproved", "==", true), orderBy("createdAt", "desc"), limit(8))),
+          getDocs(query(collection(db, COLLECTIONS.REACTIONS), where("userId", "==", profile.id), limit(50))),
         ]);
         setAnnouncements(annSnap.docs.map(d => ({ id: d.id, ...d.data() } as Announcement)));
         setActiveMembers(membersSnap.docs.map(d => ({ id: d.id, ...d.data() } as UserProfile)));
-        if (liveSnap.docs.length > 0) {
-          setLiveEvent({ id: liveSnap.docs[0].id, ...liveSnap.docs[0].data() } as LiveEvent);
-        }
+        setLiveEvents(liveSnap.docs.map(d => ({ id: d.id, ...d.data() } as LiveEvent)));
+        setSpotlights(spotlightSnap.docs.map(d => ({ id: d.id, ...d.data() } as Spotlight)));
+        const map: Record<string, string> = {};
+        reactSnap.docs.forEach(d => { const x = d.data(); map[x.postId] = x.type; });
+        setReacted(map);
       } catch (e) { console.error(e); }
     };
-    loadSide();
-
-    // Load user's reactions for visible posts
-    const loadReactions = async () => {
-      try {
-        const rSnap = await getDocs(
-          query(collection(db, COLLECTIONS.REACTIONS), where("userId", "==", profile.id), limit(50))
-        );
-        const map: Record<string, string> = {};
-        rSnap.docs.forEach(d => {
-          const data = d.data();
-          map[data.postId] = data.type;
-        });
-        setReacted(map);
-      } catch (e) { /* silent */ }
-    };
-    loadReactions();
-
-    return () => { unsubStories(); };
+    load();
+    return () => unsubStories();
   }, [profile]);
 
-  // ── Actions ────────────────────────────────────────────
+  // ── Actions ─────────────────────────────────────────────
 
   const handleReact = async (postId: string, type: "like" | "heart" | "pray") => {
     if (!profile) return;
@@ -205,16 +380,11 @@ export default function DashboardPage() {
     const reactId = `${postId}_${profile.id}`;
     try {
       if (existing === type) {
-        // toggle off — optimistic
         setReacted(prev => { const n = { ...prev }; delete n[postId]; return n; });
-        await setDoc(doc(db, COLLECTIONS.REACTIONS, reactId), {
-          postId, userId: profile.id, type: null, deletedAt: serverTimestamp(),
-        }, { merge: true });
+        await setDoc(doc(db, COLLECTIONS.REACTIONS, reactId), { postId, userId: profile.id, type: null, deletedAt: serverTimestamp() }, { merge: true });
       } else {
         setReacted(prev => ({ ...prev, [postId]: type }));
-        await setDoc(doc(db, COLLECTIONS.REACTIONS, reactId), {
-          postId, postType: "post", userId: profile.id, type, createdAt: serverTimestamp(),
-        });
+        await setDoc(doc(db, COLLECTIONS.REACTIONS, reactId), { postId, postType: "post", userId: profile.id, type, createdAt: serverTimestamp() });
       }
     } catch { toast.error("Reaction failed"); }
   };
@@ -223,17 +393,11 @@ export default function DashboardPage() {
     if (!profile || !commentText.trim()) return;
     try {
       await addDoc(collection(db, COLLECTIONS.COMMENTS), {
-        parentId: postId,
-        parentType: "post",
-        authorId: profile.id,
-        authorName: profile.displayName,
-        authorPhoto: profile.photoURL || null,
-        body: commentText.trim(),
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
+        parentId: postId, parentType: "post",
+        authorId: profile.id, authorName: profile.displayName, authorPhoto: profile.photoURL || null,
+        body: commentText.trim(), createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
       });
-      setCommentText("");
-      setCommentingOn(null);
+      setCommentText(""); setCommentingOn(null);
       toast.success("Comment posted");
     } catch { toast.error("Failed to post comment"); }
   };
@@ -242,27 +406,15 @@ export default function DashboardPage() {
     if (!profile || !composeBody.trim()) return;
     setComposeSaving(true);
     try {
-      const newPost = await addDoc(collection(db, COLLECTIONS.POSTS), {
-        authorId: profile.id,
-        authorName: profile.displayName,
-        authorPhoto: profile.photoURL || null,
-        nationName: profile.nationName || null,
-        cityName: profile.cityName || null,
-        body: composeBody.trim(),
-        type: composeType,
-        scope: composeScope,
-        nationId: profile.nationId || null,
-        cityId: profile.cityId || null,
-        mediaUrls: [],
-        commentCount: 0,
-        reactionCounts: { like: 0, heart: 0, pray: 0 },
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
+      await addDoc(collection(db, COLLECTIONS.POSTS), {
+        authorId: profile.id, authorName: profile.displayName, authorPhoto: profile.photoURL || null,
+        nationName: profile.nationName || null, cityName: profile.cityName || null,
+        body: composeBody.trim(), type: composeType, scope: composeScope,
+        nationId: profile.nationId || null, cityId: profile.cityId || null,
+        mediaUrls: [], commentCount: 0, reactionCounts: { like: 0, heart: 0, pray: 0 },
+        createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
       });
-      setComposeBody("");
-      setComposeType("update");
-      setComposeScope("global");
-      setComposeOpen(false);
+      setComposeBody(""); setComposeType("update"); setComposeScope("global"); setComposeOpen(false);
       toast.success("Posted!");
     } catch { toast.error("Failed to post"); }
     finally { setComposeSaving(false); }
@@ -288,18 +440,12 @@ export default function DashboardPage() {
         imageUrl = await getDownloadURL(storageRef);
       }
       await addDoc(collection(db, COLLECTIONS.STORIES), {
-        authorId: profile.id,
-        authorName: profile.displayName,
-        authorPhoto: profile.photoURL || null,
-        imageUrl: imageUrl || null,
-        caption: storyCaption.trim() || null,
+        authorId: profile.id, authorName: profile.displayName, authorPhoto: profile.photoURL || null,
+        imageUrl: imageUrl || null, caption: storyCaption.trim() || null,
         expiresAt: Timestamp.fromDate(new Date(Date.now() + 24 * 60 * 60 * 1000)),
         createdAt: serverTimestamp(),
       });
-      setCreateStoryOpen(false);
-      setStoryCaption("");
-      setStoryImageFile(null);
-      setStoryImagePreview(null);
+      setCreateStoryOpen(false); setStoryCaption(""); setStoryImageFile(null); setStoryImagePreview(null);
       toast.success("Story shared!");
     } catch { toast.error("Failed to share story"); }
     finally { setStorySaving(false); }
@@ -308,7 +454,7 @@ export default function DashboardPage() {
   if (!profile) return null;
   const firstName = (profile.displayName ?? "Friend").split(" ")[0];
 
-  // ── Render ─────────────────────────────────────────────
+  // ── Render ──────────────────────────────────────────────
 
   return (
     <div className="animate-fade-in pb-10">
@@ -317,61 +463,13 @@ export default function DashboardPage() {
         {/* ── Center column ── */}
         <div className="flex-1 min-w-0 space-y-4">
 
-          {/* LIVE NOW */}
-          {liveEvent && (
-            <Link href={`/live/${liveEvent.id}`} className="block">
-              <div className="relative overflow-hidden bg-gradient-to-r from-rose-600 to-pink-600 rounded-2xl p-4 text-white flex items-center gap-4 shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-150">
-                <div className="relative flex-shrink-0">
-                  <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
-                    <Radio className="w-6 h-6 text-white" />
-                  </div>
-                  <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-60" />
-                    <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-white" />
-                  </span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <span className="text-[10px] font-black uppercase tracking-widest bg-white/20 px-2 py-0.5 rounded-full">● LIVE NOW</span>
-                  <p className="font-black text-sm leading-snug truncate mt-0.5">{liveEvent.title}</p>
-                  <p className="text-xs text-white/70">{liveEvent.hostName} · Tap to join</p>
-                </div>
-                <ChevronRight className="w-5 h-5 text-white/70 flex-shrink-0" />
-              </div>
-            </Link>
-          )}
+          {/* 1. LIVE NOW carousel */}
+          <LiveEventsCarousel events={liveEvents} />
 
-          {/* Stories strip */}
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
-            <div className="overflow-x-auto no-scrollbar flex gap-3 pb-2">
-              {/* Add Story */}
-              <button onClick={() => setCreateStoryOpen(true)}
-                className="flex-shrink-0 w-24 flex flex-col items-center gap-1.5">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center ring-2 ring-white shadow">
-                  <Plus className="w-6 h-6 text-white" />
-                </div>
-                <span className="text-[10px] text-slate-500 font-semibold text-center leading-tight">Your Story</span>
-              </button>
+          {/* 2. Stories strip */}
+          <StoriesStrip stories={stories} onAdd={() => setCreateStoryOpen(true)} onView={setViewingStory} />
 
-              {stories.map(s => (
-                <button key={s.id} onClick={() => setViewingStory(s)}
-                  className="flex-shrink-0 w-24 flex flex-col items-center gap-1.5">
-                  <div className="w-16 h-16 rounded-full ring-2 ring-indigo-500 ring-offset-2 overflow-hidden shadow">
-                    {s.imageUrl
-                      ? <img src={s.imageUrl} className="w-full h-full object-cover" alt={s.authorName} />
-                      : <div className="w-full h-full bg-gradient-to-br from-indigo-400 to-violet-500 flex items-center justify-center">
-                          <span className="text-white text-lg font-black">{s.authorName?.[0]}</span>
-                        </div>
-                    }
-                  </div>
-                  <span className="text-[10px] text-slate-600 font-semibold text-center truncate w-20 leading-tight">
-                    {s.authorName.split(" ")[0]}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Post composer */}
+          {/* 3. Post composer */}
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
             <div className="flex items-center gap-3 mb-3">
               <Avatar name={profile.displayName} photoURL={profile.photoURL} size="sm" className="flex-shrink-0" />
@@ -382,10 +480,10 @@ export default function DashboardPage() {
             </div>
             <div className="flex border-t border-slate-100 pt-3 gap-1">
               {[
-                { label: "Photo",     icon: "🖼️",  type: "update" as const },
-                { label: "Prayer",    icon: "🙏",  type: "prayer_request" as const },
-                { label: "Testimony", icon: "✦",   type: "testimony" as const },
-                { label: "Insight",   icon: "💡",  type: "insight" as const },
+                { label: "Photo",     icon: "🖼️", type: "update" as const },
+                { label: "Prayer",    icon: "🙏", type: "prayer_request" as const },
+                { label: "Testimony", icon: "✦",  type: "testimony" as const },
+                { label: "Insight",   icon: "💡", type: "insight" as const },
               ].map(item => (
                 <button key={item.type}
                   onClick={() => { setComposeType(item.type); setComposeOpen(true); }}
@@ -397,113 +495,55 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Feed tab switcher */}
+          {/* 4. Featured initiatives carousel */}
+          {spotlights.length > 0 && (
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+              <FeaturedCarousel spotlights={spotlights} />
+            </div>
+          )}
+
+          {/* 5. Active members strip */}
+          <MembersStrip members={activeMembers} />
+
+          {/* 6. Feed tab switcher */}
           <div className="flex gap-2">
-            {([
-              { key: "global",    label: "For You" },
-              { key: "following", label: "Following" },
-            ] as const).map(tab => (
-              <button
-                key={tab.key}
-                onClick={() => setFeedTab(tab.key)}
+            {(["global", "following"] as const).map(tab => (
+              <button key={tab} onClick={() => setFeedTab(tab)}
                 className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-colors ${
-                  feedTab === tab.key
-                    ? "bg-indigo-600 text-white"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                }`}
-              >
-                {tab.label}
+                  feedTab === tab ? "bg-indigo-600 text-white shadow-sm" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}>
+                {tab === "global" ? "For You" : "Following"}
               </button>
             ))}
           </div>
 
-          {/* Feed */}
-          {feedTab === "global" ? (feedLoading ? (
-            <div className="space-y-4">
-              {[1, 2, 3].map(i => (
-                <div key={i} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 animate-pulse">
-                  <div className="flex gap-3 mb-3">
-                    <div className="w-10 h-10 rounded-full bg-slate-200" />
-                    <div className="flex-1 space-y-2">
-                      <div className="h-3 bg-slate-200 rounded w-1/3" />
-                      <div className="h-3 bg-slate-200 rounded w-1/4" />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="h-3 bg-slate-200 rounded" />
-                    <div className="h-3 bg-slate-200 rounded w-5/6" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : feed.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-10 text-center">
-              <p className="text-slate-400 text-sm">No posts yet. Be the first to share!</p>
-            </div>
-          ) : (
+          {/* 7. Feed */}
+          {feedTab === "global" ? (
+            feedLoading ? <FeedSkeleton /> :
+            feed.length === 0 ? <FeedEmpty /> :
             <div className="space-y-4">
               {feed.map(post => (
-                <FeedPostCard
-                  key={post.id}
-                  post={post}
-                  myReaction={reacted[post.id]}
-                  onReact={handleReact}
-                  commentingOn={commentingOn}
-                  commentText={commentText}
-                  onCommentToggle={id => {
-                    setCommentingOn(prev => prev === id ? null : id);
-                    setCommentText("");
-                  }}
-                  onCommentChange={setCommentText}
-                  onCommentSubmit={handleComment}
-                />
+                <FeedPostCard key={post.id} post={post} myReaction={reacted[post.id]}
+                  onReact={handleReact} commentingOn={commentingOn} commentText={commentText}
+                  onCommentToggle={id => { setCommentingOn(p => p === id ? null : id); setCommentText(""); }}
+                  onCommentChange={setCommentText} onCommentSubmit={handleComment} />
               ))}
             </div>
-          )) : (
-            /* Following tab */
-            followingLoading ? (
-              <div className="space-y-4">
-                {[1, 2, 3].map(i => (
-                  <div key={i} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 animate-pulse">
-                    <div className="flex gap-3 mb-3">
-                      <div className="w-10 h-10 rounded-full bg-slate-200" />
-                      <div className="flex-1 space-y-2">
-                        <div className="h-3 bg-slate-200 rounded w-1/3" />
-                        <div className="h-3 bg-slate-200 rounded w-1/4" />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="h-3 bg-slate-200 rounded" />
-                      <div className="h-3 bg-slate-200 rounded w-5/6" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : followingFeed.length === 0 ? (
+          ) : (
+            followingLoading ? <FeedSkeleton /> :
+            followingFeed.length === 0 ? (
               <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-10 text-center">
                 <p className="text-slate-500 text-sm font-semibold mb-1">You&apos;re not following anyone yet</p>
                 <p className="text-slate-400 text-xs mb-4">Follow people to see their posts here.</p>
-                <Link href="/community/directory" className="text-indigo-600 text-sm font-semibold hover:underline">
-                  Browse the directory →
-                </Link>
+                <Link href="/community/directory" className="text-indigo-600 text-sm font-semibold hover:underline">Browse the directory →</Link>
               </div>
             ) : (
               <div className="space-y-4">
                 {followingFeed.map(post => (
-                  <FeedPostCard
-                    key={post.id}
-                    post={post}
-                    myReaction={reacted[post.id]}
-                    onReact={handleReact}
-                    commentingOn={commentingOn}
-                    commentText={commentText}
-                    onCommentToggle={id => {
-                      setCommentingOn(prev => prev === id ? null : id);
-                      setCommentText("");
-                    }}
-                    onCommentChange={setCommentText}
-                    onCommentSubmit={handleComment}
-                  />
+                  <FeedPostCard key={post.id} post={post} myReaction={reacted[post.id]}
+                    onReact={handleReact} commentingOn={commentingOn} commentText={commentText}
+                    onCommentToggle={id => { setCommentingOn(p => p === id ? null : id); setCommentText(""); }}
+                    onCommentChange={setCommentText} onCommentSubmit={handleComment} />
                 ))}
               </div>
             )
@@ -512,24 +552,6 @@ export default function DashboardPage() {
 
         {/* ── Right panel (desktop only) ── */}
         <div className="hidden lg:block w-72 flex-shrink-0 space-y-4 sticky top-20">
-          {/* Active members */}
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
-            <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3">People You May Know</p>
-            <div className="space-y-2">
-              {activeMembers.slice(0, 6).map(m => (
-                <Link key={m.id} href={`/profile/${m.id}`}
-                  className="flex items-center gap-3 hover:bg-slate-50 rounded-xl p-1.5 transition-colors">
-                  <Avatar name={m.displayName ?? "?"} photoURL={m.photoURL} size="sm" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-slate-900 truncate">{m.displayName}</p>
-                    <p className="text-xs text-slate-400 truncate">{m.nationName}</p>
-                  </div>
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0" />
-                </Link>
-              ))}
-            </div>
-          </div>
-
           {/* Announcements */}
           {announcements.length > 0 && (
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
@@ -547,6 +569,27 @@ export default function DashboardPage() {
               </div>
             </div>
           )}
+
+          {/* Quick links */}
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+            <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3">Quick Links</p>
+            <div className="space-y-1">
+              {[
+                { label: "Prayer Wall", href: "/prayer", emoji: "🙏" },
+                { label: "Events",      href: "/events", emoji: "📅" },
+                { label: "Stories",     href: "/stories", emoji: "📸" },
+                { label: "Groups",      href: "/community/groups", emoji: "👥" },
+                { label: "Training",    href: "/training", emoji: "📚" },
+              ].map(link => (
+                <Link key={link.href} href={link.href}
+                  className="flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-slate-50 transition-colors text-sm text-slate-700 font-medium">
+                  <span className="text-base">{link.emoji}</span>
+                  {link.label}
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-400 ml-auto" />
+                </Link>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -555,19 +598,10 @@ export default function DashboardPage() {
       {/* Compose */}
       <Modal open={composeOpen} onClose={() => setComposeOpen(false)} title="Create Post" size="md">
         <div className="space-y-4">
-          <Textarea
-            placeholder="What's on your mind?"
-            rows={5}
-            value={composeBody}
-            onChange={e => setComposeBody(e.target.value)}
-          />
+          <Textarea placeholder="What's on your mind?" rows={5} value={composeBody} onChange={e => setComposeBody(e.target.value)} />
           <div className="flex gap-3">
             <div className="flex-1">
-              <Select
-                label="Type"
-                value={composeType}
-                onChange={e => setComposeType(e.target.value as Post["type"])}
-              >
+              <Select label="Type" value={composeType} onChange={e => setComposeType(e.target.value as Post["type"])}>
                 <option value="update">Update</option>
                 <option value="testimony">Testimony</option>
                 <option value="prayer_request">Prayer Request</option>
@@ -576,22 +610,14 @@ export default function DashboardPage() {
               </Select>
             </div>
             <div className="flex-1">
-              <Select
-                label="Scope"
-                value={composeScope}
-                onChange={e => setComposeScope(e.target.value as "global" | "national" | "city")}
-              >
+              <Select label="Scope" value={composeScope} onChange={e => setComposeScope(e.target.value as "global" | "national" | "city")}>
                 <option value="global">Global</option>
                 <option value="national">National</option>
                 <option value="city">City</option>
               </Select>
             </div>
           </div>
-          <Button
-            onClick={handleCompose}
-            disabled={!composeBody.trim() || composeSaving}
-            className="w-full"
-          >
+          <Button onClick={handleCompose} disabled={!composeBody.trim() || composeSaving} className="w-full">
             {composeSaving ? "Posting…" : "Post"}
           </Button>
         </div>
@@ -600,7 +626,7 @@ export default function DashboardPage() {
       {/* Create Story */}
       <Modal open={createStoryOpen} onClose={() => { setCreateStoryOpen(false); setStoryImagePreview(null); setStoryImageFile(null); setStoryCaption(""); }} title="Share a Story" size="sm">
         <div className="space-y-4">
-          <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-slate-200 rounded-xl cursor-pointer hover:border-indigo-400 transition-colors overflow-hidden">
+          <label className="flex flex-col items-center justify-center w-full h-44 border-2 border-dashed border-slate-200 rounded-2xl cursor-pointer hover:border-indigo-400 transition-colors overflow-hidden">
             {storyImagePreview
               ? <img src={storyImagePreview} className="w-full h-full object-cover" alt="preview" />
               : <div className="flex flex-col items-center gap-2 text-slate-400">
@@ -610,12 +636,7 @@ export default function DashboardPage() {
             }
             <input type="file" accept="image/*" className="sr-only" onChange={handleStoryImageChange} />
           </label>
-          <Textarea
-            placeholder="Add a caption…"
-            rows={2}
-            value={storyCaption}
-            onChange={e => setStoryCaption(e.target.value)}
-          />
+          <Textarea placeholder="Add a caption…" rows={2} value={storyCaption} onChange={e => setStoryCaption(e.target.value)} />
           <Button onClick={handleCreateStory} disabled={(!storyImageFile && !storyCaption.trim()) || storySaving} className="w-full">
             {storySaving ? "Sharing…" : "Share Story"}
           </Button>
@@ -626,25 +647,20 @@ export default function DashboardPage() {
       {viewingStory && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4" onClick={() => setViewingStory(null)}>
           <div className="relative max-w-sm w-full" onClick={e => e.stopPropagation()}>
-            {/* Progress bar */}
             <div className="w-full h-1 bg-white/20 rounded-full mb-3 overflow-hidden">
               <div className="h-full bg-white rounded-full w-3/4" />
             </div>
-            {/* Header */}
             <div className="flex items-center gap-2 mb-3">
               <Avatar name={viewingStory.authorName} photoURL={viewingStory.authorPhoto} size="sm" />
               <span className="text-white text-sm font-semibold">{viewingStory.authorName}</span>
               <span className="text-white/50 text-xs ml-auto">{timeAgo(viewingStory.createdAt)}</span>
             </div>
-            {/* Image */}
             {viewingStory.imageUrl && (
               <img src={viewingStory.imageUrl} className="w-full rounded-2xl object-cover max-h-[70vh]" alt="story" />
             )}
-            {/* Caption */}
             {viewingStory.caption && (
               <p className="text-white text-sm mt-3 text-center">{viewingStory.caption}</p>
             )}
-            {/* Close */}
             <button onClick={() => setViewingStory(null)}
               className="absolute top-6 right-0 p-1.5 bg-white/20 rounded-full text-white hover:bg-white/30 transition-colors">
               <X className="w-4 h-4" />
@@ -652,6 +668,38 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Skeletons & Empty ──────────────────────────────────────
+
+function FeedSkeleton() {
+  return (
+    <div className="space-y-4">
+      {[1, 2, 3].map(i => (
+        <div key={i} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 animate-pulse">
+          <div className="flex gap-3 mb-3">
+            <div className="w-10 h-10 rounded-full bg-slate-200" />
+            <div className="flex-1 space-y-2">
+              <div className="h-3 bg-slate-200 rounded w-1/3" />
+              <div className="h-3 bg-slate-200 rounded w-1/4" />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <div className="h-3 bg-slate-200 rounded" />
+            <div className="h-3 bg-slate-200 rounded w-5/6" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function FeedEmpty() {
+  return (
+    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-10 text-center">
+      <p className="text-slate-400 text-sm">No posts yet. Be the first to share!</p>
     </div>
   );
 }
@@ -697,9 +745,8 @@ function FeedPostCard({
               )}
             </div>
             <div className="flex items-center gap-1.5 text-xs text-slate-400">
+              {post.nationName && <><Globe className="w-3 h-3" /><span>{post.nationName}</span><span>·</span></>}
               <span>{timeAgo(post.createdAt)}</span>
-              <span>·</span>
-              <Globe className="w-3 h-3" />
             </div>
           </div>
         </Link>
@@ -709,22 +756,17 @@ function FeedPostCard({
       </div>
 
       {/* Body */}
-      <div className="px-4 pb-3">
-        <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-line">
-          {renderHashtags(post.body)}
-        </p>
+      <div className="px-4 pb-3 text-sm text-slate-800 leading-relaxed whitespace-pre-wrap">
+        {renderHashtags(post.body ?? "")}
       </div>
 
       {/* Media */}
-      {post.mediaUrls && post.mediaUrls.length > 0 && (
-        <div className={`grid gap-1 ${post.mediaUrls.length === 1 ? "" : "grid-cols-2"} mb-1`}>
-          {post.mediaUrls.map((url, i) => (
-            <img
-              key={i}
-              src={url}
+      {(post.mediaUrls?.length ?? 0) > 0 && (
+        <div className={`grid gap-1 overflow-hidden ${post.mediaUrls!.length > 1 ? "grid-cols-2 mx-4 rounded-2xl" : ""}`}>
+          {post.mediaUrls!.map((url, i) => (
+            <img key={i} src={url}
               className={`w-full object-cover ${post.mediaUrls!.length === 1 ? "max-h-96 rounded-none" : "aspect-square"}`}
-              alt=""
-            />
+              alt="" />
           ))}
         </div>
       )}
@@ -740,26 +782,23 @@ function FeedPostCard({
 
       {/* Action buttons */}
       <div className="flex border-t border-slate-100 mx-4">
-        {([
-          { icon: "👍", label: "Like",  type: "like"  as const },
-          { icon: "❤️", label: "Love",  type: "heart" as const },
-          { icon: "🙏", label: "Pray",  type: "pray"  as const },
-        ] as const).map(btn => (
-          <button key={btn.type}
-            onClick={() => onReact(post.id, btn.type)}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm font-semibold transition-colors rounded-xl ${myReaction === btn.type ? "text-indigo-600" : "text-slate-500 hover:bg-slate-50"}`}>
-            <span className="text-base">{btn.icon}</span>
-            <span className="hidden sm:inline text-xs">{btn.label}</span>
-          </button>
-        ))}
-        <button
-          onClick={() => onCommentToggle(post.id)}
+        {(["like", "heart", "pray"] as const).map((type, i) => {
+          const icons = { like: "👍", heart: "❤️", pray: "🙏" };
+          const labels = { like: "Like", heart: "Love", pray: "Pray" };
+          return (
+            <button key={type} onClick={() => onReact(post.id, type)}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm font-semibold transition-colors rounded-xl ${myReaction === type ? "text-indigo-600" : "text-slate-500 hover:bg-slate-50"}`}>
+              <span className="text-base">{icons[type]}</span>
+              <span className="hidden sm:inline text-xs">{labels[type]}</span>
+            </button>
+          );
+        })}
+        <button onClick={() => onCommentToggle(post.id)}
           className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm font-semibold text-slate-500 hover:bg-slate-50 transition-colors rounded-xl">
           <MessageSquare className="w-4 h-4" />
           <span className="hidden sm:inline text-xs">Comment</span>
         </button>
-        <button
-          onClick={copyLink}
+        <button onClick={copyLink}
           className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm font-semibold text-slate-500 hover:bg-slate-50 transition-colors rounded-xl">
           <Link2 className="w-4 h-4" />
           <span className="hidden sm:inline text-xs">Share</span>
@@ -769,16 +808,10 @@ function FeedPostCard({
       {/* Comment input */}
       {commentingOn === post.id && (
         <div className="px-4 pb-4 pt-2 border-t border-slate-100 flex gap-2">
-          <textarea
-            rows={2}
-            value={commentText}
-            onChange={e => onCommentChange(e.target.value)}
+          <textarea rows={2} value={commentText} onChange={e => onCommentChange(e.target.value)}
             placeholder="Write a comment…"
-            className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-          <button
-            onClick={() => onCommentSubmit(post.id)}
-            disabled={!commentText.trim()}
+            className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          <button onClick={() => onCommentSubmit(post.id)} disabled={!commentText.trim()}
             className="px-3 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl disabled:opacity-40 hover:bg-indigo-700 transition-colors">
             Post
           </button>
