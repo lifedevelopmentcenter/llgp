@@ -1,0 +1,4 @@
+email,display_name,first_name,last_name,bio,location,country_code,role,photo_url
+john.doe@example.com,John Doe,John,Doe,"Leader and entrepreneur based in Lagos.",Lagos,NG,national_leader,https://yoursite.com/wp-content/uploads/photo.jpg
+jane.smith@example.com,Jane Smith,Jane,Smith,"Passionate about community development.",Nairobi,KE,participant,
+pastor.mike@example.com,Pastor Mike,Mike,Williams,"City leader for Accra hub.",Accra,GH,city_leader,

@@ -43,3 +43,7 @@ next-env.d.ts
 # cloud functions
 /functions/lib
 /functions/node_modules
+
+# Migration secrets
+scripts/serviceAccount.json
+scripts/members.csv
