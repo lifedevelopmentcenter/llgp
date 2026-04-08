@@ -127,12 +127,12 @@ export default function ConversationPage() {
       // Notify recipient
       if (otherId) {
         await addDoc(collection(db, "notifications"), {
-          uid: otherId,
+          userId: otherId,
           type: "message",
-          title: "New message",
-          body: `${profile.displayName}: ${body.slice(0, 80)}`,
-          url: `/messages/${conversationId}`,
-          read: false,
+          title: `${profile.displayName}`,
+          body: body.slice(0, 80),
+          link: `/messages/${conversationId}`,
+          isRead: false,
           createdAt: serverTimestamp(),
         });
       }
