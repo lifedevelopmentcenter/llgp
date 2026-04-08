@@ -180,7 +180,7 @@ service cloud.firestore {
 
     match /messages/{msgId} {
       allow create: if isAuth() && request.resource.data.senderId == uid();
-      allow read: if isAuth() && resource.data.senderId == uid();
+      allow read: if isAuth();
     }
 
     // ── Conversation messages (subcollection) ─────────────────
@@ -275,12 +275,12 @@ service cloud.firestore {
       allow delete: if isAuth() && (resource.data.senderId == uid() || isGlobalAdmin());
     }
 
-    // ── Notifications (uid field) ─────────────────────────────
+    // ── Notifications ─────────────────────────────────────────
     match /notifications/{notifId} {
-      allow read: if isAuth() && (resource.data.uid == uid() || resource.data.userId == uid());
+      allow read: if isAuth() && resource.data.userId == uid();
       allow create: if isAuth();
-      allow update: if isAuth() && (resource.data.uid == uid() || resource.data.userId == uid());
-      allow delete: if isAuth() && (resource.data.uid == uid() || resource.data.userId == uid());
+      allow update: if isAuth() && resource.data.userId == uid();
+      allow delete: if isAuth() && resource.data.userId == uid();
     }
   }
 }

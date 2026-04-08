@@ -21,14 +21,16 @@ export function BottomNav() {
     const unsub = onSnapshot(q, snap => {
       const total = snap.docs.reduce((sum, d) => sum + ((d.data().unreadCounts?.[profile.id]) || 0), 0);
       setUnreadMsgs(total);
-    });
+    }, () => {}); // silently ignore permission errors
     return unsub;
   }, [profile]);
 
   useEffect(() => {
     if (!profile) return;
-    const q = query(collection(db, COLLECTIONS.NOTIFICATIONS), where("userId", "==", profile.id), where("isRead", "==", false));
-    const unsub = onSnapshot(q, snap => setUnreadNotifs(snap.size));
+    const q = query(collection(db, COLLECTIONS.NOTIFICATIONS), where("userId", "==", profile.id));
+    const unsub = onSnapshot(q, snap => {
+      setUnreadNotifs(snap.docs.filter(d => !d.data().isRead).length);
+    }, () => {}); // silently ignore permission errors
     return unsub;
   }, [profile]);
 
