@@ -83,7 +83,7 @@ export default function GroupDetailPage() {
     const q = query(collection(db, "groups", groupId, "chat"), orderBy("createdAt", "asc"));
     const unsub = onSnapshot(q, snap => {
       setChatMessages(snap.docs.map(d => ({ id: d.id, ...d.data() } as ChatMessage)));
-    });
+    }, () => {});
     return unsub;
   }, [groupId, tab]);
 

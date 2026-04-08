@@ -59,7 +59,7 @@ export default function ConversationPage() {
     );
     const unsub = onSnapshot(q2, snap => {
       setMessages(snap.docs.map(d => ({ id: d.id, ...d.data() } as Message)));
-    });
+    }, () => {});
     return unsub;
   }, [conversationId]);
 

@@ -33,7 +33,7 @@ export function NotificationBell() {
     );
     const unsub = onSnapshot(q, snap => {
       setNotifications(snap.docs.map(d => ({ id: d.id, ...d.data() } as Notification)));
-    });
+    }, () => {});
     return unsub;
   }, [profile]);
 

@@ -2,22 +2,18 @@
 /**
  * BuddyBoss → LLGP Migration Script
  * ─────────────────────────────────────────────────────────────
- * Reads members.csv (exported from BuddyBoss/WP All Export),
+ * Reads buddyboss.csv (exported from BuddyBoss/WordPress),
  * creates Firebase Auth accounts, Firestore user profiles,
- * and sends password-reset emails so users can log in.
+ * and sends password-reset emails so users can set a new password.
  *
  * Usage:
- *   1. Place your serviceAccount.json in the scripts/ folder
- *   2. Place members.csv in the scripts/ folder
- *   3. node scripts/migrate-buddyboss.js
+ *   1. Place serviceAccount.json in scripts/
+ *   2. node scripts/migrate-buddyboss.js [--dry-run] [--skip-reset]
  *
- * CSV columns expected (see members-template.csv for exact headers):
- *   email, display_name, first_name, last_name,
- *   bio, location, country_code, role,
- *   photo_url (optional – publicly accessible URL)
- *
- * The script is SAFE to re-run. It skips users that already exist
- * in Firebase Auth, and skips Firestore docs that already exist.
+ * Flags:
+ *   --dry-run          Show what would happen without writing anything
+ *   --skip-reset       Import accounts but do NOT send password reset emails
+ *   --send-resets-only Skip account creation, only send reset emails to existing users
  * ─────────────────────────────────────────────────────────────
  */
 
@@ -25,45 +21,46 @@ const admin = require("firebase-admin");
 const fs = require("fs");
 const path = require("path");
 const https = require("https");
-const http = require("http");
-const readline = require("readline");
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
 const SERVICE_ACCOUNT_PATH = path.join(__dirname, "serviceAccount.json");
-const CSV_PATH = path.join(__dirname, "members.csv");
-const FIRESTORE_COLLECTION = "users";
-const DEFAULT_ROLE = "participant";
-const SEND_RESET_EMAILS = true; // set to false to skip password-reset emails
+const CSV_PATH = path.join(__dirname, "buddyboss.csv");
+const FIREBASE_API_KEY = process.env.FIREBASE_API_KEY || "";
 const DRY_RUN = process.argv.includes("--dry-run");
+const SKIP_RESET = process.argv.includes("--skip-reset");
+const SEND_RESETS_ONLY = process.argv.includes("--send-resets-only");
+
+// Only import users with these roles (filters out spam accounts)
+const VALID_ROLES = ["subscriber", "bbp_participant", "group_leader", "administrator", "editor", "author"];
+
+// Spam detection: skip rows where bio contains these patterns
+const SPAM_PATTERNS = [
+  /https?:\/\//i, // bios with URLs = usually spam
+  /casino|poker|slot|psychic|clairvoyant|fortune|escort|cbd|crypto|bitcoin/i,
+];
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
 if (!fs.existsSync(SERVICE_ACCOUNT_PATH)) {
   console.error("❌  serviceAccount.json not found at:", SERVICE_ACCOUNT_PATH);
-  console.error("    Download it from Firebase Console → Project Settings → Service Accounts");
+  console.error("    Download from Firebase Console → Project Settings → Service Accounts → Generate new private key");
   process.exit(1);
 }
 
-if (!fs.existsSync(CSV_PATH)) {
-  console.error("❌  members.csv not found at:", CSV_PATH);
-  console.error("    Export members from BuddyBoss using WP All Export plugin");
-  process.exit(1);
-}
+const serviceAccount = require(SERVICE_ACCOUNT_PATH);
 
 admin.initializeApp({
-  credential: admin.credential.cert(require(SERVICE_ACCOUNT_PATH)),
-  storageBucket: `${require(SERVICE_ACCOUNT_PATH).project_id}.firebasestorage.app`,
+  credential: admin.credential.cert(serviceAccount),
 });
 
 const db = admin.firestore();
 const auth = admin.auth();
-const bucket = admin.storage().bucket();
 
-// ─── CSV Parser (no external deps) ────────────────────────────────────────────
+// ─── CSV Parser ───────────────────────────────────────────────────────────────
 
 function parseCSV(filePath) {
-  const text = fs.readFileSync(filePath, "utf8");
+  const text = fs.readFileSync(filePath, "utf8").replace(/^\uFEFF/, ""); // strip BOM
   const lines = text.split(/\r?\n/).filter(Boolean);
   if (lines.length < 2) throw new Error("CSV has no data rows");
 
@@ -93,62 +90,58 @@ function splitCSVLine(line) {
   return result;
 }
 
-// ─── Photo downloader → Firebase Storage ──────────────────────────────────────
+// ─── Role mapping ─────────────────────────────────────────────────────────────
 
-function downloadBuffer(url) {
-  return new Promise((resolve, reject) => {
-    const proto = url.startsWith("https") ? https : http;
-    proto.get(url, (res) => {
-      if (res.statusCode === 301 || res.statusCode === 302) {
-        return downloadBuffer(res.headers.location).then(resolve).catch(reject);
-      }
-      if (res.statusCode !== 200) return reject(new Error(`HTTP ${res.statusCode}`));
-      const chunks = [];
-      res.on("data", (c) => chunks.push(c));
-      res.on("end", () => resolve(Buffer.concat(chunks)));
-      res.on("error", reject);
-    }).on("error", reject);
-  });
+function mapRole(rawRoles) {
+  const r = (rawRoles || "").toLowerCase();
+  if (r.includes("administrator")) return "global_admin";
+  if (r.includes("national_leader")) return "national_leader";
+  if (r.includes("city_leader")) return "city_leader";
+  if (r.includes("hub_leader") || r.includes("group_leader")) return "hub_leader";
+  return "participant";
 }
 
-async function uploadPhoto(uid, photoUrl) {
-  if (!photoUrl) return null;
-  try {
-    const buf = await downloadBuffer(photoUrl);
-    const ext = photoUrl.split("?")[0].split(".").pop()?.toLowerCase() || "jpg";
-    const storagePath = `avatars/${uid}.${ext}`;
-    const file = bucket.file(storagePath);
-    await file.save(buf, { contentType: `image/${ext === "jpg" ? "jpeg" : ext}`, public: true });
-    return `https://storage.googleapis.com/${bucket.name}/${storagePath}`;
-  } catch (err) {
-    return null; // non-fatal
-  }
+// ─── Spam check ───────────────────────────────────────────────────────────────
+
+function isSpam(row) {
+  // Must have at least one valid role
+  const roles = (row.roles || "").toLowerCase();
+  const hasValidRole = VALID_ROLES.some((r) => roles.includes(r));
+  if (!hasValidRole) return true;
+
+  // Email must look real
+  const email = row.user_email || "";
+  if (!email.includes("@") || !email.includes(".")) return true;
+
+  // Skip clearly fake domains
+  if (/\.(toobeo|zaols|wound|label|xyz123)\./i.test(email)) return true;
+
+  // Bio spam patterns
+  const bio = row.description || "";
+  if (SPAM_PATTERNS.some((p) => p.test(bio))) return true;
+
+  return false;
 }
 
-// ─── Map CSV row → LLGP UserProfile ──────────────────────────────────────────
+// ─── Build Firestore profile ──────────────────────────────────────────────────
 
-function mapRole(rawRole) {
-  const r = (rawRole || "").toLowerCase();
-  if (r.includes("admin")) return "global_admin";
-  if (r.includes("national")) return "national_leader";
-  if (r.includes("city")) return "city_leader";
-  if (r.includes("hub")) return "hub_leader";
-  return DEFAULT_ROLE;
-}
-
-function buildProfile(uid, row, photoURL) {
+function buildProfile(uid, row) {
   const now = admin.firestore.Timestamp.now();
+  const displayName =
+    row.display_name ||
+    `${row.first_name} ${row.last_name}`.trim() ||
+    row.user_login ||
+    row.user_email;
+
   return {
     id: uid,
-    email: row.email,
-    displayName: row.display_name || `${row.first_name} ${row.last_name}`.trim() || row.email,
+    email: row.user_email,
+    displayName,
     firstName: row.first_name || null,
     lastName: row.last_name || null,
-    photoURL: photoURL || null,
-    bio: row.bio || null,
-    location: row.location || null,
-    countryOfResidence: row.country_code || null,
-    role: mapRole(row.role),
+    photoURL: null, // not in this export — users set their own
+    bio: row.description || null,
+    role: mapRole(row.roles),
     isActive: true,
     followerCount: 0,
     followingCount: 0,
@@ -158,149 +151,150 @@ function buildProfile(uid, row, photoURL) {
       newPrayer: true,
       weeklyDigest: true,
     },
+    migratedFrom: "buddyboss",
+    buddybossId: row.ID || null,
     createdAt: now,
     updatedAt: now,
   };
 }
 
+// ─── Send password reset email via Firebase REST API ─────────────────────────
+
+async function sendPasswordReset(email) {
+  if (!FIREBASE_API_KEY) return false;
+  const body = JSON.stringify({ requestType: "PASSWORD_RESET", email });
+  const url = `https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=${FIREBASE_API_KEY}`;
+  return new Promise((resolve) => {
+    const req = https.request(
+      url,
+      { method: "POST", headers: { "Content-Type": "application/json" } },
+      (res) => {
+        res.on("data", () => {});
+        res.on("end", () => resolve(res.statusCode === 200));
+      }
+    );
+    req.on("error", () => resolve(false));
+    req.write(body);
+    req.end();
+  });
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
-  console.log(DRY_RUN ? "🔍  DRY RUN — no writes will happen\n" : "🚀  Starting migration...\n");
+  if (SEND_RESETS_ONLY) {
+    console.log("\n📧  SEND RESETS ONLY — skipping account creation\n");
+  } else {
+    console.log(DRY_RUN ? "\n🔍  DRY RUN — no writes will happen\n" : "\n🚀  Starting BuddyBoss → LLGP migration...\n");
+  }
+  if (!FIREBASE_API_KEY && !SKIP_RESET) {
+    console.log("⚠️  FIREBASE_API_KEY not set — password reset emails will be skipped.");
+    console.log("   Set it with: export FIREBASE_API_KEY=your_web_api_key\n");
+  }
 
   const rows = parseCSV(CSV_PATH);
-  console.log(`📋  Found ${rows.length} rows in CSV\n`);
+  console.log(`📋  Total rows in CSV: ${rows.length}`);
+
+  const valid = rows.filter((r) => !isSpam(r));
+  const spamCount = rows.length - valid.length;
+  console.log(`🚫  Filtered as spam/test accounts: ${spamCount}`);
+  console.log(`✅  Valid members to import: ${valid.length}\n`);
 
   let created = 0;
   let skipped = 0;
   let failed = 0;
   let resetSent = 0;
 
-  for (let i = 0; i < rows.length; i++) {
-    const row = rows[i];
-    const email = row.email?.toLowerCase().trim();
-    if (!email || !email.includes("@")) {
-      console.warn(`  [${i + 1}/${rows.length}] ⚠️  Skipping row with invalid email: "${row.email}"`);
-      skipped++;
-      continue;
-    }
-
-    process.stdout.write(`  [${i + 1}/${rows.length}] ${email} ... `);
+  for (let i = 0; i < valid.length; i++) {
+    const row = valid[i];
+    const email = row.user_email.toLowerCase().trim();
+    process.stdout.write(`  [${String(i + 1).padStart(3)}/${valid.length}] ${email.padEnd(40)} `);
 
     try {
-      // ── Check if auth user already exists ──────────────────────────────────
+      // ── Check/create Auth user ────────────────────────────────────────────
       let uid;
       let isNew = false;
+
       try {
         const existing = await auth.getUserByEmail(email);
         uid = existing.uid;
-        process.stdout.write("auth exists, ");
+        process.stdout.write("auth:exists  ");
       } catch {
-        // User doesn't exist — create
+        if (SEND_RESETS_ONLY) {
+          // Account doesn't exist yet — skip in resets-only mode
+          console.log("  ⏭️  no account yet");
+          skipped++;
+          continue;
+        }
         if (!DRY_RUN) {
-          const created_ = await auth.createUser({
+          const displayName =
+            row.display_name ||
+            `${row.first_name} ${row.last_name}`.trim() ||
+            email;
+          const newUser = await auth.createUser({
             email,
-            displayName: row.display_name || `${row.first_name} ${row.last_name}`.trim() || email,
-            emailVerified: true,
+            displayName,
+            emailVerified: false,
             disabled: false,
           });
-          uid = created_.uid;
+          uid = newUser.uid;
         } else {
-          uid = `dry_run_${i}`;
+          uid = `dry_${i}`;
         }
         isNew = true;
-        process.stdout.write("auth created, ");
+        process.stdout.write("auth:created ");
       }
 
-      // ── Upload photo if provided ────────────────────────────────────────────
-      let photoURL = null;
-      if (row.photo_url) {
-        if (!DRY_RUN) {
-          photoURL = await uploadPhoto(uid, row.photo_url);
+      // ── Check/create Firestore profile ────────────────────────────────────
+      if (!SEND_RESETS_ONLY) {
+        const docRef = db.collection("users").doc(uid);
+        const snap = await docRef.get();
+        if (snap.exists) {
+          process.stdout.write("profile:exists  ");
+          skipped++;
+        } else {
+          if (!DRY_RUN) {
+            await docRef.set(buildProfile(uid, row));
+          }
+          process.stdout.write("profile:created ");
+          created++;
         }
-        process.stdout.write(photoURL ? "photo ✓, " : "photo ✗, ");
       }
 
-      // ── Update Auth photoURL ────────────────────────────────────────────────
-      if (photoURL && !DRY_RUN) {
-        await auth.updateUser(uid, { photoURL });
+      // ── Send password reset ───────────────────────────────────────────────
+      if (!SKIP_RESET && (isNew || SEND_RESETS_ONLY) && !DRY_RUN) {
+        const sent = await sendPasswordReset(email);
+        process.stdout.write(sent ? "reset:sent" : "reset:skipped");
+        if (sent) resetSent++;
       }
 
-      // ── Create Firestore profile (skip if already exists) ──────────────────
-      const docRef = db.collection(FIRESTORE_COLLECTION).doc(uid);
-      const snap = await docRef.get();
-      if (snap.exists) {
-        process.stdout.write("profile exists ");
-        skipped++;
-      } else {
-        if (!DRY_RUN) {
-          await docRef.set(buildProfile(uid, row, photoURL));
-        }
-        process.stdout.write("profile created ");
-        created++;
-      }
-
-      // ── Send password reset email ───────────────────────────────────────────
-      if (SEND_RESET_EMAILS && isNew) {
-        if (!DRY_RUN) {
-          await auth.generatePasswordResetLink(email);
-          // Note: generatePasswordResetLink returns the link but doesn't send email.
-          // Firebase Auth's built-in email IS sent automatically when using
-          // sendPasswordResetEmail on client side, but from Admin SDK we need
-          // to use the REST API or Firebase Trigger Email extension.
-          // See SEND_RESET section below for the REST approach.
-          await sendPasswordResetViaREST(email, require(SERVICE_ACCOUNT_PATH).project_id);
-        }
-        process.stdout.write("reset sent ");
-        resetSent++;
-      }
-
-      console.log("✅");
+      console.log("  ✅");
     } catch (err) {
-      console.log(`❌  ${err.message}`);
+      console.log(`  ❌  ${err.message}`);
       failed++;
     }
   }
 
-  console.log("\n─────────────────────────────────────────────────");
-  console.log(`✅  Created:      ${created}`);
-  console.log(`⏭️   Skipped:      ${skipped}`);
-  console.log(`📧  Resets sent:  ${resetSent}`);
-  console.log(`❌  Failed:       ${failed}`);
-  console.log("─────────────────────────────────────────────────");
+  console.log("\n─────────────────────────────────────────────────────────");
+  console.log(`✅  Profiles created:     ${created}`);
+  console.log(`⏭️   Already existed:      ${skipped}`);
+  console.log(`🚫  Spam/filtered:        ${spamCount}`);
+  console.log(`📧  Reset emails sent:    ${resetSent}`);
+  console.log(`❌  Errors:               ${failed}`);
+  console.log("─────────────────────────────────────────────────────────\n");
+
+  if (!FIREBASE_API_KEY && !SKIP_RESET && created > 0) {
+    console.log("📧  To send password reset emails, run:");
+    console.log(`    FIREBASE_API_KEY=your_key node scripts/migrate-buddyboss.js --skip-reset`);
+    console.log("    (then run a separate reset-only pass with the API key set)\n");
+  }
 
   if (failed > 0) {
-    console.log("\n⚠️  Some users failed. Fix errors above and re-run — the script is safe to re-run.");
+    console.log("⚠️   Some users failed. Fix errors above and re-run — the script skips existing users.\n");
   }
-}
-
-// ─── Send password reset via Firebase Auth REST API ───────────────────────────
-// This triggers the real "Reset your password" email from Firebase.
-
-async function sendPasswordResetViaREST(email, projectId) {
-  // We need an API key for this. Read from env or prompt.
-  const apiKey = process.env.FIREBASE_API_KEY;
-  if (!apiKey) {
-    // Can't send — just skip silently, admin can send from console
-    return;
-  }
-
-  const body = JSON.stringify({ requestType: "PASSWORD_RESET", email });
-  const url = `https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=${apiKey}`;
-
-  await new Promise((resolve, reject) => {
-    const req = https.request(url, { method: "POST", headers: { "Content-Type": "application/json" } }, (res) => {
-      let data = "";
-      res.on("data", (c) => (data += c));
-      res.on("end", () => resolve(data));
-    });
-    req.on("error", reject);
-    req.write(body);
-    req.end();
-  });
 }
 
 main().catch((err) => {
-  console.error("\n💥  Fatal error:", err);
+  console.error("\n💥  Fatal:", err.message);
   process.exit(1);
 });

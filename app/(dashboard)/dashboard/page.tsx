@@ -378,7 +378,7 @@ export default function DashboardPage() {
     const unsub = onSnapshot(q, snap => {
       setFeed(snap.docs.map(d => ({ id: d.id, ...d.data() } as Post)));
       setFeedLoading(false);
-    });
+    }, () => { setFeedLoading(false); });
     return unsub;
   }, [profile]);
 
@@ -412,13 +412,15 @@ export default function DashboardPage() {
 
     const unsubStories = onSnapshot(
       query(collection(db, COLLECTIONS.STORIES), where("expiresAt", ">", now), orderBy("expiresAt"), orderBy("createdAt", "desc"), limit(20)),
-      snap => setStories(snap.docs.map(d => ({ id: d.id, ...d.data() } as Story)))
+      snap => setStories(snap.docs.map(d => ({ id: d.id, ...d.data() } as Story))),
+      () => {}
     );
 
     // Real-time live events
     const unsubLive = onSnapshot(
       query(collection(db, COLLECTIONS.LIVE_EVENTS), where("isLive", "==", true), limit(5)),
-      snap => setLiveEvents(snap.docs.map(d => ({ id: d.id, ...d.data() } as LiveEvent)))
+      snap => setLiveEvents(snap.docs.map(d => ({ id: d.id, ...d.data() } as LiveEvent))),
+      () => {}
     );
 
     const load = async () => {

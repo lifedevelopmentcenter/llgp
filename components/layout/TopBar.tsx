@@ -18,7 +18,7 @@ function MessagesIcon({ userId }: { userId: string }) {
     return onSnapshot(q, snap => {
       const total = snap.docs.reduce((sum: number, d) => sum + ((d.data().unreadCounts?.[userId]) || 0), 0);
       setUnread(total);
-    });
+    }, () => {});
   }, [userId]);
   return (
     <Link href="/messages" className="relative p-2 rounded-xl hover:bg-slate-100 text-slate-500 transition-colors">
@@ -45,7 +45,7 @@ function AnnouncementsIcon({ profile }: { profile: UserProfile }) {
     );
     return onSnapshot(q, snap => {
       setAnnouncements(snap.docs.map(d => ({ id: d.id, ...d.data() } as Announcement)));
-    });
+    }, () => {});
   }, []);
 
   // Close on outside click
