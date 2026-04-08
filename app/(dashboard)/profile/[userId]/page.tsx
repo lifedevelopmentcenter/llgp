@@ -480,9 +480,9 @@ export default function ProfilePage() {
       </div>
 
       {/* ── Hero card ── */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm">
         {/* Cover photo */}
-        <div className="relative h-48">
+        <div className="relative h-48 rounded-t-2xl overflow-hidden">
           {profile.coverImage ? (
             <img src={profile.coverImage} alt="Cover" className="w-full h-full object-cover" />
           ) : (
