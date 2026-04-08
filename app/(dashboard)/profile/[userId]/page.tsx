@@ -482,7 +482,7 @@ export default function ProfilePage() {
       {/* ── Hero card ── */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm">
         {/* Cover photo */}
-        <div className="relative h-48 rounded-t-2xl overflow-hidden">
+        <div className="relative h-48 rounded-t-2xl overflow-hidden z-0">
           {profile.coverImage ? (
             <img src={profile.coverImage} alt="Cover" className="w-full h-full object-cover" />
           ) : (
@@ -522,7 +522,7 @@ export default function ProfilePage() {
         </div>
 
         {/* Avatar + actions row */}
-        <div className="px-5 pb-5">
+        <div className="px-5 pb-5 relative z-10">
           <div className="flex items-end justify-between -mt-12 mb-4">
             {/* Profile photo */}
             <div className="ring-4 ring-white rounded-full shadow-lg">
