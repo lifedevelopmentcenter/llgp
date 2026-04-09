@@ -260,7 +260,7 @@ export default function GroupDetailPage() {
       await updateDoc(doc(db, COLLECTIONS.GROUPS, groupId), { memberCount: increment(1) });
       setMembers(prev => [...prev, {
         id: memberId, groupId, userId: profile.id,
-        userName: profile.displayName, userPhoto: profile.photoURL || null,
+        userName: profile.displayName, userPhoto: profile.photoURL || undefined,
         role: "member", joinedAt: null as any,
       }]);
       setPendingInvite(null);
@@ -346,7 +346,7 @@ export default function GroupDetailPage() {
         groupId, userId: profile.id, userName: profile.displayName,
         userPhoto: profile.photoURL || null, role: "member", joinedAt: serverTimestamp(),
       });
-      setMembers(prev => [...prev, { id: memberId, groupId, userId: profile.id, userName: profile.displayName, userPhoto: profile.photoURL || null, role: "member", joinedAt: null as any }]);
+      setMembers(prev => [...prev, { id: memberId, groupId, userId: profile.id, userName: profile.displayName, userPhoto: profile.photoURL || undefined, role: "member", joinedAt: null as any }]);
       toast.success("Joined group!");
     } catch { toast.error("Failed to join."); }
     finally { setJoiningLeaving(false); }
