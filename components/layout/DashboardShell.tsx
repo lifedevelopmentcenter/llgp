@@ -4,6 +4,7 @@ import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
 import { BottomNav } from "./BottomNav";
 import { usePushNotifications } from "@/lib/hooks/usePushNotifications";
+import { usePresence } from "@/lib/hooks/usePresence";
 import { Bell, X } from "lucide-react";
 
 function NotificationBanner() {
@@ -59,6 +60,7 @@ function NotificationBanner() {
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  usePresence();
 
   return (
     <div className="min-h-screen bg-[#F5F4FF]">

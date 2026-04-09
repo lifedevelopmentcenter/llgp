@@ -238,8 +238,7 @@ service cloud.firestore {
     // ── Follows ───────────────────────────────────────────────
     match /follows/{followId} {
       allow read: if isAuth();
-      allow create: if isAuth() && request.resource.data.followerId == uid();
-      allow delete: if isAuth() && resource.data.followerId == uid();
+      allow create, update, delete: if isAuth();
     }
 
     // ── FCM Tokens ────────────────────────────────────────────

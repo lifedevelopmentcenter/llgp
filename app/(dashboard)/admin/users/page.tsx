@@ -1,8 +1,8 @@
 "use client";
 export const dynamic = "force-dynamic";
 import React, { useEffect, useState } from "react";
-import { collection, getDocs, query, orderBy, doc, updateDoc, serverTimestamp } from "firebase/firestore";
-import { Users, Search, Shield, Globe } from "lucide-react";
+import { collection, getDocs, query, orderBy, doc, updateDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
+import { Users, Search, Shield, Globe, Trash2 } from "lucide-react";
 import { db } from "@/lib/firebase/config";
 import { COLLECTIONS } from "@/lib/firebase/firestore";
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -99,6 +99,17 @@ function UsersContent() {
     }
   };
 
+  const deleteUser = async (user: UserProfile) => {
+    if (!confirm(`Delete ${user.displayName}? This cannot be undone.`)) return;
+    try {
+      await deleteDoc(doc(db, COLLECTIONS.USERS, user.id));
+      setUsers((prev) => prev.filter((u) => u.id !== user.id));
+      toast.success("User deleted.");
+    } catch {
+      toast.error("Failed to delete user.");
+    }
+  };
+
   const filtered = users.filter((u) => {
     if (search && !u.displayName.toLowerCase().includes(search.toLowerCase()) && !u.email.toLowerCase().includes(search.toLowerCase())) return false;
     if (filterRole && u.role !== filterRole) return false;
@@ -170,6 +181,9 @@ function UsersContent() {
               <Button variant="ghost" size="sm" onClick={() => openEdit(user)}>
                 <Shield className="w-3.5 h-3.5" />
                 Edit
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => deleteUser(user)} className="text-red-500 hover:text-red-700">
+                <Trash2 className="w-3.5 h-3.5" />
               </Button>
             </div>
           </Card>

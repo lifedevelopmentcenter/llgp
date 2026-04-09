@@ -26,6 +26,8 @@ export default function ConversationPage() {
   const [sending, setSending] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  const [otherUser, setOtherUser] = useState<{ displayName: string; photoURL?: string } | null>(null);
+
   // Load conversation metadata
   useEffect(() => {
     if (!profile || !conversationId) return;
@@ -35,10 +37,18 @@ export default function ConversationPage() {
         if (snap.exists()) {
           setConversation({ id: snap.id, ...snap.data() } as Conversation);
         } else {
+          // Conversation doesn't exist yet — load the other user's profile
+          const otherId = conversationId.split("_").find(id => id !== profile.id) || "";
+          if (otherId) {
+            const userSnap = await getDoc(doc(db, COLLECTIONS.USERS, otherId));
+            if (userSnap.exists()) {
+              const data = userSnap.data();
+              setOtherUser({ displayName: data.displayName, photoURL: data.photoURL });
+            }
+          }
           setConversation(null);
         }
       } catch {
-        // Conversation doesn't exist yet — user will create it on first send
         setConversation(null);
       } finally { setLoading(false); }
     };
@@ -149,8 +159,8 @@ export default function ConversationPage() {
   if (loading) return <PageLoader />;
 
   const otherId = conversationId.split("_").find(id => id !== profile?.id) || "";
-  const otherName = conversation?.participantNames?.[otherId] || "Member";
-  const otherPhoto = conversation?.participantPhotos?.[otherId];
+  const otherName = conversation?.participantNames?.[otherId] || otherUser?.displayName || "Member";
+  const otherPhoto = conversation?.participantPhotos?.[otherId] || otherUser?.photoURL;
 
   return (
     <div className="max-w-2xl mx-auto flex flex-col h-[calc(100vh-8rem)] lg:h-[calc(100vh-5rem)]">

@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { collection, query, where, orderBy, getDocs, doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { Search } from "lucide-react";
 import { db } from "@/lib/firebase/config";
@@ -18,20 +18,24 @@ interface Props {
 export function NewConversationModal({ open, onClose, onCreated }: Props) {
   const { profile } = useAuth();
   const [search, setSearch] = useState("");
-  const [results, setResults] = useState<UserProfile[]>([]);
-  const [searching, setSearching] = useState(false);
+  const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
   const [starting, setStarting] = useState(false);
 
-  const doSearch = async (val: string) => {
-    setSearch(val);
-    if (val.length < 2) { setResults([]); return; }
-    setSearching(true);
-    try {
-      const snap = await getDocs(query(collection(db, COLLECTIONS.USERS), where("isActive", "==", true), orderBy("displayName"), where("displayName", ">=", val), where("displayName", "<=", val + "\uf8ff")));
-      setResults(snap.docs.map(d => ({ id: d.id, ...d.data() } as UserProfile)).filter(u => u.id !== profile?.id));
-    } catch (e) { console.error(e); }
-    finally { setSearching(false); }
-  };
+  // Load all active users once when modal opens
+  useEffect(() => {
+    if (!open || allUsers.length > 0) return;
+    getDocs(query(collection(db, COLLECTIONS.USERS), where("isActive", "==", true), orderBy("displayName")))
+      .then(snap => setAllUsers(snap.docs.map(d => ({ id: d.id, ...d.data() } as UserProfile))))
+      .catch(() => {});
+  }, [open]);
+
+  const term = search.toLowerCase().trim();
+  const results = term.length >= 2
+    ? allUsers.filter(u => u.id !== profile?.id && (
+        u.displayName?.toLowerCase().includes(term) ||
+        u.email?.toLowerCase().includes(term)
+      ))
+    : [];
 
   const startConversation = async (other: UserProfile) => {
     if (!profile || starting) return;
@@ -64,13 +68,12 @@ export function NewConversationModal({ open, onClose, onCreated }: Props) {
             className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             placeholder="Search members…"
             value={search}
-            onChange={e => doSearch(e.target.value)}
+            onChange={e => setSearch(e.target.value)}
             autoFocus
           />
         </div>
         <div className="space-y-1 max-h-64 overflow-y-auto">
-          {searching && <p className="text-xs text-slate-400 text-center py-4">Searching…</p>}
-          {!searching && results.length === 0 && search.length >= 2 && (
+          {results.length === 0 && search.length >= 2 && (
             <p className="text-xs text-slate-400 text-center py-4">No members found</p>
           )}
           {results.map(user => (

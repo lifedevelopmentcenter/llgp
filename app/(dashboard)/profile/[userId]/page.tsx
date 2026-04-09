@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import {
   doc, getDoc, updateDoc, serverTimestamp,
   getDocs, collection, query, where, orderBy, limit,
-  deleteDoc, setDoc, increment,
+  deleteDoc, setDoc,
 } from "firebase/firestore";
 import {
   ArrowLeft, Edit2, Globe, Mail, Check, MapPin, Briefcase,
@@ -198,6 +198,11 @@ export default function ProfilePage() {
         if (snap.exists()) {
           const p = { id: snap.id, ...snap.data() } as UserProfile;
           setProfile(p);
+          // Check follow status on load (not lazily)
+          if (myProfile && myProfile.id !== userId) {
+            const followSnap = await getDoc(doc(db, COLLECTIONS.FOLLOWS, `${myProfile.id}_${userId}`));
+            setIsFollowing(followSnap.exists());
+          }
           // Pre-fill forms for own profile
           if (myProfile?.id === userId) {
             setPersonalForm({
@@ -290,23 +295,24 @@ export default function ProfilePage() {
     if (!myProfile || myProfile.id === userId) return;
     const docId = `${myProfile.id}_${userId}`;
     const followRef = doc(db, COLLECTIONS.FOLLOWS, docId);
-    if (isFollowing) {
-      await deleteDoc(followRef);
-      await updateDoc(doc(db, COLLECTIONS.USERS, userId), { followerCount: increment(-1) });
-      await updateDoc(doc(db, COLLECTIONS.USERS, myProfile.id), { followingCount: increment(-1) });
-      setIsFollowing(false);
-      setFollowers(prev => prev.filter(f => f.followerId !== myProfile.id));
-    } else {
-      await setDoc(followRef, {
-        followerId: myProfile.id, followeeId: userId,
-        followerName: myProfile.displayName, followerPhoto: myProfile.photoURL || null,
-        followeeName: profile!.displayName, followeePhoto: profile!.photoURL || null,
-        createdAt: serverTimestamp(),
-      });
-      await updateDoc(doc(db, COLLECTIONS.USERS, userId), { followerCount: increment(1) });
-      await updateDoc(doc(db, COLLECTIONS.USERS, myProfile.id), { followingCount: increment(1) });
-      setIsFollowing(true);
-      setFollowers(prev => [...prev, { id: docId, followerId: myProfile.id, followeeId: userId, followerName: myProfile.displayName, followerPhoto: myProfile.photoURL || null, followeeName: profile!.displayName, followeePhoto: profile!.photoURL || null, createdAt: null as any }]);
+    try {
+      if (isFollowing) {
+        await deleteDoc(followRef);
+        setIsFollowing(false);
+        setFollowers(prev => prev.filter(f => f.followerId !== myProfile.id));
+      } else {
+        await setDoc(followRef, {
+          followerId: myProfile.id, followeeId: userId,
+          followerName: myProfile.displayName, followerPhoto: myProfile.photoURL || null,
+          followeeName: profile!.displayName, followeePhoto: profile!.photoURL || null,
+          createdAt: serverTimestamp(),
+        });
+        setIsFollowing(true);
+        setFollowers(prev => [...prev, { id: docId, followerId: myProfile.id, followeeId: userId, followerName: myProfile.displayName, followerPhoto: myProfile.photoURL || null, followeeName: profile!.displayName, followeePhoto: profile!.photoURL || null, createdAt: null as any }]);
+      }
+    } catch (e: any) {
+      console.error("toggleFollow error:", e?.code, e?.message, { myProfileId: myProfile?.id, userId, isFollowing });
+      toast.error(e?.code === "permission-denied" ? "Permission denied — check Firestore rules." : "Action failed. Please try again.");
     }
   };
 

@@ -8,7 +8,8 @@ import {
   deleteDoc, increment, updateDoc,
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { db, storage } from "@/lib/firebase/config";
+import { ref as dbRef, onValue } from "firebase/database";
+import { db, storage, rtdb } from "@/lib/firebase/config";
 import { COLLECTIONS } from "@/lib/firebase/firestore";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { Avatar } from "@/components/ui/Avatar";
@@ -244,22 +245,32 @@ function FeaturedCarousel({ spotlights, onSubmit, currentUserId, isAdmin, onEdit
 
 // ── Active Members Strip ───────────────────────────────────
 
-function MembersStrip({ members }: { members: UserProfile[] }) {
+function MembersStrip({ members, onlineIds }: { members: UserProfile[]; onlineIds: Set<string> }) {
   if (members.length === 0) return null;
+  // Sort: online members first
+  const sorted = [...members].sort((a, b) => {
+    const aOnline = onlineIds.has(a.id) ? 0 : 1;
+    const bOnline = onlineIds.has(b.id) ? 0 : 1;
+    return aOnline - bOnline;
+  });
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
       <div className="flex items-center justify-between mb-3">
-        <p className="text-xs font-black uppercase tracking-widest text-slate-500">Online Now</p>
+        <p className="text-xs font-black uppercase tracking-widest text-slate-500">
+          Members {onlineIds.size > 0 && <span className="text-emerald-500">· {onlineIds.size} online</span>}
+        </p>
         <Link href="/community/directory" className="text-xs text-indigo-600 font-semibold hover:underline">See all →</Link>
       </div>
       <div className="overflow-x-auto no-scrollbar">
         <div className="flex gap-4 pb-1">
-          {members.map(m => (
+          {sorted.map(m => (
             <Link key={m.id} href={`/profile/${m.id}`}
               className="flex-shrink-0 flex flex-col items-center gap-1.5 hover:opacity-80 transition-opacity">
               <div className="relative">
                 <Avatar name={m.displayName ?? "?"} photoURL={m.photoURL} size="md" />
-                <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-400 rounded-full ring-2 ring-white" />
+                {onlineIds.has(m.id) && (
+                  <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-400 rounded-full ring-2 ring-white" />
+                )}
               </div>
               <span className="text-[10px] font-semibold text-slate-600 text-center w-14 truncate leading-tight">
                 {(m.displayName ?? "?").split(" ")[0]}
@@ -353,6 +364,7 @@ export default function DashboardPage() {
   // Panels
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [activeMembers, setActiveMembers] = useState<UserProfile[]>([]);
+  const [onlineIds, setOnlineIds] = useState<Set<string>>(new Set());
   const [liveEvents, setLiveEvents] = useState<LiveEvent[]>([]);
   const [spotlights, setSpotlights] = useState<Spotlight[]>([]);
 
@@ -386,13 +398,14 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!profile || feedTab !== "following") return;
+    setFollowingFeed([]);
     setFollowingLoading(true);
     const load = async () => {
       try {
         const followsSnap = await getDocs(
           query(collection(db, COLLECTIONS.FOLLOWS), where("followerId", "==", profile.id))
         );
-        const ids = followsSnap.docs.map(d => d.data().followingId as string);
+        const ids = followsSnap.docs.map(d => d.data().followeeId as string).filter(Boolean);
         if (ids.length === 0) { setFollowingFeed([]); setFollowingLoading(false); return; }
         const postsSnap = await getDocs(
           query(collection(db, COLLECTIONS.POSTS), where("authorId", "in", ids), orderBy("createdAt", "desc"), limit(20))
@@ -427,14 +440,12 @@ export default function DashboardPage() {
       try {
         const [annSnap, membersSnap, spotlightSnap, reactSnap] = await Promise.all([
           getDocs(query(collection(db, COLLECTIONS.ANNOUNCEMENTS), orderBy("createdAt", "desc"), limit(3))),
-          getDocs(query(collection(db, COLLECTIONS.USERS), where("isActive", "==", true), orderBy("displayName"), limit(12))),
+          getDocs(query(collection(db, COLLECTIONS.USERS), where("isActive", "==", true), orderBy("displayName"), limit(20))),
           getDocs(query(collection(db, COLLECTIONS.SPOTLIGHTS), where("isApproved", "==", true), orderBy("createdAt", "desc"), limit(8))),
           getDocs(query(collection(db, COLLECTIONS.REACTIONS), where("userId", "==", profile.id), limit(50))),
         ]);
         setAnnouncements(annSnap.docs.map(d => ({ id: d.id, ...d.data() } as Announcement)));
-        setActiveMembers(membersSnap.docs
-          .map(d => ({ id: d.id, ...d.data() } as UserProfile))
-          .filter(m => !m.hideOnlineStatus));
+        setActiveMembers(membersSnap.docs.map(d => ({ id: d.id, ...d.data() } as UserProfile)));
         setSpotlights(spotlightSnap.docs.map(d => ({ id: d.id, ...d.data() } as Spotlight)));
         const map: Record<string, string> = {};
         reactSnap.docs.forEach(d => { const x = d.data(); map[x.postId] = x.type; });
@@ -442,7 +453,15 @@ export default function DashboardPage() {
       } catch (e) { console.error(e); }
     };
     load();
-    return () => { unsubStories(); unsubLive(); };
+
+    // Real-time presence from RTDB — track online IDs only
+    const presenceUnsub = onValue(dbRef(rtdb, "/presence"), (snap) => {
+      const data = snap.val() as Record<string, { online: boolean }> | null;
+      if (!data) { setOnlineIds(new Set()); return; }
+      setOnlineIds(new Set(Object.entries(data).filter(([, v]) => v.online).map(([uid]) => uid)));
+    });
+
+    return () => { unsubStories(); unsubLive(); presenceUnsub(); };
   }, [profile]);
 
   // ── Link preview detector ───────────────────────────────
@@ -723,7 +742,7 @@ export default function DashboardPage() {
           />
 
           {/* 5. Active members strip */}
-          <MembersStrip members={activeMembers} />
+          <MembersStrip members={activeMembers} onlineIds={onlineIds} />
 
           {/* 6. Feed tab switcher */}
           <div className="flex gap-2">

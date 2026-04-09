@@ -3,9 +3,9 @@ export const dynamic = "force-dynamic";
 import React, { useEffect, useState } from "react";
 import {
   collection, getDocs, query, orderBy, addDoc, updateDoc,
-  doc, serverTimestamp, where, writeBatch,
+  doc, serverTimestamp, where, writeBatch, deleteDoc,
 } from "firebase/firestore";
-import { Globe, Plus, MapPin, Building2 } from "lucide-react";
+import { Globe, Plus, MapPin, Trash2 } from "lucide-react";
 import { db } from "@/lib/firebase/config";
 import { COLLECTIONS } from "@/lib/firebase/firestore";
 import { AuthGuard } from "@/components/auth/AuthGuard";
@@ -103,6 +103,24 @@ function NationsContent() {
       setCityModal(false);
     } catch (e) { toast.error("Failed to save."); }
     finally { setSaving(false); }
+  };
+
+  const deleteNation = async (n: Nation) => {
+    if (!confirm(`Delete "${n.name}"? Cities assigned to it will lose their nation link.`)) return;
+    try {
+      await deleteDoc(doc(db, COLLECTIONS.NATIONS, n.id));
+      setNations((prev) => prev.filter((x) => x.id !== n.id));
+      toast.success("Nation deleted.");
+    } catch { toast.error("Failed to delete."); }
+  };
+
+  const deleteCity = async (c: City) => {
+    if (!confirm(`Delete "${c.name}"?`)) return;
+    try {
+      await deleteDoc(doc(db, COLLECTIONS.CITIES, c.id));
+      setCities((prev) => prev.filter((x) => x.id !== c.id));
+      toast.success("City deleted.");
+    } catch { toast.error("Failed to delete."); }
   };
 
   const ALL_NATIONS: { name: string; code: string; region: string }[] = [
@@ -203,7 +221,10 @@ function NationsContent() {
                     {n.region && <p className="text-xs text-slate-500 mt-1">{n.region}</p>}
                     <p className="text-xs text-slate-400 mt-1">{citiesInNation} cit{citiesInNation !== 1 ? "ies" : "y"}</p>
                   </div>
-                  <Button variant="ghost" size="sm" onClick={() => openNationModal(n)}>Edit</Button>
+                  <div className="flex gap-1">
+                    <Button variant="ghost" size="sm" onClick={() => openNationModal(n)}>Edit</Button>
+                    <Button variant="ghost" size="sm" onClick={() => deleteNation(n)} className="text-red-500 hover:text-red-700"><Trash2 className="w-3.5 h-3.5" /></Button>
+                  </div>
                 </div>
               </Card>
             );
@@ -224,7 +245,10 @@ function NationsContent() {
                   </div>
                   <p className="text-xs text-slate-500">{c.nationName}</p>
                 </div>
-                <Button variant="ghost" size="sm" onClick={() => openCityModal(c)}>Edit</Button>
+                  <div className="flex gap-1">
+                    <Button variant="ghost" size="sm" onClick={() => openCityModal(c)}>Edit</Button>
+                    <Button variant="ghost" size="sm" onClick={() => deleteCity(c)} className="text-red-500 hover:text-red-700"><Trash2 className="w-3.5 h-3.5" /></Button>
+                  </div>
               </div>
             </Card>
           ))}
