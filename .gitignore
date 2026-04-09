@@ -47,3 +47,4 @@ next-env.d.ts
 # Migration secrets
 scripts/serviceAccount.json
 scripts/members.csv
+scripts/*.csv
