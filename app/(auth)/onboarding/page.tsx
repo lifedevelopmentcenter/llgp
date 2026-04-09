@@ -8,7 +8,7 @@ import { db } from "@/lib/firebase/config";
 import { COLLECTIONS } from "@/lib/firebase/firestore";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { Button } from "@/components/ui/Button";
-import { Input, Textarea, Select } from "@/components/ui/Input";
+import { Input, Select } from "@/components/ui/Input";
 import { PageLoader } from "@/components/ui/Spinner";
 import { ImageUpload } from "@/components/ui/ImageUpload";
 import toast from "react-hot-toast";
@@ -19,31 +19,7 @@ const SPHERES = [
   "Arts & Entertainment", "Family", "Health", "Technology", "Sports", "Other",
 ];
 
-const COUNTRIES = [
-  "Afghanistan","Albania","Algeria","Andorra","Angola","Argentina","Armenia","Australia",
-  "Austria","Azerbaijan","Bahamas","Bahrain","Bangladesh","Belarus","Belgium","Belize",
-  "Benin","Bolivia","Bosnia and Herzegovina","Botswana","Brazil","Brunei","Bulgaria",
-  "Burkina Faso","Burundi","Cambodia","Cameroon","Canada","Central African Republic",
-  "Chad","Chile","China","Colombia","Congo","Costa Rica","Croatia","Cuba","Cyprus",
-  "Czech Republic","Denmark","Dominican Republic","Ecuador","Egypt","El Salvador",
-  "Eritrea","Estonia","Ethiopia","Fiji","Finland","France","Gabon","Gambia","Georgia",
-  "Germany","Ghana","Greece","Guatemala","Guinea","Haiti","Honduras","Hungary","Iceland",
-  "India","Indonesia","Iran","Iraq","Ireland","Israel","Italy","Ivory Coast","Jamaica",
-  "Japan","Jordan","Kazakhstan","Kenya","Kuwait","Kyrgyzstan","Laos","Latvia","Lebanon",
-  "Liberia","Libya","Lithuania","Luxembourg","Madagascar","Malawi","Malaysia","Mali",
-  "Malta","Mauritania","Mauritius","Mexico","Moldova","Mongolia","Morocco","Mozambique",
-  "Myanmar","Namibia","Nepal","Netherlands","New Zealand","Nicaragua","Niger","Nigeria",
-  "North Korea","Norway","Oman","Pakistan","Palestine","Panama","Papua New Guinea",
-  "Paraguay","Peru","Philippines","Poland","Portugal","Qatar","Romania","Russia","Rwanda",
-  "Saudi Arabia","Senegal","Serbia","Sierra Leone","Singapore","Slovakia","Slovenia",
-  "Somalia","South Africa","South Korea","South Sudan","Spain","Sri Lanka","Sudan",
-  "Sweden","Switzerland","Syria","Taiwan","Tajikistan","Tanzania","Thailand","Togo",
-  "Trinidad and Tobago","Tunisia","Turkey","Turkmenistan","Uganda","Ukraine",
-  "United Arab Emirates","United Kingdom","United States","Uruguay","Uzbekistan",
-  "Venezuela","Vietnam","Yemen","Zambia","Zimbabwe",
-];
-
-const STEPS = ["Photo", "Personal", "Location", "Purpose", "Done"];
+const STEPS = ["Photo", "About You", "Location", "Done"];
 
 export default function OnboardingPage() {
   const { profile, refreshProfile } = useAuth();
@@ -57,22 +33,12 @@ export default function OnboardingPage() {
   const [customCity, setCustomCity] = useState("");
 
   const [form, setForm] = useState({
-    // Personal
     firstName: "",
     lastName: "",
-    gender: "",
-    countryOfOrigin: "",
-    // Location
+    profession: "",
+    sphereOfInfluence: "",
     nationId: "",
     cityId: "",
-    countryOfResidence: "",
-    // Purpose & Background
-    profession: "",
-    education: "",
-    languages: "",
-    sphereOfInfluence: [] as string[],
-    missionStatement: "",
-    summary: "",
   });
 
   useEffect(() => {
@@ -93,38 +59,21 @@ export default function OnboardingPage() {
   // Pre-fill from existing profile
   useEffect(() => {
     if (profile) {
-      const existingSpheres = profile.sphereOfInfluence
-        ? (Array.isArray(profile.sphereOfInfluence) ? profile.sphereOfInfluence : [profile.sphereOfInfluence])
-        : [];
       setForm((f) => ({
         ...f,
         firstName: profile.firstName || profile.displayName?.split(" ")[0] || "",
         lastName: profile.lastName || profile.displayName?.split(" ").slice(1).join(" ") || "",
-        gender: profile.gender || "",
-        countryOfOrigin: profile.countryOfOrigin || "",
+        profession: profile.profession || "",
+        sphereOfInfluence: (Array.isArray(profile.sphereOfInfluence)
+          ? profile.sphereOfInfluence[0]
+          : profile.sphereOfInfluence) || "",
         nationId: profile.nationId || "",
         cityId: profile.cityId || "",
-        countryOfResidence: profile.countryOfResidence || "",
-        profession: profile.profession || "",
-        education: profile.education || "",
-        languages: (profile.languages || []).join(", "),
-        sphereOfInfluence: existingSpheres,
-        missionStatement: profile.missionStatement || "",
-        summary: profile.summary || "",
       }));
     }
   }, [profile]);
 
   const filteredCities = cities.filter((c) => !form.nationId || c.nationId === form.nationId);
-
-  const toggleSphere = (s: string) => {
-    setForm((f) => ({
-      ...f,
-      sphereOfInfluence: f.sphereOfInfluence.includes(s)
-        ? f.sphereOfInfluence.filter((x) => x !== s)
-        : [...f.sphereOfInfluence, s],
-    }));
-  };
 
   const saveAndContinue = async () => {
     if (!profile) return;
@@ -150,29 +99,20 @@ export default function OnboardingPage() {
         resolvedCityName = customCity.trim();
       }
 
-      const parsedLanguages = form.languages.split(",").map((l) => l.trim()).filter(Boolean);
-
       await updateDoc(doc(db, COLLECTIONS.USERS, profile.id), {
         firstName: form.firstName || null,
         lastName: form.lastName || null,
-        gender: form.gender || null,
-        countryOfOrigin: form.countryOfOrigin || null,
+        profession: form.profession || null,
+        sphereOfInfluence: form.sphereOfInfluence || null,
         nationId: form.nationId || null,
         nationName: nation?.name || null,
         cityId: resolvedCityId,
         cityName: resolvedCityName,
-        countryOfResidence: form.countryOfResidence || null,
-        profession: form.profession || null,
-        education: form.education || null,
-        languages: parsedLanguages.length ? parsedLanguages : null,
-        sphereOfInfluence: form.sphereOfInfluence.length ? form.sphereOfInfluence : null,
-        missionStatement: form.missionStatement || null,
-        summary: form.summary || null,
         hasOnboarded: true,
         updatedAt: serverTimestamp(),
       });
       await refreshProfile();
-      setStep(4);
+      setStep(3);
     } catch (e) {
       toast.error("Failed to save. Please try again.");
     } finally {
@@ -190,7 +130,7 @@ export default function OnboardingPage() {
           <Logo variant="dark" size="lg" className="mb-4" />
           <p className="text-sm font-semibold text-indigo-600 uppercase tracking-widest mb-1">Welcome to</p>
           <h1 className="text-2xl font-black text-slate-900 text-center leading-tight">Leading Lights<br />Global Network</h1>
-          <p className="text-sm text-slate-500 mt-2">Let's set up your profile — takes 2 minutes</p>
+          <p className="text-sm text-slate-500 mt-2">Quick setup — takes less than a minute</p>
         </div>
 
         {/* Step indicators */}
@@ -244,12 +184,12 @@ export default function OnboardingPage() {
             </div>
           )}
 
-          {/* Step 1: Personal Info */}
+          {/* Step 1: About You */}
           {step === 1 && (
             <div className="space-y-4">
               <div>
-                <h2 className="text-base font-semibold text-slate-900 mb-0.5">Personal information</h2>
-                <p className="text-sm text-slate-500">Tell us a bit about who you are.</p>
+                <h2 className="text-base font-semibold text-slate-900 mb-0.5">About you</h2>
+                <p className="text-sm text-slate-500">Just the basics — you can fill in more on your profile later.</p>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <Input
@@ -265,23 +205,19 @@ export default function OnboardingPage() {
                   onChange={(e) => setForm({ ...form, lastName: e.target.value })}
                 />
               </div>
+              <Input
+                label="Profession"
+                placeholder="e.g. Teacher, Engineer, Pastor"
+                value={form.profession}
+                onChange={(e) => setForm({ ...form, profession: e.target.value })}
+              />
               <Select
-                label="Gender"
-                value={form.gender}
-                onChange={(e) => setForm({ ...form, gender: e.target.value })}
+                label="Sphere of Influence"
+                value={form.sphereOfInfluence}
+                onChange={(e) => setForm({ ...form, sphereOfInfluence: e.target.value })}
               >
-                <option value="">Select…</option>
-                <option>Male</option>
-                <option>Female</option>
-                <option>Prefer not to say</option>
-              </Select>
-              <Select
-                label="Country of Origin"
-                value={form.countryOfOrigin}
-                onChange={(e) => setForm({ ...form, countryOfOrigin: e.target.value })}
-              >
-                <option value="">Select your country of origin…</option>
-                {COUNTRIES.map((c) => <option key={c}>{c}</option>)}
+                <option value="">Select your sphere…</option>
+                {SPHERES.map((s) => <option key={s}>{s}</option>)}
               </Select>
               <div className="flex gap-2 pt-2">
                 <Button variant="secondary" className="flex-1" onClick={() => setStep(0)}>Back</Button>
@@ -300,19 +236,11 @@ export default function OnboardingPage() {
                 <p className="text-sm text-slate-500">This helps connect you with your local Leading Lights community.</p>
               </div>
               <Select
-                label="Country of Residence"
-                value={form.countryOfResidence}
-                onChange={(e) => setForm({ ...form, countryOfResidence: e.target.value })}
-              >
-                <option value="">Select your country of residence…</option>
-                {COUNTRIES.map((c) => <option key={c}>{c}</option>)}
-              </Select>
-              <Select
-                label="Nation (LL Region)"
+                label="Nation"
                 value={form.nationId}
                 onChange={(e) => setForm({ ...form, nationId: e.target.value, cityId: "" })}
               >
-                <option value="">Select your LL nation…</option>
+                <option value="">Select your nation…</option>
                 {nations.map((n) => <option key={n.id} value={n.id}>{n.name}</option>)}
               </Select>
               <Select
@@ -341,95 +269,15 @@ export default function OnboardingPage() {
               )}
               <div className="flex gap-2 pt-2">
                 <Button variant="secondary" className="flex-1" onClick={() => setStep(1)}>Back</Button>
-                <Button className="flex-1" onClick={() => setStep(3)}>
-                  Continue <ChevronRight className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* Step 3: Purpose & Background */}
-          {step === 3 && (
-            <div className="space-y-4">
-              <div>
-                <h2 className="text-base font-semibold text-slate-900 mb-0.5">Your purpose & background</h2>
-                <p className="text-sm text-slate-500">Help the community understand who you are and what drives you.</p>
-              </div>
-              <Input
-                label="Profession"
-                placeholder="e.g. Teacher, Engineer, Pastor"
-                value={form.profession}
-                onChange={(e) => setForm({ ...form, profession: e.target.value })}
-              />
-              <div className="grid grid-cols-2 gap-3">
-                <Select
-                  label="Highest Education"
-                  value={form.education}
-                  onChange={(e) => setForm({ ...form, education: e.target.value })}
-                >
-                  <option value="">Select…</option>
-                  <option>Secondary</option>
-                  <option>Diploma</option>
-                  <option>Bachelor&apos;s</option>
-                  <option>Master&apos;s</option>
-                  <option>Post Graduate</option>
-                  <option>Doctorate</option>
-                  <option>Other</option>
-                </Select>
-                <Input
-                  label="Languages"
-                  placeholder="English, French…"
-                  value={form.languages}
-                  onChange={(e) => setForm({ ...form, languages: e.target.value })}
-                />
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-slate-700 mb-2">Sphere(s) of Influence</p>
-                <div className="grid grid-cols-2 gap-1.5">
-                  {SPHERES.map((s) => {
-                    const selected = form.sphereOfInfluence.includes(s);
-                    return (
-                      <button
-                        key={s}
-                        type="button"
-                        onClick={() => toggleSphere(s)}
-                        className={`text-left px-3 py-2 rounded-xl border text-xs font-medium transition-colors ${
-                          selected
-                            ? "border-indigo-400 bg-indigo-50 text-indigo-700"
-                            : "border-slate-200 text-slate-600 hover:border-slate-300"
-                        }`}
-                      >
-                        {selected && <Check className="w-3 h-3 inline mr-1" />}{s}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <Textarea
-                label="Mission Statement"
-                placeholder="What is your personal mission or calling?"
-                value={form.missionStatement}
-                onChange={(e) => setForm({ ...form, missionStatement: e.target.value })}
-                rows={2}
-              />
-              <Textarea
-                label="Summary"
-                placeholder="A short bio — who you are and what drives you…"
-                value={form.summary}
-                onChange={(e) => setForm({ ...form, summary: e.target.value })}
-                rows={2}
-              />
-              <div className="flex gap-2 pt-2">
-                <Button variant="secondary" className="flex-1" onClick={() => setStep(2)}>Back</Button>
                 <Button className="flex-1" onClick={saveAndContinue} loading={saving}>
-                  Save Profile <ChevronRight className="w-4 h-4" />
+                  Save & Finish <ChevronRight className="w-4 h-4" />
                 </Button>
               </div>
             </div>
           )}
 
-          {/* Step 4: Done */}
-          {step === 4 && (
+          {/* Step 3: Done */}
+          {step === 3 && (
             <div className="text-center py-4 space-y-4">
               <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto">
                 <Check className="w-8 h-8 text-green-600" />
@@ -443,10 +291,10 @@ export default function OnboardingPage() {
               <div className="space-y-2 text-left bg-slate-50 rounded-xl p-4">
                 <p className="text-xs font-semibold text-slate-700 mb-2">What to do next:</p>
                 {[
+                  "Complete your profile to help others find you",
                   "Start your Venture 100 training",
                   "Explore the member directory",
                   "Join a group space",
-                  "Share a testimony or prayer request",
                 ].map((item) => (
                   <div key={item} className="flex items-center gap-2 text-sm text-slate-600">
                     <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 flex-shrink-0" />
