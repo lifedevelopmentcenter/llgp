@@ -151,64 +151,72 @@ export default function GroupsPage() {
           action={canCreate ? <Button onClick={() => setModalOpen(true)}><Plus className="w-4 h-4" />Create Group</Button> : undefined}
         />
       ) : (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {groups.map((group) => {
-            const isMember = myGroupIds.has(group.id);
-            const gradient = getGroupGradient(group.name);
-            const typeLabel = GROUP_TYPES.find(t => t.value === group.type)?.label || group.type;
+        <div className="space-y-8">
+          {GROUP_TYPES.map(({ value, label }) => {
+            const sectionGroups = groups.filter(g => (g.type || "general") === value);
+            if (sectionGroups.length === 0) return null;
             return (
-              <div key={group.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition-all duration-150">
-                {/* Cover banner */}
-                <div className={`h-20 bg-gradient-to-r ${gradient} relative flex items-center justify-center`}>
-                  <div className="absolute inset-0 opacity-20" style={{ backgroundImage: "radial-gradient(circle at 30% 50%, white 1px, transparent 1px), radial-gradient(circle at 70% 30%, white 1px, transparent 1px)", backgroundSize: "28px 28px" }} />
-                  <div className="relative w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-lg">
-                    {group.isPrivate
-                      ? <Lock className="w-5 h-5 text-white" />
-                      : <Users className="w-5 h-5 text-white" />
-                    }
-                  </div>
-                  {/* Status badge */}
-                  <div className="absolute top-2.5 right-2.5 flex items-center gap-1 bg-black/20 backdrop-blur-sm rounded-full px-2 py-0.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                    <span className="text-[10px] font-semibold text-white">Active</span>
-                  </div>
-                </div>
+              <div key={value}>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3">{label}</p>
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {sectionGroups.map((group) => {
+                    const isMember = myGroupIds.has(group.id);
+                    const gradient = getGroupGradient(group.name);
+                    return (
+                      <div key={group.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition-all duration-150">
+                        {/* Cover banner */}
+                        <div className={`h-20 bg-gradient-to-r ${gradient} relative flex items-center justify-center`}>
+                          <div className="absolute inset-0 opacity-20" style={{ backgroundImage: "radial-gradient(circle at 30% 50%, white 1px, transparent 1px), radial-gradient(circle at 70% 30%, white 1px, transparent 1px)", backgroundSize: "28px 28px" }} />
+                          <div className="relative w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-lg">
+                            {group.isPrivate
+                              ? <Lock className="w-5 h-5 text-white" />
+                              : <Users className="w-5 h-5 text-white" />
+                            }
+                          </div>
+                          <div className="absolute top-2.5 right-2.5 flex items-center gap-1 bg-black/20 backdrop-blur-sm rounded-full px-2 py-0.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                            <span className="text-[10px] font-semibold text-white">Active</span>
+                          </div>
+                        </div>
 
-                {/* Body */}
-                <div className="p-4">
-                  <div className="flex items-start justify-between gap-2 mb-1.5">
-                    <h3 className="font-bold text-slate-900 text-sm leading-tight">{group.name}</h3>
-                    {isMember && (
-                      <span className="text-[10px] font-bold bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full flex-shrink-0">Joined</span>
-                    )}
-                  </div>
-                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">{typeLabel}</span>
+                        {/* Body */}
+                        <div className="p-4">
+                          <div className="flex items-start justify-between gap-2 mb-1.5">
+                            <h3 className="font-bold text-slate-900 text-sm leading-tight">{group.name}</h3>
+                            {isMember && (
+                              <span className="text-[10px] font-bold bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full flex-shrink-0">Joined</span>
+                            )}
+                          </div>
 
-                  {group.description && (
-                    <p className="text-xs text-slate-500 line-clamp-2 mt-2 leading-relaxed">{group.description}</p>
-                  )}
+                          {group.description && (
+                            <p className="text-xs text-slate-500 line-clamp-2 mt-1 leading-relaxed">{group.description}</p>
+                          )}
 
-                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-50">
-                    <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                      <Users className="w-3.5 h-3.5 text-slate-400" />
-                      <span className="font-medium">{group.memberCount || 0}</span>
-                      <span className="text-slate-400">member{group.memberCount !== 1 ? "s" : ""}</span>
-                    </div>
-                    {isMember ? (
-                      <Link href={`/community/groups/${group.id}`}>
-                        <button className="text-xs font-bold text-indigo-600 hover:text-indigo-700 transition-colors">
-                          Open →
-                        </button>
-                      </Link>
-                    ) : (
-                      <button
-                        onClick={() => joinGroup(group.id)}
-                        className="text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg transition-colors"
-                      >
-                        Join
-                      </button>
-                    )}
-                  </div>
+                          <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-50">
+                            <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                              <Users className="w-3.5 h-3.5 text-slate-400" />
+                              <span className="font-medium">{group.memberCount || 0}</span>
+                              <span className="text-slate-400">member{group.memberCount !== 1 ? "s" : ""}</span>
+                            </div>
+                            {isMember ? (
+                              <Link href={`/community/groups/${group.id}`}>
+                                <button className="text-xs font-bold text-indigo-600 hover:text-indigo-700 transition-colors">
+                                  Open →
+                                </button>
+                              </Link>
+                            ) : (
+                              <button
+                                onClick={() => joinGroup(group.id)}
+                                className="text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg transition-colors"
+                              >
+                                Join
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             );
