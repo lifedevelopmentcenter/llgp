@@ -4,9 +4,9 @@ import React, { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import {
   collection, query, orderBy, onSnapshot, addDoc, serverTimestamp,
-  doc, getDoc, updateDoc, setDoc, increment,
+  doc, getDoc, updateDoc, setDoc, increment, arrayUnion, arrayRemove,
 } from "firebase/firestore";
-import { ArrowLeft, Send } from "lucide-react";
+import { ArrowLeft, Send, Smile } from "lucide-react";
 import Link from "next/link";
 import { db } from "@/lib/firebase/config";
 import { COLLECTIONS } from "@/lib/firebase/firestore";
@@ -15,6 +15,8 @@ import { Avatar } from "@/components/ui/Avatar";
 import { PageLoader } from "@/components/ui/Spinner";
 import { timeAgo } from "@/lib/utils";
 import type { Message, Conversation } from "@/lib/types";
+
+const REACTION_EMOJIS = ["❤️", "👍", "😂", "🙏", "🔥"];
 
 export default function ConversationPage() {
   const { conversationId } = useParams<{ conversationId: string }>();
@@ -25,8 +27,20 @@ export default function ConversationPage() {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
-
   const [otherUser, setOtherUser] = useState<{ displayName: string; photoURL?: string } | null>(null);
+  const [pickerFor, setPickerFor] = useState<string | null>(null);
+  const pickerRef = useRef<HTMLDivElement>(null);
+
+  // Close picker on outside click
+  useEffect(() => {
+    const handle = (e: MouseEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setPickerFor(null);
+      }
+    };
+    if (pickerFor) document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, [pickerFor]);
 
   // Load conversation metadata
   useEffect(() => {
@@ -37,7 +51,6 @@ export default function ConversationPage() {
         if (snap.exists()) {
           setConversation({ id: snap.id, ...snap.data() } as Conversation);
         } else {
-          // Conversation doesn't exist yet — load the other user's profile
           const otherId = conversationId.split("_").find(id => id !== profile.id) || "";
           if (otherId) {
             const userSnap = await getDoc(doc(db, COLLECTIONS.USERS, otherId));
@@ -59,22 +72,16 @@ export default function ConversationPage() {
   useEffect(() => {
     if (!conversationId) return;
     const q = query(
-      collection(db, COLLECTIONS.MESSAGES),
-      orderBy("createdAt", "asc")
-    );
-    // We need to filter by conversationId — using a subcollection approach here
-    // Messages stored at /messages with conversationId field
-    const q2 = query(
       collection(db, COLLECTIONS.CONVERSATIONS, conversationId, "messages"),
       orderBy("createdAt", "asc")
     );
-    const unsub = onSnapshot(q2, snap => {
+    const unsub = onSnapshot(q, snap => {
       setMessages(snap.docs.map(d => ({ id: d.id, ...d.data() } as Message)));
     }, () => {});
     return unsub;
   }, [conversationId]);
 
-  // Mark as read when conversation opens
+  // Mark as read
   useEffect(() => {
     if (!profile || !conversationId || !conversation) return;
     const unread = conversation.unreadCounts?.[profile.id] || 0;
@@ -90,6 +97,20 @@ export default function ConversationPage() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  const toggleReaction = async (msgId: string, emoji: string) => {
+    if (!profile) return;
+    setPickerFor(null);
+    const msgRef = doc(db, COLLECTIONS.CONVERSATIONS, conversationId, "messages", msgId);
+    const msg = messages.find(m => m.id === msgId);
+    const existingReactors: string[] = (msg as any)?.reactions?.[emoji] || [];
+    const hasReacted = existingReactors.includes(profile.id);
+    try {
+      await updateDoc(msgRef, {
+        [`reactions.${emoji}`]: hasReacted ? arrayRemove(profile.id) : arrayUnion(profile.id),
+      });
+    } catch (e) { console.error(e); }
+  };
+
   const send = async () => {
     if (!profile || !text.trim() || sending) return;
     const body = text.trim();
@@ -97,8 +118,6 @@ export default function ConversationPage() {
     setSending(true);
     try {
       const otherId = conversationId.split("_").find(id => id !== profile.id) || "";
-
-      // Ensure conversation exists
       const convRef = doc(db, COLLECTIONS.CONVERSATIONS, conversationId);
       const convSnap = await getDoc(convRef);
       if (!convSnap.exists()) {
@@ -115,7 +134,6 @@ export default function ConversationPage() {
         });
       }
 
-      // Add message to subcollection
       await addDoc(collection(db, COLLECTIONS.CONVERSATIONS, conversationId, "messages"), {
         conversationId,
         senderId: profile.id,
@@ -123,10 +141,10 @@ export default function ConversationPage() {
         senderPhoto: profile.photoURL || null,
         body,
         readBy: [profile.id],
+        reactions: {},
         createdAt: serverTimestamp(),
       });
 
-      // Update conversation metadata
       await updateDoc(convRef, {
         lastMessage: body,
         lastMessageAt: serverTimestamp(),
@@ -135,7 +153,6 @@ export default function ConversationPage() {
         [`unreadCounts.${profile.id}`]: 0,
       });
 
-      // Notify recipient
       if (otherId) {
         await addDoc(collection(db, "notifications"), {
           userId: otherId,
@@ -188,20 +205,111 @@ export default function ConversationPage() {
         {messages.map((msg, i) => {
           const isMe = msg.senderId === profile?.id;
           const showAvatar = !isMe && (i === 0 || messages[i - 1].senderId !== msg.senderId);
+          const reactions: Record<string, string[]> = (msg as any).reactions || {};
+          const hasAnyReaction = Object.values(reactions).some(r => r.length > 0);
+
           return (
-            <div key={msg.id} className={`flex items-end gap-2 ${isMe ? "justify-end" : "justify-start"}`}>
+            <div key={msg.id} className={`flex items-end gap-2 group ${isMe ? "justify-end" : "justify-start"}`}>
               {!isMe && (
                 <div className="w-7 flex-shrink-0">
                   {showAvatar && <Avatar name={msg.senderName} photoURL={(msg as any).senderPhoto} size="xs" />}
                 </div>
               )}
+
               <div className={`max-w-[72%] ${isMe ? "items-end" : "items-start"} flex flex-col gap-0.5`}>
                 {showAvatar && !isMe && (
                   <p className="text-[10px] font-semibold text-slate-500 px-1">{msg.senderName}</p>
                 )}
-                <div className={`px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ${isMe ? "bg-indigo-600 text-white rounded-br-sm" : "bg-white border border-slate-100 text-slate-800 rounded-bl-sm shadow-sm"}`}>
-                  {msg.body}
+
+                <div className="relative flex items-end gap-1">
+                  {/* Reaction picker trigger — left of bubble for my messages */}
+                  {isMe && (
+                    <div className="relative">
+                      <button
+                        onClick={() => setPickerFor(pickerFor === msg.id ? null : msg.id)}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600"
+                      >
+                        <Smile className="w-4 h-4" />
+                      </button>
+                      {pickerFor === msg.id && (
+                        <div ref={pickerRef} className="absolute bottom-8 right-0 z-50 bg-white rounded-2xl shadow-xl border border-slate-100 p-2 flex gap-1">
+                          {REACTION_EMOJIS.map(emoji => {
+                            const reactors = reactions[emoji] || [];
+                            const mine = reactors.includes(profile?.id || "");
+                            return (
+                              <button
+                                key={emoji}
+                                onClick={() => toggleReaction(msg.id, emoji)}
+                                className={`w-9 h-9 rounded-xl text-lg flex items-center justify-center transition-colors ${mine ? "bg-indigo-50" : "hover:bg-slate-100"}`}
+                              >
+                                {emoji}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div className={`px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ${isMe ? "bg-indigo-600 text-white rounded-br-sm" : "bg-white border border-slate-100 text-slate-800 rounded-bl-sm shadow-sm"}`}>
+                    {msg.body}
+                  </div>
+
+                  {/* Reaction picker trigger — right of bubble for others' messages */}
+                  {!isMe && (
+                    <div className="relative">
+                      <button
+                        onClick={() => setPickerFor(pickerFor === msg.id ? null : msg.id)}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600"
+                      >
+                        <Smile className="w-4 h-4" />
+                      </button>
+                      {pickerFor === msg.id && (
+                        <div ref={pickerRef} className="absolute bottom-8 left-0 z-50 bg-white rounded-2xl shadow-xl border border-slate-100 p-2 flex gap-1">
+                          {REACTION_EMOJIS.map(emoji => {
+                            const reactors = reactions[emoji] || [];
+                            const mine = reactors.includes(profile?.id || "");
+                            return (
+                              <button
+                                key={emoji}
+                                onClick={() => toggleReaction(msg.id, emoji)}
+                                className={`w-9 h-9 rounded-xl text-lg flex items-center justify-center transition-colors ${mine ? "bg-indigo-50" : "hover:bg-slate-100"}`}
+                              >
+                                {emoji}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
+
+                {/* Reaction pills */}
+                {hasAnyReaction && (
+                  <div className={`flex flex-wrap gap-1 px-1 ${isMe ? "justify-end" : "justify-start"}`}>
+                    {REACTION_EMOJIS.map(emoji => {
+                      const reactors = reactions[emoji] || [];
+                      if (reactors.length === 0) return null;
+                      const mine = reactors.includes(profile?.id || "");
+                      return (
+                        <button
+                          key={emoji}
+                          onClick={() => toggleReaction(msg.id, emoji)}
+                          className={`flex items-center gap-0.5 px-2 py-0.5 rounded-full text-xs font-semibold border transition-colors ${
+                            mine
+                              ? "bg-indigo-50 border-indigo-200 text-indigo-700"
+                              : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"
+                          }`}
+                        >
+                          <span>{emoji}</span>
+                          <span>{reactors.length}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
                 <p className="text-[10px] text-slate-400 px-1">{timeAgo(msg.createdAt)}</p>
               </div>
             </div>
