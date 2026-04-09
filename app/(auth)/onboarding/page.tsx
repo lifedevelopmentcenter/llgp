@@ -86,6 +86,8 @@ export default function OnboardingPage() {
           name: customCity.trim(),
           nationId: form.nationId,
           nationName: nation?.name || null,
+          needsReview: true,
+          submittedBy: profile.id,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });

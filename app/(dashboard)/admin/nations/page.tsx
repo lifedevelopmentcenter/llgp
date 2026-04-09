@@ -5,7 +5,7 @@ import {
   collection, getDocs, query, orderBy, addDoc, updateDoc,
   doc, serverTimestamp, where, writeBatch, deleteDoc,
 } from "firebase/firestore";
-import { Globe, Plus, MapPin, Trash2 } from "lucide-react";
+import { Globe, Plus, MapPin, Trash2, AlertCircle, Check } from "lucide-react";
 import { db } from "@/lib/firebase/config";
 import { COLLECTIONS } from "@/lib/firebase/firestore";
 import { AuthGuard } from "@/components/auth/AuthGuard";
@@ -39,16 +39,21 @@ function NationsContent() {
 
   const [nationForm, setNationForm] = useState({ name: "", code: "", region: "" });
   const [cityForm, setCityForm] = useState({ name: "", nationId: "" });
+  const [pendingCities, setPendingCities] = useState<(City & { needsReview?: boolean })[]>([]);
+  const [editingPendingId, setEditingPendingId] = useState<string | null>(null);
+  const [editingPendingName, setEditingPendingName] = useState("");
 
   useEffect(() => {
     const load = async () => {
       try {
-        const [nSnap, cSnap] = await Promise.all([
+        const [nSnap, cSnap, pendingSnap] = await Promise.all([
           getDocs(query(collection(db, COLLECTIONS.NATIONS), orderBy("name"))),
-          getDocs(query(collection(db, COLLECTIONS.CITIES), orderBy("name"))),
+          getDocs(query(collection(db, COLLECTIONS.CITIES), where("needsReview", "!=", true), orderBy("needsReview"), orderBy("name"))),
+          getDocs(query(collection(db, COLLECTIONS.CITIES), where("needsReview", "==", true))),
         ]);
         setNations(nSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Nation)));
         setCities(cSnap.docs.map((d) => ({ id: d.id, ...d.data() } as City)));
+        setPendingCities(pendingSnap.docs.map((d) => ({ id: d.id, ...d.data() } as City)));
       } catch (e) { console.error(e); }
       finally { setLoading(false); }
     };
@@ -123,6 +128,26 @@ function NationsContent() {
     } catch { toast.error("Failed to delete."); }
   };
 
+  const approveCity = async (city: City & { needsReview?: boolean }, correctedName?: string) => {
+    try {
+      const finalName = (correctedName || city.name).trim();
+      await updateDoc(doc(db, COLLECTIONS.CITIES, city.id), { name: finalName, needsReview: false, updatedAt: serverTimestamp() });
+      setPendingCities(prev => prev.filter(c => c.id !== city.id));
+      setCities(prev => [...prev, { ...city, name: finalName, needsReview: false }].sort((a, b) => a.name.localeCompare(b.name)));
+      setEditingPendingId(null);
+      toast.success(`"${finalName}" approved.`);
+    } catch { toast.error("Failed to approve."); }
+  };
+
+  const rejectCity = async (city: City) => {
+    if (!confirm(`Delete "${city.name}"? Users assigned to it will lose their city.`)) return;
+    try {
+      await deleteDoc(doc(db, COLLECTIONS.CITIES, city.id));
+      setPendingCities(prev => prev.filter(c => c.id !== city.id));
+      toast.success("City removed.");
+    } catch { toast.error("Failed to remove."); }
+  };
+
   const ALL_NATIONS: { name: string; code: string; region: string }[] = [
     // Africa
     {name:"Algeria",code:"DZ",region:"Africa"},{name:"Angola",code:"AO",region:"Africa"},{name:"Benin",code:"BJ",region:"Africa"},{name:"Botswana",code:"BW",region:"Africa"},{name:"Burkina Faso",code:"BF",region:"Africa"},{name:"Burundi",code:"BI",region:"Africa"},{name:"Cabo Verde",code:"CV",region:"Africa"},{name:"Cameroon",code:"CM",region:"Africa"},{name:"Central African Republic",code:"CF",region:"Africa"},{name:"Chad",code:"TD",region:"Africa"},{name:"Comoros",code:"KM",region:"Africa"},{name:"Congo",code:"CG",region:"Africa"},{name:"DR Congo",code:"CD",region:"Africa"},{name:"Djibouti",code:"DJ",region:"Africa"},{name:"Egypt",code:"EG",region:"Africa"},{name:"Equatorial Guinea",code:"GQ",region:"Africa"},{name:"Eritrea",code:"ER",region:"Africa"},{name:"Eswatini",code:"SZ",region:"Africa"},{name:"Ethiopia",code:"ET",region:"Africa"},{name:"Gabon",code:"GA",region:"Africa"},{name:"Gambia",code:"GM",region:"Africa"},{name:"Ghana",code:"GH",region:"Africa"},{name:"Guinea",code:"GN",region:"Africa"},{name:"Guinea-Bissau",code:"GW",region:"Africa"},{name:"Ivory Coast",code:"CI",region:"Africa"},{name:"Kenya",code:"KE",region:"Africa"},{name:"Lesotho",code:"LS",region:"Africa"},{name:"Liberia",code:"LR",region:"Africa"},{name:"Libya",code:"LY",region:"Africa"},{name:"Madagascar",code:"MG",region:"Africa"},{name:"Malawi",code:"MW",region:"Africa"},{name:"Mali",code:"ML",region:"Africa"},{name:"Mauritania",code:"MR",region:"Africa"},{name:"Mauritius",code:"MU",region:"Africa"},{name:"Morocco",code:"MA",region:"Africa"},{name:"Mozambique",code:"MZ",region:"Africa"},{name:"Namibia",code:"NA",region:"Africa"},{name:"Niger",code:"NE",region:"Africa"},{name:"Nigeria",code:"NG",region:"Africa"},{name:"Rwanda",code:"RW",region:"Africa"},{name:"São Tomé and Príncipe",code:"ST",region:"Africa"},{name:"Senegal",code:"SN",region:"Africa"},{name:"Seychelles",code:"SC",region:"Africa"},{name:"Sierra Leone",code:"SL",region:"Africa"},{name:"Somalia",code:"SO",region:"Africa"},{name:"South Africa",code:"ZA",region:"Africa"},{name:"South Sudan",code:"SS",region:"Africa"},{name:"Sudan",code:"SD",region:"Africa"},{name:"Tanzania",code:"TZ",region:"Africa"},{name:"Togo",code:"TG",region:"Africa"},{name:"Tunisia",code:"TN",region:"Africa"},{name:"Uganda",code:"UG",region:"Africa"},{name:"Zambia",code:"ZM",region:"Africa"},{name:"Zimbabwe",code:"ZW",region:"Africa"},
@@ -191,6 +216,54 @@ function NationsContent() {
           </Button>
         </div>
       </div>
+
+      {/* Pending Cities Review */}
+      {pendingCities.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+            <p className="text-sm font-bold text-amber-800">{pendingCities.length} city{pendingCities.length > 1 ? "ies" : ""} submitted by members — needs review</p>
+          </div>
+          {pendingCities.map(city => (
+            <div key={city.id} className="bg-white rounded-xl border border-amber-100 p-3">
+              {editingPendingId === city.id ? (
+                <div className="space-y-2">
+                  <input
+                    className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    value={editingPendingName}
+                    onChange={e => setEditingPendingName(e.target.value)}
+                    autoFocus
+                  />
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="secondary" className="flex-1" onClick={() => setEditingPendingId(null)}>Cancel</Button>
+                    <Button size="sm" className="flex-1" onClick={() => approveCity(city, editingPendingName)}>
+                      <Check className="w-3.5 h-3.5" /> Save & Approve
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-slate-900">{city.name}</p>
+                    <p className="text-xs text-slate-400">{city.nationName}</p>
+                  </div>
+                  <div className="flex gap-1.5">
+                    <Button size="sm" variant="secondary" onClick={() => { setEditingPendingId(city.id); setEditingPendingName(city.name); }}>
+                      Edit name
+                    </Button>
+                    <Button size="sm" onClick={() => approveCity(city)}>
+                      <Check className="w-3.5 h-3.5" /> Approve
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => rejectCity(city)} className="text-red-500 hover:text-red-700">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit">
