@@ -67,7 +67,7 @@ export default function LoginPage() {
           </div>
 
           <h2 className="text-2xl font-black text-slate-900 mb-1">Sign in</h2>
-          <p className="text-sm text-slate-500 mb-8">Welcome back to LLGP</p>
+          <p className="text-sm text-slate-500 mb-8">Welcome to Leading Lights Global Network</p>
 
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
             <form onSubmit={handleSubmit} className="space-y-4">
