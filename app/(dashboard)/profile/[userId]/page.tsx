@@ -30,7 +30,15 @@ import type { UserProfile, Group, VentureCourse, UserProgress, Event, Follow } f
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const SPHERES = ["Business", "Government", "Education", "Media", "Church", "Arts & Entertainment", "Family", "Health", "Technology", "Sports"];
+const SPHERES = [
+  "Arts, Entertainment & Sports",
+  "Business & Finance",
+  "Church & Religion",
+  "Distribution & Media",
+  "Education, Science & Technology",
+  "Family & Home",
+  "Government & Law",
+];
 
 const COUNTRIES = [
   "Afghanistan","Albania","Algeria","Andorra","Angola","Argentina","Armenia","Australia",

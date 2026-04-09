@@ -15,8 +15,13 @@ import toast from "react-hot-toast";
 import type { Nation, City } from "@/lib/types";
 
 const SPHERES = [
-  "Business", "Government", "Education", "Media", "Church",
-  "Arts & Entertainment", "Family", "Health", "Technology", "Sports", "Other",
+  "Arts, Entertainment & Sports",
+  "Business & Finance",
+  "Church & Religion",
+  "Distribution & Media",
+  "Education, Science & Technology",
+  "Family & Home",
+  "Government & Law",
 ];
 
 const STEPS = ["Photo", "About You", "Location", "Done"];
