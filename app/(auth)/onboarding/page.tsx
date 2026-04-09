@@ -37,6 +37,7 @@ export default function OnboardingPage() {
     lastName: "",
     profession: "",
     sphereOfInfluence: "",
+    participatingInTraining: false as boolean,
     nationId: "",
     cityId: "",
   });
@@ -67,6 +68,7 @@ export default function OnboardingPage() {
         sphereOfInfluence: (Array.isArray(profile.sphereOfInfluence)
           ? profile.sphereOfInfluence[0]
           : profile.sphereOfInfluence) || "",
+        participatingInTraining: profile.participatingInTraining || false,
         nationId: profile.nationId || "",
         cityId: profile.cityId || "",
       }));
@@ -104,6 +106,7 @@ export default function OnboardingPage() {
         lastName: form.lastName || null,
         profession: form.profession || null,
         sphereOfInfluence: form.sphereOfInfluence || null,
+        participatingInTraining: form.participatingInTraining,
         nationId: form.nationId || null,
         nationName: nation?.name || null,
         cityId: resolvedCityId,
@@ -219,6 +222,30 @@ export default function OnboardingPage() {
                 <option value="">Select your sphere…</option>
                 {SPHERES.map((s) => <option key={s}>{s}</option>)}
               </Select>
+              <div>
+                <p className="text-xs font-semibold text-slate-700 mb-2">Have you completed the Leading Lights Experience training?</p>
+                <div className="flex gap-3">
+                  {[{ label: "Yes", value: true }, { label: "No", value: false }].map((opt) => (
+                    <label
+                      key={opt.label}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-xl border cursor-pointer text-sm font-semibold transition-colors ${
+                        form.participatingInTraining === opt.value
+                          ? "border-indigo-400 bg-indigo-50 text-indigo-700"
+                          : "border-slate-200 text-slate-500 hover:border-slate-300"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="participatingInTraining"
+                        checked={form.participatingInTraining === opt.value}
+                        onChange={() => setForm({ ...form, participatingInTraining: opt.value })}
+                        className="hidden"
+                      />
+                      {opt.label}
+                    </label>
+                  ))}
+                </div>
+              </div>
               <div className="flex gap-2 pt-2">
                 <Button variant="secondary" className="flex-1" onClick={() => setStep(0)}>Back</Button>
                 <Button className="flex-1" onClick={() => setStep(2)}>
