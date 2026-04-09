@@ -32,7 +32,7 @@ interface AuthContextType {
     email: string,
     password: string,
     displayName: string
-  ) => Promise<void>;
+  ) => Promise<string>; // returns UID
   logOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -79,16 +79,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signUp = async (email: string, password: string, displayName: string) => {
     const cred = await createUserWithEmailAndPassword(auth, email, password);
     await updateProfile(cred.user, { displayName });
-    // Create user document in Firestore
+    // Create user document in Firestore — pending admin approval by default
     const newProfile: Omit<UserProfile, "id"> = {
       email,
       displayName,
       role: "participant",
-      isActive: true,
+      isActive: false,
       createdAt: serverTimestamp() as any,
       updatedAt: serverTimestamp() as any,
     };
     await setDoc(doc(db, COLLECTIONS.USERS, cred.user.uid), newProfile);
+    return cred.user.uid;
   };
 
   const logOut = async () => {
@@ -110,7 +111,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         displayName: cred.user.displayName ?? "Member",
         photoURL: cred.user.photoURL ?? undefined,
         role: "participant" as const,
-        isActive: true,
+        isActive: false, // pending admin approval
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });

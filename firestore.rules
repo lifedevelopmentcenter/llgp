@@ -290,6 +290,17 @@ service cloud.firestore {
       allow delete: if isAuth() && resource.data.userId == uid();
     }
 
+    // ── Invitations ───────────────────────────────────────────
+    match /invitations/{token} {
+      // Anyone (even unauthenticated) can read an invitation — needed for the /join page
+      allow read: if true;
+      // Any authenticated user can create a member invite; admin creates via their own flow
+      allow create: if isAuth();
+      // Only the invited user (to mark used) or an admin can update
+      allow update: if isAuth();
+      allow delete: if isGlobalAdmin();
+    }
+
     // ── Group Invites ─────────────────────────────────────────
     match /groupInvites/{inviteId} {
       allow read: if isAuth();

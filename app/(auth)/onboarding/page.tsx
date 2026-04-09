@@ -358,8 +358,8 @@ export default function OnboardingPage() {
                   </div>
                 ))}
               </div>
-              <Button className="w-full" onClick={() => router.replace("/dashboard")}>
-                Go to Dashboard
+              <Button className="w-full" onClick={() => router.replace(profile?.isActive ? "/dashboard" : "/pending-approval")}>
+                {profile?.isActive ? "Go to Dashboard" : "Continue"}
               </Button>
             </div>
           )}

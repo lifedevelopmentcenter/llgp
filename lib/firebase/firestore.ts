@@ -39,4 +39,5 @@ export const COLLECTIONS = {
   LESSON_COMMENTS: "lessonComments",
   LESSON_NOTES: "lessonNotes",
   COURSE_ENROLLMENTS: "courseEnrollments",
+  INVITATIONS: "invitations",
 } as const;

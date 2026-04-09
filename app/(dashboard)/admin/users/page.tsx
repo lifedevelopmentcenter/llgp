@@ -119,6 +119,16 @@ function UsersContent() {
   const filteredCities = cities.filter((c) => !editForm.nationId || c.nationId === editForm.nationId);
   const filteredHubs = hubs.filter((h) => !editForm.cityId || h.cityId === editForm.cityId);
 
+  const pendingUsers = users.filter((u) => !u.isActive);
+
+  const approveUser = async (user: UserProfile) => {
+    try {
+      await updateDoc(doc(db, COLLECTIONS.USERS, user.id), { isActive: true, updatedAt: serverTimestamp() });
+      setUsers((prev) => prev.map((u) => u.id === user.id ? { ...u, isActive: true } : u));
+      toast.success(`${user.displayName} approved.`);
+    } catch { toast.error("Failed to approve user."); }
+  };
+
   if (loading) return <PageLoader />;
 
   return (
@@ -127,6 +137,35 @@ function UsersContent() {
         <h1 className="text-xl font-bold text-slate-900">User Management</h1>
         <p className="text-sm text-slate-500">{filtered.length} of {users.length} users</p>
       </div>
+
+      {/* Pending approvals */}
+      {pendingUsers.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+            <p className="text-sm font-bold text-amber-900">{pendingUsers.length} account{pendingUsers.length !== 1 ? "s" : ""} pending approval</p>
+          </div>
+          <div className="space-y-2">
+            {pendingUsers.map((user) => (
+              <div key={user.id} className="flex items-center gap-3 bg-white rounded-xl px-3 py-2.5">
+                <Avatar name={user.displayName} photoURL={user.photoURL} size="sm" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-slate-900">{user.displayName}</p>
+                  <p className="text-xs text-slate-500">{user.email}</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={() => approveUser(user)} className="bg-green-600 hover:bg-green-700 text-white border-none">
+                    Approve
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => deleteUser(user)} className="text-red-500 hover:text-red-700">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="flex gap-2 flex-wrap">
         <div className="relative flex-1 min-w-48">

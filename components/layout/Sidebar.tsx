@@ -6,7 +6,7 @@ import {
   LayoutDashboard, BookOpen, Users, Building2, FileText,
   Settings,
   ChevronDown, ChevronRight, LogOut, X,
-  Calendar, Radio, Search, Film, Heart, BarChart2, Bell,
+  Calendar, Radio, Search, Film, Heart, BarChart2, Bell, UserPlus,
 } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { cn } from "@/lib/utils";
@@ -88,6 +88,12 @@ const navItems: NavItem[] = [
     ],
   },
   {
+    label: "Invite Members", href: "/invite",
+    icon: <UserPlus className="w-[18px] h-[18px]" />,
+    roles: ["global_admin", "national_leader", "city_leader", "hub_leader", "participant"],
+    section: "community",
+  },
+  {
     label: "Hubs", href: "/hubs",
     icon: <Building2 className="w-[18px] h-[18px]" />,
     roles: ["global_admin", "national_leader", "city_leader", "hub_leader"],
@@ -118,6 +124,7 @@ const navItems: NavItem[] = [
       { label: "Moderation", href: "/admin/moderation", roles: ["global_admin"] },
       { label: "Push Broadcast", href: "/admin/broadcast", roles: ["global_admin"] },
       { label: "Bulk Groups", href: "/admin/groups", roles: ["global_admin"] },
+      { label: "Invitations", href: "/admin/invites", roles: ["global_admin"] },
     ],
   },
 ];

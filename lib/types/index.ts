@@ -624,6 +624,26 @@ export interface CommunityCourse {
 }
 
 // ----------------------------------------------------------
+// INVITATIONS
+// ----------------------------------------------------------
+
+export interface Invitation {
+  id: string; // = token (UUID)
+  email: string;
+  invitedById: string;
+  invitedByName: string;
+  adminInvite: boolean;
+  preAssignedRole?: string;
+  preAssignedNationId?: string;
+  preAssignedNationName?: string;
+  preAssignedCityId?: string;
+  preAssignedCityName?: string;
+  status: "pending" | "used" | "expired";
+  expiresAt: Timestamp;
+  createdAt: Timestamp;
+}
+
+// ----------------------------------------------------------
 // LESSON COMMENTS & NOTES
 // ----------------------------------------------------------
 

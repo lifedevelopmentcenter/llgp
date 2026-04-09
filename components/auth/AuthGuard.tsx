@@ -15,13 +15,14 @@ export function AuthGuard({ children, requiredRoles }: AuthGuardProps) {
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.replace("/login");
-    }
-  }, [user, loading, router]);
+    if (loading) return;
+    if (!user) { router.replace("/login"); return; }
+    if (profile && !profile.isActive) { router.replace("/pending-approval"); return; }
+  }, [user, profile, loading, router]);
 
   if (loading) return <PageLoader />;
   if (!user) return null;
+  if (profile && !profile.isActive) return null;
 
   if (requiredRoles && profile && !requiredRoles.includes(profile.role)) {
     return (
