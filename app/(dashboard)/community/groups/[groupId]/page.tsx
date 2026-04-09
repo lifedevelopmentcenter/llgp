@@ -6,8 +6,13 @@ import {
   doc, getDoc, collection, getDocs, query, orderBy, addDoc, serverTimestamp,
   where, updateDoc, deleteDoc, setDoc, increment, limit, onSnapshot,
 } from "firebase/firestore";
-import { ArrowLeft, Send, Users, Pin, Heart, ThumbsUp, HandHeart, UserPlus, UserMinus, MoreHorizontal, Pencil, Trash2, Flag, Camera, MessageSquare } from "lucide-react";
-import { ImageUpload } from "@/components/ui/ImageUpload";
+import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
+import { storage } from "@/lib/firebase/config";
+import {
+  ArrowLeft, Send, Users, Pin, Heart, ThumbsUp, HandHeart, UserPlus, UserMinus,
+  MoreHorizontal, Pencil, Trash2, Flag, Camera, MessageSquare, Image, Search, X, Check,
+} from "lucide-react";
+import { CropModal } from "@/components/ui/CropModal";
 import Link from "next/link";
 import { db } from "@/lib/firebase/config";
 import { COLLECTIONS } from "@/lib/firebase/firestore";
@@ -44,19 +49,44 @@ export default function GroupDetailPage() {
   const [joiningLeaving, setJoiningLeaving] = useState(false);
   const [tab, setTab] = useState<"feed" | "members" | "chat">("feed");
 
-  // Chat state
+  // Chat
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatText, setChatText] = useState("");
   const [chatSending, setChatSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Edit / delete / report state
+  // Post edit/delete/report
   const [editPost, setEditPost] = useState<{ id: string; body: string } | null>(null);
   const [editSaving, setEditSaving] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [reportPostId, setReportPostId] = useState<string | null>(null);
   const [reportReason, setReportReason] = useState("");
 
+  // Cover photo
+  const coverInputRef = useRef<HTMLInputElement>(null);
+  const [coverCropFile, setCoverCropFile] = useState<File | null>(null);
+  const [coverPreview, setCoverPreview] = useState<string | null>(null);
+  const [coverUploading, setCoverUploading] = useState(false);
+  const [posX, setPosX] = useState(50);
+  const [posY, setPosY] = useState(50);
+  const [savedPosX, setSavedPosX] = useState(50);
+  const [savedPosY, setSavedPosY] = useState(50);
+  const [repositioningCover, setRepositioningCover] = useState(false);
+
+  // Group avatar
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const [avatarCropFile, setAvatarCropFile] = useState<File | null>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+
+  // Invites
+  const [inviteModal, setInviteModal] = useState(false);
+  const [inviteSearch, setInviteSearch] = useState("");
+  const [inviteResults, setInviteResults] = useState<Array<{ id: string; displayName: string; photoURL?: string }>>([]);
+  const [inviteSearching, setInviteSearching] = useState(false);
+  const [invitedUserIds, setInvitedUserIds] = useState<Set<string>>(new Set());
+  const [pendingInvite, setPendingInvite] = useState<{ id: string } | null>(null);
+
+  // ── Load ────────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!profile || !groupId) return;
     const load = async () => {
@@ -68,16 +98,44 @@ export default function GroupDetailPage() {
         ]);
 
         if (!groupSnap.exists()) { router.replace("/community/groups"); return; }
-        setGroup({ id: groupSnap.id, ...groupSnap.data() } as Group);
+        const g = { id: groupSnap.id, ...groupSnap.data() } as Group;
+        setGroup(g);
+
+        // Cover position
+        const px = (g as any).coverPositionX ?? 50;
+        const py = (g as any).coverPositionY ?? 50;
+        setPosX(px); setSavedPosX(px);
+        setPosY(py); setSavedPosY(py);
+
+        const memberList = membersSnap.docs.map((d) => ({ id: d.id, ...d.data() } as GroupMember));
         setPosts(postsSnap.docs.map((d) => ({ id: d.id, ...d.data() } as GroupPost)));
-        setMembers(membersSnap.docs.map((d) => ({ id: d.id, ...d.data() } as GroupMember)));
+        setMembers(memberList);
+
+        const currentUserIsMember = memberList.some(m => m.userId === profile.id);
+
+        // Check pending invite for current user
+        if (!currentUserIsMember) {
+          const inviteDoc = await getDoc(doc(db, "groupInvites", `${groupId}_${profile.id}`));
+          if (inviteDoc.exists() && inviteDoc.data().status === "pending") {
+            setPendingInvite({ id: inviteDoc.id });
+          }
+        }
+
+        // Load already-invited user IDs (for leaders to see)
+        const invitesSnap = await getDocs(query(
+          collection(db, "groupInvites"),
+          where("groupId", "==", groupId),
+          where("status", "==", "pending"),
+        ));
+        setInvitedUserIds(new Set(invitesSnap.docs.map(d => d.data().invitedUserId as string)));
+
       } catch (e) { console.error(e); }
       finally { setLoading(false); }
     };
     load();
   }, [profile, groupId, router]);
 
-  // Real-time chat listener — only attach when on chat tab and groupId is known
+  // Chat listener
   useEffect(() => {
     if (!groupId || tab !== "chat") return;
     const q = query(collection(db, "groups", groupId, "chat"), orderBy("createdAt", "asc"));
@@ -87,11 +145,143 @@ export default function GroupDetailPage() {
     return unsub;
   }, [groupId, tab]);
 
-  // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatMessages]);
 
+  const isMember = members.some((m) => m.userId === profile?.id);
+  const isLeader = members.some((m) => m.userId === profile?.id && m.role === "leader") || profile?.id === group?.leaderId;
+
+  // ── Cover photo ─────────────────────────────────────────────────────────────
+  const uploadCover = async (blob: Blob) => {
+    setCoverCropFile(null);
+    const reader = new FileReader();
+    reader.onload = e => setCoverPreview(e.target?.result as string);
+    reader.readAsDataURL(blob);
+    setCoverUploading(true);
+    try {
+      const sRef = storageRef(storage, `groups/${groupId}/cover`);
+      const snapshot = await uploadBytes(sRef, blob);
+      const url = await getDownloadURL(snapshot.ref);
+      await updateDoc(doc(db, COLLECTIONS.GROUPS, groupId), { coverImage: url, updatedAt: serverTimestamp() });
+      setGroup(prev => prev ? { ...prev, coverImage: url } : prev);
+      setCoverPreview(null);
+      toast.success("Cover photo updated.");
+    } catch {
+      setCoverPreview(null);
+      toast.error("Upload failed.");
+    } finally {
+      setCoverUploading(false);
+    }
+  };
+
+  const savePosition = async () => {
+    try {
+      await updateDoc(doc(db, COLLECTIONS.GROUPS, groupId), {
+        coverPositionX: posX, coverPositionY: posY, updatedAt: serverTimestamp(),
+      });
+      setSavedPosX(posX); setSavedPosY(posY);
+      setRepositioningCover(false);
+      toast.success("Cover position saved.");
+    } catch {
+      toast.error("Failed to save position.");
+    }
+  };
+
+  // ── Group avatar ─────────────────────────────────────────────────────────────
+  const uploadAvatar = async (blob: Blob) => {
+    setAvatarCropFile(null);
+    setAvatarUploading(true);
+    try {
+      const sRef = storageRef(storage, `groups/${groupId}/avatar`);
+      const snapshot = await uploadBytes(sRef, blob);
+      const url = await getDownloadURL(snapshot.ref);
+      await updateDoc(doc(db, COLLECTIONS.GROUPS, groupId), { avatarImage: url, updatedAt: serverTimestamp() });
+      setGroup(prev => prev ? { ...prev, avatarImage: url } as any : prev);
+      toast.success("Group photo updated.");
+    } catch {
+      toast.error("Upload failed.");
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
+  // ── Invites ──────────────────────────────────────────────────────────────────
+  const searchUsers = async (q: string) => {
+    if (!q.trim()) { setInviteResults([]); return; }
+    setInviteSearching(true);
+    try {
+      const snap = await getDocs(query(
+        collection(db, COLLECTIONS.USERS),
+        where("displayName", ">=", q),
+        where("displayName", "<=", q + "\uf8ff"),
+        limit(10),
+      ));
+      const results = snap.docs
+        .map(d => ({ id: d.id, ...(d.data() as any) }))
+        .filter((u: any) => u.id !== profile?.id && !members.some(m => m.userId === u.id));
+      setInviteResults(results as any);
+    } catch (e) { console.error(e); }
+    finally { setInviteSearching(false); }
+  };
+
+  const inviteMember = async (userId: string, userName: string) => {
+    if (!profile || !group) return;
+    try {
+      await setDoc(doc(db, "groupInvites", `${groupId}_${userId}`), {
+        groupId,
+        groupName: group.name,
+        invitedUserId: userId,
+        invitedById: profile.id,
+        invitedByName: profile.displayName,
+        status: "pending",
+        createdAt: serverTimestamp(),
+      });
+      setInvitedUserIds(prev => new Set([...prev, userId]));
+      toast.success(`Invited ${userName}!`);
+    } catch {
+      toast.error("Failed to send invite.");
+    }
+  };
+
+  const acceptInvite = async () => {
+    if (!profile || !pendingInvite) return;
+    try {
+      const memberId = `${groupId}_${profile.id}`;
+      await setDoc(doc(db, COLLECTIONS.GROUP_MEMBERS, memberId), {
+        groupId,
+        userId: profile.id,
+        userName: profile.displayName,
+        userPhoto: profile.photoURL || null,
+        role: "member",
+        joinedAt: serverTimestamp(),
+      });
+      await updateDoc(doc(db, "groupInvites", pendingInvite.id), { status: "accepted" });
+      await updateDoc(doc(db, COLLECTIONS.GROUPS, groupId), { memberCount: increment(1) });
+      setMembers(prev => [...prev, {
+        id: memberId, groupId, userId: profile.id,
+        userName: profile.displayName, userPhoto: profile.photoURL || null,
+        role: "member", joinedAt: null as any,
+      }]);
+      setPendingInvite(null);
+      toast.success("You joined the group!");
+    } catch {
+      toast.error("Failed to accept invite.");
+    }
+  };
+
+  const declineInvite = async () => {
+    if (!profile || !pendingInvite) return;
+    try {
+      await updateDoc(doc(db, "groupInvites", pendingInvite.id), { status: "declined" });
+      setPendingInvite(null);
+      toast.success("Invite declined.");
+    } catch {
+      toast.error("Failed to decline.");
+    }
+  };
+
+  // ── Group actions ────────────────────────────────────────────────────────────
   const sendChatMessage = async () => {
     if (!profile || !chatText.trim() || chatSending || !isMember) return;
     const body = chatText.trim();
@@ -99,47 +289,30 @@ export default function GroupDetailPage() {
     setChatSending(true);
     try {
       await addDoc(collection(db, "groups", groupId, "chat"), {
-        senderId: profile.id,
-        senderName: profile.displayName,
-        senderPhoto: profile.photoURL || null,
-        body,
-        createdAt: serverTimestamp(),
+        senderId: profile.id, senderName: profile.displayName,
+        senderPhoto: profile.photoURL || null, body, createdAt: serverTimestamp(),
       });
-    } catch (e) {
+    } catch {
       toast.error("Failed to send message.");
       setChatText(body);
-    } finally {
-      setChatSending(false);
-    }
+    } finally { setChatSending(false); }
   };
 
-  const isMember = members.some((m) => m.userId === profile?.id);
-  const isLeader = members.some((m) => m.userId === profile?.id && m.role === "leader") || profile?.id === group?.leaderId;
-
-  const post = async () => {
+  const postToGroup = async () => {
     if (!profile || !newPost.trim()) return;
     setPosting(true);
     try {
       const data = {
-        groupId,
-        authorId: profile.id,
-        authorName: profile.displayName,
-        authorPhoto: profile.photoURL || null,
-        body: newPost.trim(),
-        commentCount: 0,
-        reactionCounts: { like: 0, heart: 0, pray: 0 },
-        isPinned: false,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
+        groupId, authorId: profile.id, authorName: profile.displayName,
+        authorPhoto: profile.photoURL || null, body: newPost.trim(),
+        commentCount: 0, reactionCounts: { like: 0, heart: 0, pray: 0 },
+        isPinned: false, createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
       };
       const ref = await addDoc(collection(db, COLLECTIONS.GROUP_POSTS), data);
       setPosts((prev) => [{ id: ref.id, ...data } as any, ...prev]);
       setNewPost("");
-    } catch (e) {
-      toast.error("Failed to post.");
-    } finally {
-      setPosting(false);
-    }
+    } catch { toast.error("Failed to post."); }
+    finally { setPosting(false); }
   };
 
   const react = async (postId: string, type: "like" | "heart" | "pray") => {
@@ -161,7 +334,7 @@ export default function GroupDetailPage() {
         const updated = prev.map(p => p.id === postId ? { ...p, isPinned: !current } : p);
         return [...updated.filter(p => p.isPinned), ...updated.filter(p => !p.isPinned)];
       });
-    } catch (e) { toast.error("Failed to pin."); }
+    } catch { toast.error("Failed to pin."); }
   };
 
   const joinGroup = async () => {
@@ -170,16 +343,12 @@ export default function GroupDetailPage() {
     try {
       const memberId = `${groupId}_${profile.id}`;
       await setDoc(doc(db, COLLECTIONS.GROUP_MEMBERS, memberId), {
-        groupId,
-        userId: profile.id,
-        userName: profile.displayName,
-        userPhoto: profile.photoURL || null,
-        role: "member",
-        joinedAt: serverTimestamp(),
+        groupId, userId: profile.id, userName: profile.displayName,
+        userPhoto: profile.photoURL || null, role: "member", joinedAt: serverTimestamp(),
       });
-      setMembers(prev => [...prev, { id: memberId, groupId, userId: profile.id, userName: profile.displayName, userPhoto: profile.photoURL, role: "member", joinedAt: null as any }]);
+      setMembers(prev => [...prev, { id: memberId, groupId, userId: profile.id, userName: profile.displayName, userPhoto: profile.photoURL || null, role: "member", joinedAt: null as any }]);
       toast.success("Joined group!");
-    } catch (e) { toast.error("Failed to join."); }
+    } catch { toast.error("Failed to join."); }
     finally { setJoiningLeaving(false); }
   };
 
@@ -191,7 +360,7 @@ export default function GroupDetailPage() {
       await deleteDoc(doc(db, COLLECTIONS.GROUP_MEMBERS, memberId));
       setMembers(prev => prev.filter(m => m.userId !== profile.id));
       toast.success("Left group.");
-    } catch (e) { toast.error("Failed to leave."); }
+    } catch { toast.error("Failed to leave."); }
     finally { setJoiningLeaving(false); }
   };
 
@@ -203,7 +372,7 @@ export default function GroupDetailPage() {
       setPosts(prev => prev.map(p => p.id === editPost.id ? { ...p, body: editPost.body.trim() } : p));
       setEditPost(null);
       toast.success("Post updated.");
-    } catch (e) { toast.error("Failed to update."); }
+    } catch { toast.error("Failed to update."); }
     finally { setEditSaving(false); }
   };
 
@@ -213,24 +382,20 @@ export default function GroupDetailPage() {
       setPosts(prev => prev.filter(p => p.id !== postId));
       setDeleteConfirmId(null);
       toast.success("Post deleted.");
-    } catch (e) { toast.error("Failed to delete."); }
+    } catch { toast.error("Failed to delete."); }
   };
 
   const submitReport = async () => {
     if (!profile || !reportPostId || !reportReason) return;
     try {
       await addDoc(collection(db, "reports"), {
-        postId: reportPostId,
-        postType: "group_post",
-        reporterId: profile.id,
-        reporterName: profile.displayName,
-        reason: reportReason,
-        createdAt: serverTimestamp(),
+        postId: reportPostId, postType: "group_post",
+        reporterId: profile.id, reporterName: profile.displayName,
+        reason: reportReason, createdAt: serverTimestamp(),
       });
-      setReportPostId(null);
-      setReportReason("");
+      setReportPostId(null); setReportReason("");
       toast.success("Report submitted.");
-    } catch (e) { toast.error("Failed to submit report."); }
+    } catch { toast.error("Failed to submit report."); }
   };
 
   if (loading) return <PageLoader />;
@@ -239,77 +404,177 @@ export default function GroupDetailPage() {
   const pinnedPosts = posts.filter(p => p.isPinned);
   const regularPosts = posts.filter(p => !p.isPinned);
 
-  // Deterministic cover gradient
   const GRADIENTS = ["from-indigo-500 to-violet-600","from-teal-500 to-emerald-600","from-rose-500 to-pink-600","from-amber-500 to-orange-500","from-blue-500 to-cyan-600","from-violet-500 to-purple-600"];
   let gh = 0; for (let i = 0; i < group.name.length; i++) gh += group.name.charCodeAt(i);
   const coverGradient = GRADIENTS[gh % GRADIENTS.length];
 
+  const hasCover = !!(coverPreview || group.coverImage);
+
   return (
     <div className="max-w-2xl mx-auto animate-fade-in">
 
+      {/* CropModals at page root — outside overflow-hidden ancestors */}
+      {coverCropFile && (
+        <CropModal file={coverCropFile} shape="rect" aspect={16 / 5}
+          onConfirm={uploadCover} onCancel={() => setCoverCropFile(null)} />
+      )}
+      {avatarCropFile && (
+        <CropModal file={avatarCropFile} shape="circle" aspect={1}
+          onConfirm={uploadAvatar} onCancel={() => setAvatarCropFile(null)} />
+      )}
+
+      {/* Hidden file inputs */}
+      <input ref={coverInputRef} type="file" accept="image/*" className="hidden"
+        onChange={e => {
+          const f = e.target.files?.[0]; if (!f) return;
+          if (!f.type.startsWith("image/")) { toast.error("Please select an image."); return; }
+          if (f.size > 5 * 1024 * 1024) { toast.error("Image must be under 5 MB."); return; }
+          setCoverCropFile(f); e.target.value = "";
+        }}
+      />
+      <input ref={avatarInputRef} type="file" accept="image/*" className="hidden"
+        onChange={e => {
+          const f = e.target.files?.[0]; if (!f) return;
+          if (!f.type.startsWith("image/")) { toast.error("Please select an image."); return; }
+          if (f.size > 5 * 1024 * 1024) { toast.error("Image must be under 5 MB."); return; }
+          setAvatarCropFile(f); e.target.value = "";
+        }}
+      />
+
       {/* ── COVER BANNER ── */}
-      <div className="relative h-36 rounded-2xl overflow-hidden mb-0">
-        {/* Cover image or gradient background */}
-        {group.coverImage ? (
-          <img src={group.coverImage} alt="Group cover" className="w-full h-full object-cover" />
-        ) : (
-          <div className={`w-full h-full bg-gradient-to-r ${coverGradient}`}>
-            <div className="absolute inset-0 opacity-20" style={{ backgroundImage: "radial-gradient(circle at 20% 50%, white 1px, transparent 1px), radial-gradient(circle at 80% 20%, white 1px, transparent 1px)", backgroundSize: "30px 30px" }} />
-          </div>
-        )}
-
-        {/* Leader: upload cover photo (transparent overlay) */}
-        {isLeader && (
-          <div className="absolute inset-0 z-10">
-            <ImageUpload
-              currentUrl={null}
-              storagePath={`groups/${groupId}/cover`}
-              onUploadComplete={async (url) => {
-                await updateDoc(doc(db, COLLECTIONS.GROUPS, groupId), { coverImage: url });
-                setGroup(prev => prev ? { ...prev, coverImage: url } : prev);
-                toast.success("Cover photo updated.");
-              }}
-              shape="rect"
-              size="lg"
-              placeholder={<span className="sr-only">Upload cover</span>}
-              className="!rounded-none w-full h-full"
+      {/* Outer div is relative but NOT overflow-hidden so buttons aren't clipped */}
+      <div className="relative h-36 rounded-2xl mb-0">
+        {/* Inner div is overflow-hidden for the image */}
+        <div className="absolute inset-0 rounded-2xl overflow-hidden">
+          {hasCover ? (
+            <img
+              src={coverPreview || group.coverImage!}
+              alt="Group cover"
+              className="w-full h-full object-cover transition-[object-position] duration-150"
+              style={{ objectPosition: `${posX}% ${posY}%` }}
             />
-          </div>
-        )}
+          ) : (
+            <div className={`w-full h-full bg-gradient-to-r ${coverGradient}`}>
+              <div className="absolute inset-0 opacity-20" style={{ backgroundImage: "radial-gradient(circle at 20% 50%, white 1px, transparent 1px), radial-gradient(circle at 80% 20%, white 1px, transparent 1px)", backgroundSize: "30px 30px" }} />
+            </div>
+          )}
 
-        {/* Back button */}
+          {/* Reposition overlay — inside overflow-hidden so it stays clipped to cover */}
+          {repositioningCover && (
+            <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-end pb-3 px-4 gap-2 z-30">
+              <div className="w-full space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-white text-[10px] font-bold w-16 flex-shrink-0">Up / Down</span>
+                  <input type="range" min={0} max={100} value={posY}
+                    onChange={e => setPosY(+e.target.value)}
+                    className="flex-1 accent-white h-1" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-white text-[10px] font-bold w-16 flex-shrink-0">Left / Right</span>
+                  <input type="range" min={0} max={100} value={posX}
+                    onChange={e => setPosX(+e.target.value)}
+                    className="flex-1 accent-white h-1" />
+                </div>
+              </div>
+              <div className="flex gap-2 w-full">
+                <button
+                  onClick={() => { setPosX(savedPosX); setPosY(savedPosY); setRepositioningCover(false); }}
+                  className="flex-1 py-1.5 rounded-xl text-xs font-semibold bg-white/20 hover:bg-white/30 text-white transition-colors"
+                >Cancel</button>
+                <button
+                  onClick={savePosition}
+                  className="flex-1 py-1.5 rounded-xl text-xs font-semibold bg-white text-slate-900 hover:bg-slate-100 transition-colors"
+                >Save position</button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Back button — on wrapper so not clipped */}
         <Link href="/community/groups" className="absolute top-3 left-3 p-2 rounded-xl bg-black/20 backdrop-blur-sm text-white hover:bg-black/30 transition-colors z-20">
           <ArrowLeft className="w-4 h-4" />
         </Link>
-        {/* Leader cover upload hint */}
-        {isLeader && (
-          <div className="absolute bottom-2 right-2 flex items-center gap-1 px-2 py-1 rounded-lg bg-black/30 backdrop-blur-sm text-white text-[10px] font-semibold pointer-events-none z-20">
-            <Camera className="w-3 h-3" />
-            Edit cover
+
+        {/* Leader cover buttons */}
+        {isLeader && !repositioningCover && (
+          <div className="absolute top-3 right-3 z-20 flex gap-1.5">
+            {group.coverImage && (
+              <button
+                onClick={() => setRepositioningCover(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-black/50 hover:bg-black/70 text-white text-xs font-semibold rounded-xl transition-colors"
+              >Reposition</button>
+            )}
+            <button
+              onClick={() => coverInputRef.current?.click()}
+              disabled={coverUploading}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-black/50 hover:bg-black/70 text-white text-xs font-semibold rounded-xl transition-colors disabled:opacity-60"
+            >
+              <Image className="w-3.5 h-3.5" />
+              {coverUploading ? "Uploading…" : "Change cover"}
+            </button>
           </div>
         )}
-        {/* Action buttons */}
-        <div className="absolute top-3 right-3 flex gap-2 z-20">
-          {!isMember && (
-            <button onClick={joinGroup} disabled={joiningLeaving} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white text-indigo-700 text-xs font-bold shadow-sm hover:bg-indigo-50 transition-colors disabled:opacity-50">
-              <UserPlus className="w-3.5 h-3.5" />Join
-            </button>
-          )}
-          {isMember && !isLeader && (
-            <button onClick={leaveGroup} disabled={joiningLeaving} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-black/20 backdrop-blur-sm text-white text-xs font-semibold hover:bg-black/30 transition-colors disabled:opacity-50">
-              <UserMinus className="w-3.5 h-3.5" />Leave
-            </button>
-          )}
-        </div>
+
+        {/* Join/Leave — non-leaders */}
+        {!isLeader && !repositioningCover && (
+          <div className="absolute top-3 right-3 flex gap-2 z-20">
+            {pendingInvite && !isMember ? (
+              <>
+                <button onClick={declineInvite} className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-black/30 backdrop-blur-sm text-white text-xs font-semibold hover:bg-black/40 transition-colors">
+                  <X className="w-3 h-3" />Decline
+                </button>
+                <button onClick={acceptInvite} className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-white text-indigo-700 text-xs font-bold hover:bg-indigo-50 transition-colors">
+                  <Check className="w-3 h-3" />Accept
+                </button>
+              </>
+            ) : !isMember ? (
+              <button onClick={joinGroup} disabled={joiningLeaving} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white text-indigo-700 text-xs font-bold shadow-sm hover:bg-indigo-50 transition-colors disabled:opacity-50">
+                <UserPlus className="w-3.5 h-3.5" />Join
+              </button>
+            ) : (
+              <button onClick={leaveGroup} disabled={joiningLeaving} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-black/20 backdrop-blur-sm text-white text-xs font-semibold hover:bg-black/30 transition-colors disabled:opacity-50">
+                <UserMinus className="w-3.5 h-3.5" />Leave
+              </button>
+            )}
+          </div>
+        )}
       </div>
+
+      {/* Pending invite banner (shown when user has an invite but not yet accepted/declined from cover buttons) */}
+      {pendingInvite && !isMember && (
+        <div className="mx-0 mt-2 px-4 py-3 bg-indigo-50 border border-indigo-100 rounded-2xl flex items-center justify-between gap-3">
+          <p className="text-sm text-indigo-800 font-medium">You've been invited to join this group.</p>
+          <div className="flex gap-2 flex-shrink-0">
+            <button onClick={declineInvite} className="text-xs font-semibold text-slate-500 hover:text-red-600 transition-colors">Decline</button>
+            <button onClick={acceptInvite} className="text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-lg transition-colors">Accept</button>
+          </div>
+        </div>
+      )}
 
       {/* ── GROUP IDENTITY CARD ── */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm -mt-5 mx-3 relative z-10 px-4 pt-4 pb-0 mb-4">
         <div className="flex items-start gap-3 mb-3">
-          {/* Group icon */}
-          <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${coverGradient} flex items-center justify-center flex-shrink-0 shadow-md -mt-8 ring-3 ring-white`}>
-            <Users className="w-6 h-6 text-white" />
+          {/* Group avatar */}
+          <div className="relative w-14 h-14 rounded-2xl flex-shrink-0 shadow-md -mt-8 ring-2 ring-white overflow-hidden">
+            {(group as any).avatarImage ? (
+              <img src={(group as any).avatarImage} className="w-full h-full object-cover" alt="Group" />
+            ) : (
+              <div className={`w-full h-full bg-gradient-to-br ${coverGradient} flex items-center justify-center`}>
+                <Users className="w-6 h-6 text-white" />
+              </div>
+            )}
+            {isLeader && (
+              <button
+                onClick={() => avatarInputRef.current?.click()}
+                disabled={avatarUploading}
+                className="absolute inset-0 bg-black/0 hover:bg-black/50 transition-colors flex items-center justify-center group"
+                title="Change group photo"
+              >
+                <Camera className="w-4 h-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+              </button>
+            )}
           </div>
+
           <div className="flex-1 min-w-0 pt-1">
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-lg font-black text-slate-900">{group.name}</h1>
@@ -338,9 +603,7 @@ export default function GroupDetailPage() {
         {/* Tabs */}
         <div className="flex gap-0">
           {(["feed", "members", "chat"] as const).map(t => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
+            <button key={t} onClick={() => setTab(t)}
               className={`flex-1 py-2.5 text-sm font-semibold capitalize transition-colors border-b-2 ${tab === t ? "border-indigo-600 text-indigo-600" : "border-transparent text-slate-400 hover:text-slate-700"}`}
             >
               {t === "feed" ? "Feed" : t === "members" ? "Members" : "Chat"}
@@ -352,23 +615,13 @@ export default function GroupDetailPage() {
       {/* ── TAB: FEED ── */}
       {tab === "feed" && (
         <div className="space-y-3">
-          {/* Pinned posts */}
           {pinnedPosts.map(p => (
-            <PostCard
-              key={p.id}
-              post={p}
-              isLeader={isLeader}
-              currentUserId={profile?.id || ""}
-              reacted={reacted}
-              onReact={react}
-              onPin={togglePin}
+            <PostCard key={p.id} post={p} isLeader={isLeader} currentUserId={profile?.id || ""}
+              reacted={reacted} onReact={react} onPin={togglePin}
               onEdit={(id, body) => setEditPost({ id, body })}
-              onDelete={(id) => setDeleteConfirmId(id)}
-              onReport={(id) => setReportPostId(id)}
-            />
+              onDelete={(id) => setDeleteConfirmId(id)} onReport={(id) => setReportPostId(id)} />
           ))}
 
-          {/* Compose */}
           {isMember && (
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
               <div className="flex gap-3">
@@ -377,14 +630,12 @@ export default function GroupDetailPage() {
                   <textarea
                     className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none bg-slate-50 focus:bg-white transition-colors"
                     placeholder={`Share something with ${group.name}…`}
-                    rows={3}
-                    value={newPost}
-                    onChange={(e) => setNewPost(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter" && e.ctrlKey) post(); }}
+                    rows={3} value={newPost} onChange={(e) => setNewPost(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter" && e.ctrlKey) postToGroup(); }}
                   />
                   <div className="flex items-center justify-between mt-2">
                     <p className="text-xs text-slate-400">Ctrl+Enter to post</p>
-                    <Button size="sm" onClick={post} loading={posting} disabled={!newPost.trim()}>
+                    <Button size="sm" onClick={postToGroup} loading={posting} disabled={!newPost.trim()}>
                       <Send className="w-3.5 h-3.5" />Post
                     </Button>
                   </div>
@@ -401,18 +652,10 @@ export default function GroupDetailPage() {
             </div>
           ) : (
             regularPosts.map(p => (
-              <PostCard
-                key={p.id}
-                post={p}
-                isLeader={isLeader}
-                currentUserId={profile?.id || ""}
-                reacted={reacted}
-                onReact={react}
-                onPin={togglePin}
+              <PostCard key={p.id} post={p} isLeader={isLeader} currentUserId={profile?.id || ""}
+                reacted={reacted} onReact={react} onPin={togglePin}
                 onEdit={(id, body) => setEditPost({ id, body })}
-                onDelete={(id) => setDeleteConfirmId(id)}
-                onReport={(id) => setReportPostId(id)}
-              />
+                onDelete={(id) => setDeleteConfirmId(id)} onReport={(id) => setReportPostId(id)} />
             ))
           )}
         </div>
@@ -421,7 +664,17 @@ export default function GroupDetailPage() {
       {/* ── TAB: MEMBERS ── */}
       {tab === "members" && (
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
-          <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3">{members.length} Members</p>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-bold uppercase tracking-widest text-slate-400">{members.length} Members</p>
+            {isLeader && (
+              <button
+                onClick={() => { setInviteModal(true); setInviteSearch(""); setInviteResults([]); }}
+                className="flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-700 transition-colors"
+              >
+                <UserPlus className="w-3.5 h-3.5" />Invite Member
+              </button>
+            )}
+          </div>
           <div className="space-y-2">
             {members.map(m => (
               <Link key={m.id} href={`/profile/${m.userId}`} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 transition-colors group">
@@ -443,7 +696,6 @@ export default function GroupDetailPage() {
       {/* ── TAB: CHAT ── */}
       {tab === "chat" && (
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col" style={{ height: "480px" }}>
-          {/* Messages area */}
           <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
             {chatMessages.length === 0 && (
               <div className="flex flex-col items-center justify-center h-full text-center">
@@ -460,16 +712,13 @@ export default function GroupDetailPage() {
               const showHeader = !isMe && (i === 0 || chatMessages[i - 1].senderId !== msg.senderId);
               return (
                 <div key={msg.id} className={`flex items-end gap-2 ${isMe ? "justify-end" : "justify-start"}`}>
-                  {/* Avatar column for others */}
                   {!isMe && (
                     <div className="w-7 flex-shrink-0 self-end">
                       {showHeader && <Avatar name={msg.senderName} photoURL={msg.senderPhoto} size="xs" />}
                     </div>
                   )}
                   <div className={`max-w-[72%] flex flex-col gap-0.5 ${isMe ? "items-end" : "items-start"}`}>
-                    {showHeader && !isMe && (
-                      <p className="text-[10px] font-semibold text-slate-500 px-1">{msg.senderName}</p>
-                    )}
+                    {showHeader && !isMe && <p className="text-[10px] font-semibold text-slate-500 px-1">{msg.senderName}</p>}
                     <div className={`px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed break-words ${isMe ? "bg-indigo-600 text-white rounded-br-sm" : "bg-slate-100 text-slate-800 rounded-bl-sm"}`}>
                       {msg.body}
                     </div>
@@ -480,25 +729,19 @@ export default function GroupDetailPage() {
             })}
             <div ref={messagesEndRef} />
           </div>
-
-          {/* Input area */}
           <div className="border-t border-slate-100 p-3 flex-shrink-0">
             {isMember ? (
               <div className="flex items-center gap-2">
                 <Avatar name={profile?.displayName ?? "?"} photoURL={profile?.photoURL} size="xs" className="flex-shrink-0" />
                 <input
                   className="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
-                  placeholder="Type a message…"
-                  value={chatText}
+                  placeholder="Type a message…" value={chatText}
                   onChange={e => setChatText(e.target.value)}
                   onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChatMessage(); } }}
                   disabled={chatSending}
                 />
-                <button
-                  onClick={sendChatMessage}
-                  disabled={!chatText.trim() || chatSending}
-                  className="w-9 h-9 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 flex items-center justify-center transition-colors flex-shrink-0"
-                >
+                <button onClick={sendChatMessage} disabled={!chatText.trim() || chatSending}
+                  className="w-9 h-9 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 flex items-center justify-center transition-colors flex-shrink-0">
                   <Send className="w-4 h-4 text-white" />
                 </button>
               </div>
@@ -509,15 +752,52 @@ export default function GroupDetailPage() {
         </div>
       )}
 
+      {/* ── INVITE MODAL ── */}
+      <Modal open={inviteModal} onClose={() => setInviteModal(false)} title="Invite Member" size="md">
+        <div className="space-y-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 focus:bg-white transition-colors"
+              placeholder="Search by name…"
+              value={inviteSearch}
+              onChange={e => { setInviteSearch(e.target.value); searchUsers(e.target.value); }}
+            />
+          </div>
+          {inviteSearching && <p className="text-xs text-slate-400 text-center py-2">Searching…</p>}
+          {!inviteSearching && inviteSearch && inviteResults.length === 0 && (
+            <p className="text-xs text-slate-400 text-center py-2">No users found.</p>
+          )}
+          <div className="space-y-1 max-h-64 overflow-y-auto">
+            {inviteResults.map(u => {
+              const alreadyInvited = invitedUserIds.has(u.id);
+              return (
+                <div key={u.id} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 transition-colors">
+                  <Avatar name={u.displayName} photoURL={u.photoURL} size="sm" className="flex-shrink-0" />
+                  <p className="flex-1 text-sm font-semibold text-slate-900 truncate">{u.displayName}</p>
+                  {alreadyInvited ? (
+                    <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded-full">Invited</span>
+                  ) : (
+                    <button
+                      onClick={() => inviteMember(u.id, u.displayName)}
+                      className="text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-lg transition-colors"
+                    >
+                      Invite
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </Modal>
+
       {/* ── EDIT POST MODAL ── */}
       <Modal open={!!editPost} onClose={() => setEditPost(null)} title="Edit Post" size="md">
         <div className="space-y-3">
-          <textarea
-            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
-            rows={4}
-            value={editPost?.body || ""}
-            onChange={e => setEditPost(prev => prev ? { ...prev, body: e.target.value } : null)}
-          />
+          <textarea className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+            rows={4} value={editPost?.body || ""}
+            onChange={e => setEditPost(prev => prev ? { ...prev, body: e.target.value } : null)} />
           <div className="flex gap-2 pt-1">
             <Button variant="secondary" className="flex-1" onClick={() => setEditPost(null)}>Cancel</Button>
             <Button className="flex-1" onClick={saveEditPost} loading={editSaving}>Save</Button>
@@ -540,11 +820,8 @@ export default function GroupDetailPage() {
           <p className="text-sm text-slate-600">Why are you reporting this?</p>
           <div className="space-y-2">
             {["Spam or misleading", "Inappropriate content", "Harassment", "Off-topic"].map(r => (
-              <button
-                key={r}
-                onClick={() => setReportReason(r)}
-                className={`w-full text-left px-4 py-2.5 rounded-xl border text-sm font-medium transition-all ${reportReason === r ? "border-indigo-600 bg-indigo-50 text-indigo-700" : "border-slate-200 text-slate-700 hover:border-slate-300"}`}
-              >
+              <button key={r} onClick={() => setReportReason(r)}
+                className={`w-full text-left px-4 py-2.5 rounded-xl border text-sm font-medium transition-all ${reportReason === r ? "border-indigo-600 bg-indigo-50 text-indigo-700" : "border-slate-200 text-slate-700 hover:border-slate-300"}`}>
                 {r}
               </button>
             ))}
@@ -563,9 +840,7 @@ export default function GroupDetailPage() {
 function PostCard({
   post, isLeader, currentUserId, reacted, onReact, onPin, onEdit, onDelete, onReport,
 }: {
-  post: GroupPost;
-  isLeader: boolean;
-  currentUserId: string;
+  post: GroupPost; isLeader: boolean; currentUserId: string;
   reacted: Record<string, string>;
   onReact: (id: string, type: "like" | "heart" | "pray") => void;
   onPin: (id: string, current: boolean) => void;
@@ -591,12 +866,9 @@ function PostCard({
               <p className="text-xs text-slate-400">{timeAgo(post.createdAt)}</p>
             </div>
             <div className="flex items-center gap-1 flex-shrink-0">
-              {/* 3-dot menu */}
               <div className="relative">
-                <button
-                  onClick={(e) => { e.stopPropagation(); setMenuOpen(m => !m); }}
-                  className="p-1 rounded-lg hover:bg-slate-100 text-slate-300 hover:text-slate-500"
-                >
+                <button onClick={(e) => { e.stopPropagation(); setMenuOpen(m => !m); }}
+                  className="p-1 rounded-lg hover:bg-slate-100 text-slate-300 hover:text-slate-500">
                   <MoreHorizontal className="w-4 h-4" />
                 </button>
                 {menuOpen && (
@@ -615,13 +887,10 @@ function PostCard({
                   </div>
                 )}
               </div>
-              {/* Pin button (leaders only) */}
               {isLeader && (
-                <button
-                  onClick={() => onPin(post.id, !!post.isPinned)}
+                <button onClick={() => onPin(post.id, !!post.isPinned)}
                   className={`p-1.5 rounded-lg transition-colors flex-shrink-0 ${post.isPinned ? "text-amber-500 bg-amber-50" : "text-slate-400 hover:bg-slate-100"}`}
-                  title={post.isPinned ? "Unpin" : "Pin to top"}
-                >
+                  title={post.isPinned ? "Unpin" : "Pin to top"}>
                   <Pin className="w-3.5 h-3.5" />
                 </button>
               )}
@@ -630,8 +899,6 @@ function PostCard({
           <p className="text-sm text-slate-700 mt-2 whitespace-pre-line leading-relaxed">{post.body}</p>
         </div>
       </div>
-
-      {/* Reactions */}
       <div className="flex items-center gap-1 mt-3 pt-3 border-t border-slate-50 flex-wrap">
         {(["like", "heart", "pray"] as const).map(r => {
           const icons = { like: ThumbsUp, heart: Heart, pray: HandHeart };
@@ -640,11 +907,8 @@ function PostCard({
           const isActive = reacted[post.id] === r;
           const count = (post.reactionCounts as any)?.[r] || 0;
           return (
-            <button
-              key={r}
-              onClick={() => onReact(post.id, r)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-150 ${isActive ? "bg-indigo-100 text-indigo-600" : "hover:bg-slate-100 text-slate-500"}`}
-            >
+            <button key={r} onClick={() => onReact(post.id, r)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-150 ${isActive ? "bg-indigo-100 text-indigo-600" : "hover:bg-slate-100 text-slate-500"}`}>
               <Icon className={`w-3.5 h-3.5 ${isActive ? "fill-indigo-500" : ""}`} />
               {count > 0 ? count : ""} {labels[r]}
             </button>

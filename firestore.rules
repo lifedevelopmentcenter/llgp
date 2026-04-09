@@ -270,6 +270,13 @@ service cloud.firestore {
       allow create: if isAuth();
     }
 
+    // ── Group Invites ─────────────────────────────────────────
+    match /groupInvites/{inviteId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update: if isAuth() && (resource.data.invitedUserId == uid() || isGlobalAdmin());
+    }
+
     // ── Group Chat (subcollection) ────────────────────────────
     match /groups/{groupId}/chat/{msgId} {
       allow read: if isAuth();
