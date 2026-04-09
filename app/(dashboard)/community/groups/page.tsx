@@ -153,7 +153,10 @@ export default function GroupsPage() {
       ) : (
         <div className="space-y-8">
           {GROUP_TYPES.map(({ value, label }) => {
-            const sectionGroups = groups.filter(g => (g.type || "general") === value);
+            const knownValues = GROUP_TYPES.map(t => t.value);
+            const sectionGroups = value === "general"
+              ? groups.filter(g => !g.type || !knownValues.includes(g.type) || g.type === "general")
+              : groups.filter(g => g.type === value);
             if (sectionGroups.length === 0) return null;
             return (
               <div key={value}>

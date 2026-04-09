@@ -342,7 +342,7 @@ export interface Group {
   id: string;
   name: string;
   description?: string;
-  type: "nation" | "city" | "hub" | "llgli_cohort" | "venture100";
+  type: "nation" | "city" | "hub" | "llgli_cohort" | "venture100" | "general" | string;
   coverImage?: string;
   leaderId: string;
   leaderName: string;
