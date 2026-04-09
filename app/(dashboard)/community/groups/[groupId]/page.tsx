@@ -633,8 +633,7 @@ export default function GroupDetailPage() {
                     rows={3} value={newPost} onChange={(e) => setNewPost(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter" && e.ctrlKey) postToGroup(); }}
                   />
-                  <div className="flex items-center justify-between mt-2">
-                    <p className="text-xs text-slate-400">Ctrl+Enter to post</p>
+                  <div className="flex justify-end mt-2">
                     <Button size="sm" onClick={postToGroup} loading={posting} disabled={!newPost.trim()}>
                       <Send className="w-3.5 h-3.5" />Post
                     </Button>
