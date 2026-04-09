@@ -24,6 +24,7 @@ const GROUP_TYPES = [
   { value: "hub",        label: "Hub Group" },
   { value: "llgli_cohort", label: "LLGLI Cohort" },
   { value: "venture100", label: "Venture 100 Cohort" },
+  { value: "general",    label: "General / Miscellaneous" },
 ];
 
 const COVER_GRADIENTS = [
