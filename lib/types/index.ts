@@ -624,6 +624,30 @@ export interface CommunityCourse {
 }
 
 // ----------------------------------------------------------
+// LESSON COMMENTS & NOTES
+// ----------------------------------------------------------
+
+export interface LessonComment {
+  id: string;
+  lessonId: string;
+  courseId: string;
+  authorId: string;
+  authorName: string;
+  authorPhoto?: string | null;
+  body: string;
+  createdAt: Timestamp;
+}
+
+export interface LessonNote {
+  id: string;
+  userId: string;
+  lessonId: string;
+  courseId: string;
+  notes: string;
+  updatedAt: Timestamp;
+}
+
+// ----------------------------------------------------------
 // UI HELPERS
 // ----------------------------------------------------------
 
