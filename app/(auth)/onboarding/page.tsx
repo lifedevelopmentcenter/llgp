@@ -103,7 +103,7 @@ export default function OnboardingPage() {
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
           <Logo variant="dark" size="lg" className="mb-3" />
-          <h1 className="text-2xl font-bold text-slate-900">Welcome to LLGP</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Welcome to Leading Lights Global Network</h1>
           <p className="text-sm text-slate-500 mt-1">Let's set up your profile — takes 1 minute</p>
         </div>
 
