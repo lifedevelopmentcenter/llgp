@@ -515,7 +515,7 @@ export default function ProfilePage() {
           {isMe && (
             <div className="absolute bottom-3 right-3">
               <ImageUpload
-                currentUrl={profile.coverImage || null}
+                currentUrl={null}
                 storagePath={`covers/${userId}`}
                 onUploadComplete={async (url) => {
                   await updateDoc(doc(db, COLLECTIONS.USERS, profile.id), { coverImage: url, updatedAt: serverTimestamp() });

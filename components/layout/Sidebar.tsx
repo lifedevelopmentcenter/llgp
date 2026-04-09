@@ -28,7 +28,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   {
-    label: "Global Hub Central", href: "/dashboard",
+    label: "Home", href: "/dashboard",
     icon: <LayoutDashboard className="w-[18px] h-[18px]" />,
     roles: ["global_admin", "national_leader", "city_leader", "hub_leader", "participant"],
     section: "main",

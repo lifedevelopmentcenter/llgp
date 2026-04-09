@@ -76,7 +76,7 @@ export function CropModal({ file, shape, aspect, onConfirm, onCancel }: CropModa
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={onCancel}>
-      <div className="bg-white rounded-2xl shadow-2xl p-5 w-full max-w-sm space-y-4" onClick={e => e.stopPropagation()}>
+      <div className="bg-white rounded-2xl shadow-2xl p-5 w-full max-w-sm space-y-4 overflow-y-auto max-h-[90vh]" onClick={e => e.stopPropagation()}>
         <p className="font-bold text-slate-900">Adjust Photo</p>
 
         <div className="flex justify-center">

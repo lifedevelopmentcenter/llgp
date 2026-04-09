@@ -121,6 +121,11 @@ function FeaturedCarousel({ spotlights, onSubmit, currentUserId, isAdmin, onEdit
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [activeIdx, setActiveIdx] = useState(0);
+  const [ordered, setOrdered] = useState<Spotlight[]>(spotlights);
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+
+  useEffect(() => { setOrdered(spotlights); }, [spotlights]);
 
   const scroll = (dir: "left" | "right") => {
     const el = scrollRef.current;
@@ -135,7 +140,25 @@ function FeaturedCarousel({ spotlights, onSubmit, currentUserId, isAdmin, onEdit
     setActiveIdx(Math.round(el.scrollLeft / (el.clientWidth + 12)));
   };
 
-  if (spotlights.length === 0) {
+  const handleDrop = async (targetId: string) => {
+    if (!draggedId || draggedId === targetId) { setDraggedId(null); setDragOverId(null); return; }
+    const from = ordered.findIndex(s => s.id === draggedId);
+    const to = ordered.findIndex(s => s.id === targetId);
+    const next = [...ordered];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    setOrdered(next);
+    setDraggedId(null);
+    setDragOverId(null);
+    // Persist display order
+    try {
+      await Promise.all(next.map((s, idx) =>
+        updateDoc(doc(db, COLLECTIONS.SPOTLIGHTS, s.id), { displayOrder: idx })
+      ));
+    } catch (e) { console.error(e); }
+  };
+
+  if (ordered.length === 0) {
     return (
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
         <p className="text-sm font-black uppercase tracking-widest text-slate-700 mb-3">Featured</p>
@@ -159,16 +182,21 @@ function FeaturedCarousel({ spotlights, onSubmit, currentUserId, isAdmin, onEdit
   return (
     <div className="relative">
       <div className="flex items-center justify-between mb-3 px-0.5">
-        <p className="text-sm font-black uppercase tracking-widest text-slate-700">Featured</p>
         <div className="flex items-center gap-2">
-          {spotlights.length > 1 && (
+          <p className="text-sm font-black uppercase tracking-widest text-slate-700">Featured</p>
+          {isAdmin && ordered.length > 1 && (
+            <span className="text-[10px] text-slate-400 font-medium">drag to reorder</span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {ordered.length > 1 && (
             <div className="flex gap-1">
-              {spotlights.map((_, i) => (
+              {ordered.map((_, i) => (
                 <span key={i} className={`block rounded-full transition-all duration-300 ${i === activeIdx ? "w-4 h-1.5 bg-indigo-600" : "w-1.5 h-1.5 bg-slate-300"}`} />
               ))}
             </div>
           )}
-          {spotlights.length > 1 && (
+          {ordered.length > 1 && (
             <div className="flex gap-1">
               <button onClick={() => scroll("left")} className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors">
                 <ChevronLeft className="w-4 h-4 text-slate-600" />
@@ -187,12 +215,21 @@ function FeaturedCarousel({ spotlights, onSubmit, currentUserId, isAdmin, onEdit
         className="overflow-x-auto no-scrollbar flex gap-3"
         style={{ scrollSnapType: "x mandatory" }}
       >
-        {spotlights.map((s, i) => (
+        {ordered.map((s, i) => (
           <div key={s.id}
-            className="flex-shrink-0 w-[85vw] max-w-xs lg:w-72 rounded-2xl overflow-hidden shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 group"
+            draggable={isAdmin}
+            onDragStart={() => isAdmin && setDraggedId(s.id)}
+            onDragOver={e => { if (isAdmin) { e.preventDefault(); setDragOverId(s.id); } }}
+            onDrop={e => { e.preventDefault(); if (isAdmin) handleDrop(s.id); }}
+            onDragEnd={() => { setDraggedId(null); setDragOverId(null); }}
+            className={`flex-shrink-0 w-[85vw] max-w-xs lg:w-72 rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-200 group
+              ${isAdmin ? "cursor-grab active:cursor-grabbing" : "hover:-translate-y-0.5"}
+              ${draggedId === s.id ? "opacity-40 scale-95" : ""}
+              ${dragOverId === s.id && draggedId !== s.id ? "ring-2 ring-indigo-400 ring-offset-1" : ""}`}
             style={{ scrollSnapAlign: "start" }}>
             {/* Card image / gradient */}
-            <a href={s.url} target="_blank" rel="noopener noreferrer" className="block">
+            <a href={s.url} target="_blank" rel="noopener noreferrer" className="block"
+              onClick={e => { if (draggedId) e.preventDefault(); }}>
             <div className={`relative h-40 bg-gradient-to-br ${GRADIENT_FALLBACKS[i % GRADIENT_FALLBACKS.length]}`}>
               {s.thumbnailUrl && (
                 <img src={s.thumbnailUrl} alt={s.title}
@@ -208,8 +245,6 @@ function FeaturedCarousel({ spotlights, onSubmit, currentUserId, isAdmin, onEdit
                   onClick={e => { e.preventDefault(); onEdit(s); }}
                   className="absolute top-3 right-3 w-7 h-7 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center hover:bg-black/60 transition-colors"
                   title="Edit spotlight">
-                  <Link2 className="w-3.5 h-3.5 text-white" style={{ display: "none" }} />
-                  <ExternalLink className="w-3.5 h-3.5 text-white opacity-0 group-hover:opacity-100 transition-opacity absolute" />
                   <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 text-white fill-none stroke-current stroke-2">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
                   </svg>
@@ -448,7 +483,9 @@ export default function DashboardPage() {
         ]);
         setAnnouncements(annSnap.docs.map(d => ({ id: d.id, ...d.data() } as Announcement)));
         setActiveMembers(membersSnap.docs.map(d => ({ id: d.id, ...d.data() } as UserProfile)));
-        setSpotlights(spotlightSnap.docs.map(d => ({ id: d.id, ...d.data() } as Spotlight)));
+        const rawSpotlights = spotlightSnap.docs.map(d => ({ id: d.id, ...d.data() } as Spotlight));
+        rawSpotlights.sort((a, b) => ((a as any).displayOrder ?? 999) - ((b as any).displayOrder ?? 999));
+        setSpotlights(rawSpotlights);
         const map: Record<string, string> = {};
         reactSnap.docs.forEach(d => { const x = d.data(); map[x.postId] = x.type; });
         setReacted(map);
