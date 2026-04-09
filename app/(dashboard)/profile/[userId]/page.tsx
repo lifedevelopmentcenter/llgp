@@ -849,6 +849,29 @@ export default function ProfilePage() {
               </div>
             )}
 
+            {/* Leave Platform */}
+            {isMe && (
+              <div className="bg-white rounded-2xl border border-red-100 shadow-sm p-4">
+                <p className="text-sm font-bold text-red-600 mb-1">Leave Platform</p>
+                <p className="text-xs text-slate-500 mb-3">Deactivate your account. Your profile will be hidden and you will be logged out. An admin can reactivate your account.</p>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="text-red-600 border-red-200 hover:bg-red-50"
+                  onClick={async () => {
+                    if (!confirm("Are you sure you want to leave the platform? Your account will be deactivated.")) return;
+                    try {
+                      await updateDoc(doc(db, COLLECTIONS.USERS, profile.id), { isActive: false, updatedAt: serverTimestamp() });
+                      toast.success("Your account has been deactivated.");
+                      setTimeout(() => { window.location.href = "/"; }, 1500);
+                    } catch { toast.error("Failed to deactivate account."); }
+                  }}
+                >
+                  Leave Platform
+                </Button>
+              </div>
+            )}
+
             {/* Card 3 — Purpose-Identifying Details */}
             <SectionCard
               title="Purpose-Identifying Details"

@@ -146,6 +146,7 @@ export interface UserProfile {
   };
 
   isActive: boolean;
+  hasOnboarded?: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

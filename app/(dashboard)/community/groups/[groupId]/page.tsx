@@ -177,7 +177,6 @@ export default function GroupDetailPage() {
         role: "member",
         joinedAt: serverTimestamp(),
       });
-      await updateDoc(doc(db, COLLECTIONS.GROUPS, groupId), { memberCount: increment(1) });
       setMembers(prev => [...prev, { id: memberId, groupId, userId: profile.id, userName: profile.displayName, userPhoto: profile.photoURL, role: "member", joinedAt: null as any }]);
       toast.success("Joined group!");
     } catch (e) { toast.error("Failed to join."); }
@@ -190,7 +189,6 @@ export default function GroupDetailPage() {
     try {
       const memberId = `${groupId}_${profile.id}`;
       await deleteDoc(doc(db, COLLECTIONS.GROUP_MEMBERS, memberId));
-      await updateDoc(doc(db, COLLECTIONS.GROUPS, groupId), { memberCount: increment(-1) });
       setMembers(prev => prev.filter(m => m.userId !== profile.id));
       toast.success("Left group.");
     } catch (e) { toast.error("Failed to leave."); }

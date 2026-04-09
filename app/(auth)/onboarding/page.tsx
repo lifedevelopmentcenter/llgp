@@ -83,6 +83,7 @@ export default function OnboardingPage() {
         sphereOfInfluence: form.sphereOfInfluence || null,
         passions: form.passions || null,
         bio: form.bio || null,
+        hasOnboarded: true,
         updatedAt: serverTimestamp(),
       });
       await refreshProfile();

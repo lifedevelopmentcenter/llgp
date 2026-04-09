@@ -1,17 +1,19 @@
 "use client";
 export const dynamic = "force-dynamic";
 import React, { useEffect, useState } from "react";
-import { collection, getDocs, addDoc, deleteDoc, serverTimestamp, query, orderBy, doc } from "firebase/firestore";
-import { Users, Trash2, Plus } from "lucide-react";
+import { collection, getDocs, addDoc, deleteDoc, serverTimestamp, query, orderBy, doc, setDoc, where } from "firebase/firestore";
+import { Users, Trash2, Plus, UserPlus } from "lucide-react";
 import { db } from "@/lib/firebase/config";
 import { COLLECTIONS } from "@/lib/firebase/firestore";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { Modal } from "@/components/ui/Modal";
+import { Avatar } from "@/components/ui/Avatar";
 import { PageLoader } from "@/components/ui/Spinner";
 import toast from "react-hot-toast";
-import type { Nation, Group } from "@/lib/types";
+import type { Nation, Group, UserProfile } from "@/lib/types";
 
 export default function AdminGroupsPage() {
   const { profile } = useAuth();
@@ -20,6 +22,13 @@ export default function AdminGroupsPage() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [creating, setCreating] = useState(false);
+
+  // Add members modal
+  const [addMembersGroup, setAddMembersGroup] = useState<Group | null>(null);
+  const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
+  const [userSearch, setUserSearch] = useState("");
+  const [adding, setAdding] = useState<string | null>(null);
+  const [existingMemberIds, setExistingMemberIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const load = async () => {
@@ -80,6 +89,35 @@ export default function AdminGroupsPage() {
     setSelected(new Set());
   };
 
+  const openAddMembers = async (group: Group) => {
+    setAddMembersGroup(group);
+    setUserSearch("");
+    if (allUsers.length === 0) {
+      const snap = await getDocs(query(collection(db, COLLECTIONS.USERS), where("isActive", "==", true), orderBy("displayName")));
+      setAllUsers(snap.docs.map(d => ({ id: d.id, ...d.data() } as UserProfile)));
+    }
+    const membersSnap = await getDocs(query(collection(db, COLLECTIONS.GROUP_MEMBERS), where("groupId", "==", group.id)));
+    setExistingMemberIds(new Set(membersSnap.docs.map(d => d.data().userId as string)));
+  };
+
+  const addMemberToGroup = async (group: Group, user: UserProfile) => {
+    setAdding(user.id);
+    try {
+      const memberId = `${group.id}_${user.id}`;
+      await setDoc(doc(db, COLLECTIONS.GROUP_MEMBERS, memberId), {
+        groupId: group.id,
+        userId: user.id,
+        userName: user.displayName,
+        userPhoto: user.photoURL || null,
+        role: "member",
+        joinedAt: serverTimestamp(),
+      });
+      setExistingMemberIds(prev => new Set([...prev, user.id]));
+      toast.success(`${user.displayName} added.`);
+    } catch { toast.error("Failed to add member."); }
+    finally { setAdding(null); }
+  };
+
   const deleteGroup = async (group: Group) => {
     if (!confirm(`Delete "${group.name}"? This cannot be undone.`)) return;
     try {
@@ -114,6 +152,9 @@ export default function AdminGroupsPage() {
                   <span className="text-xs text-slate-400">{group.memberCount ?? 0} members</span>
                 </div>
               </div>
+              <Button variant="ghost" size="sm" onClick={() => openAddMembers(group)} className="flex-shrink-0">
+                <UserPlus className="w-3.5 h-3.5" />
+              </Button>
               <Button variant="ghost" size="sm" onClick={() => deleteGroup(group)} className="text-red-500 hover:text-red-700 flex-shrink-0">
                 <Trash2 className="w-3.5 h-3.5" />
               </Button>
@@ -153,6 +194,45 @@ export default function AdminGroupsPage() {
           </Button>
         </div>
       )}
+
+      {/* Add Members Modal */}
+      <Modal open={!!addMembersGroup} onClose={() => setAddMembersGroup(null)} title={`Add Members — ${addMembersGroup?.name}`} size="md">
+        <div className="space-y-3">
+          <input
+            className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            placeholder="Search members…"
+            value={userSearch}
+            onChange={e => setUserSearch(e.target.value)}
+            autoFocus
+          />
+          <div className="space-y-1 max-h-80 overflow-y-auto">
+            {allUsers
+              .filter(u => {
+                const term = userSearch.toLowerCase();
+                return !term || u.displayName?.toLowerCase().includes(term) || u.email?.toLowerCase().includes(term);
+              })
+              .map(user => {
+                const isMember = existingMemberIds.has(user.id);
+                return (
+                  <div key={user.id} className="flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-slate-50">
+                    <Avatar name={user.displayName ?? "?"} photoURL={user.photoURL} size="sm" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-slate-900 truncate">{user.displayName}</p>
+                      {user.nationName && <p className="text-xs text-slate-400 truncate">{user.nationName}</p>}
+                    </div>
+                    {isMember ? (
+                      <span className="text-xs text-emerald-600 font-semibold">Member</span>
+                    ) : (
+                      <Button size="sm" onClick={() => addMemberToGroup(addMembersGroup!, user)} loading={adding === user.id}>
+                        Add
+                      </Button>
+                    )}
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

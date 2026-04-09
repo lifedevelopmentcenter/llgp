@@ -53,6 +53,9 @@ export default function EventsPage() {
   const [rsvped, setRsvped] = useState<Set<string>>(new Set());
   const [rsvpLoading, setRsvpLoading] = useState<Set<string>>(new Set());
   const [attendeePreviews, setAttendeePreviews] = useState<Record<string, AttendeePreview[]>>({});
+  const [attendeeModal, setAttendeeModal] = useState<{ eventId: string; title: string } | null>(null);
+  const [allAttendees, setAllAttendees] = useState<{ userName: string; userPhoto: string | null }[]>([]);
+  const [loadingAttendees, setLoadingAttendees] = useState(false);
   const [form, setForm] = useState({
     title: "", description: "", startDate: "", endDate: "",
     location: "", isOnline: false, meetingLink: "",
@@ -125,22 +128,10 @@ export default function EventsPage() {
     try {
       if (alreadyRsvped) {
         await deleteDoc(rsvpRef);
-        await updateDoc(doc(db, COLLECTIONS.EVENTS, eventId), { rsvpCount: increment(-1) });
-        // Remove user from attendee preview cache so it refreshes on next expand
-        setAttendeePreviews(prev => {
-          const next = { ...prev };
-          delete next[eventId];
-          return next;
-        });
+        setAttendeePreviews(prev => { const next = { ...prev }; delete next[eventId]; return next; });
       } else {
-        await setDoc(rsvpRef, { eventId, userId: profile.id, createdAt: serverTimestamp() });
-        await updateDoc(doc(db, COLLECTIONS.EVENTS, eventId), { rsvpCount: increment(1) });
-        // Invalidate preview cache so the new attendee shows up
-        setAttendeePreviews(prev => {
-          const next = { ...prev };
-          delete next[eventId];
-          return next;
-        });
+        await setDoc(rsvpRef, { eventId, userId: profile.id, userName: profile.displayName, userPhoto: profile.photoURL || null, createdAt: serverTimestamp() });
+        setAttendeePreviews(prev => { const next = { ...prev }; delete next[eventId]; return next; });
       }
     } catch (e) {
       // Roll back optimistic update on error
@@ -199,6 +190,17 @@ export default function EventsPage() {
       toast.success("Event created!");
     } catch (e) { toast.error("Failed to create event."); }
     finally { setSaving(false); }
+  };
+
+  const openAttendees = async (event: Event) => {
+    setAttendeeModal({ eventId: event.id, title: event.title });
+    setAllAttendees([]);
+    setLoadingAttendees(true);
+    try {
+      const snap = await getDocs(query(collection(db, EVENT_RSVPS), where("eventId", "==", event.id)));
+      setAllAttendees(snap.docs.map(d => ({ userName: d.data().userName || "Member", userPhoto: d.data().userPhoto || null })));
+    } catch { }
+    finally { setLoadingAttendees(false); }
   };
 
   if (loading) return <PageLoader />;
@@ -279,6 +281,9 @@ export default function EventsPage() {
                         <div className="flex items-center gap-1.5 text-xs text-slate-500">
                           <Users className="w-3.5 h-3.5 text-slate-400" />
                           <span>{event.rsvpCount} attending</span>
+                          {isLeader && event.rsvpCount > 0 && (
+                            <button onClick={() => openAttendees(event)} className="text-indigo-500 font-semibold hover:underline ml-1">See all</button>
+                          )}
                         </div>
                       </div>
 
@@ -375,6 +380,24 @@ export default function EventsPage() {
             <Button className="flex-1" onClick={createEvent} loading={saving} disabled={!form.title || !form.startDate}>Create Event</Button>
           </div>
         </div>
+      </Modal>
+
+      {/* Attendee list modal (leader/admin) */}
+      <Modal open={!!attendeeModal} onClose={() => setAttendeeModal(null)} title={`Attendees — ${attendeeModal?.title}`} size="md">
+        {loadingAttendees ? (
+          <p className="text-sm text-slate-400 text-center py-6">Loading…</p>
+        ) : (
+          <div className="space-y-2 max-h-96 overflow-y-auto">
+            {allAttendees.length === 0 && <p className="text-sm text-slate-400 text-center py-6">No attendees yet.</p>}
+            {allAttendees.map((a, i) => (
+              <div key={i} className="flex items-center gap-3 px-2 py-1.5 rounded-xl hover:bg-slate-50">
+                <Avatar name={a.userName} photoURL={a.userPhoto} size="sm" />
+                <p className="text-sm font-medium text-slate-800">{a.userName}</p>
+              </div>
+            ))}
+            <p className="text-xs text-slate-400 pt-2 text-center">{allAttendees.length} total</p>
+          </div>
+        )}
       </Modal>
     </div>
   );

@@ -335,6 +335,7 @@ export default function DashboardPage() {
   const [feedTab, setFeedTab] = useState<"global" | "following">("global");
   const [followingFeed, setFollowingFeed] = useState<Post[]>([]);
   const [followingLoading, setFollowingLoading] = useState(false);
+  const [followingCount, setFollowingCount] = useState(0);
 
   // Stories
   const [stories, setStories] = useState<Story[]>([]);
@@ -406,6 +407,7 @@ export default function DashboardPage() {
           query(collection(db, COLLECTIONS.FOLLOWS), where("followerId", "==", profile.id))
         );
         const ids = followsSnap.docs.map(d => d.data().followeeId as string).filter(Boolean);
+        setFollowingCount(ids.length);
         if (ids.length === 0) { setFollowingFeed([]); setFollowingLoading(false); return; }
         const postsSnap = await getDocs(
           query(collection(db, COLLECTIONS.POSTS), where("authorId", "in", ids), orderBy("createdAt", "desc"), limit(20))
@@ -774,9 +776,18 @@ export default function DashboardPage() {
             followingLoading ? <FeedSkeleton /> :
             followingFeed.length === 0 ? (
               <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-10 text-center">
-                <p className="text-slate-500 text-sm font-semibold mb-1">You&apos;re not following anyone yet</p>
-                <p className="text-slate-400 text-xs mb-4">Follow people to see their posts here.</p>
-                <Link href="/community/directory" className="text-indigo-600 text-sm font-semibold hover:underline">Browse the directory →</Link>
+                {followingCount === 0 ? (
+                  <>
+                    <p className="text-slate-500 text-sm font-semibold mb-1">You&apos;re not following anyone yet</p>
+                    <p className="text-slate-400 text-xs mb-4">Follow people to see their posts here.</p>
+                    <Link href="/community/directory" className="text-indigo-600 text-sm font-semibold hover:underline">Browse the directory →</Link>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-slate-500 text-sm font-semibold mb-1">No posts yet</p>
+                    <p className="text-slate-400 text-xs">The {followingCount} {followingCount === 1 ? "person" : "people"} you follow {followingCount === 1 ? "hasn't" : "haven't"} posted anything yet.</p>
+                  </>
+                )}
               </div>
             ) : (
               <div className="space-y-4">

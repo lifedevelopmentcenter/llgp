@@ -5,6 +5,8 @@ import { TopBar } from "./TopBar";
 import { BottomNav } from "./BottomNav";
 import { usePushNotifications } from "@/lib/hooks/usePushNotifications";
 import { usePresence } from "@/lib/hooks/usePresence";
+import { useAuth } from "@/lib/hooks/useAuth";
+import { useRouter } from "next/navigation";
 import { Bell, X } from "lucide-react";
 
 function NotificationBanner() {
@@ -60,7 +62,16 @@ function NotificationBanner() {
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { profile, loading } = useAuth();
+  const router = useRouter();
   usePresence();
+
+  // Redirect to onboarding if user hasn't completed it
+  useEffect(() => {
+    if (!loading && profile && !profile.hasOnboarded) {
+      router.replace("/onboarding");
+    }
+  }, [profile, loading]);
 
   return (
     <div className="min-h-screen bg-[#F5F4FF]">
