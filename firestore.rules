@@ -174,8 +174,9 @@ service cloud.firestore {
     }
 
     match /conversations/{convId} {
-      allow read, update, delete: if isAuth() && uid() in resource.data.participants;
+      allow read: if isAuth() && (resource == null || uid() in resource.data.participants);
       allow create: if isAuth() && uid() in request.resource.data.participants;
+      allow update, delete: if isAuth() && uid() in resource.data.participants;
     }
 
     match /messages/{msgId} {

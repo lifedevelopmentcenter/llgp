@@ -35,11 +35,12 @@ export default function ConversationPage() {
         if (snap.exists()) {
           setConversation({ id: snap.id, ...snap.data() } as Conversation);
         } else {
-          // Conversation may not exist yet (navigated from profile page)
           setConversation(null);
         }
-      } catch (e) { console.error(e); }
-      finally { setLoading(false); }
+      } catch {
+        // Conversation doesn't exist yet — user will create it on first send
+        setConversation(null);
+      } finally { setLoading(false); }
     };
     load();
   }, [profile, conversationId]);
