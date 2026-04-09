@@ -346,9 +346,10 @@ export default function OnboardingPage() {
                 <p className="text-xs font-semibold text-slate-700 mb-2">What to do next:</p>
                 {[
                   "Complete your profile to help others find you",
-                  "Start your Venture 100 training",
                   "Explore the member directory",
                   "Join a group space",
+                  "Take courses or create your own course",
+                  "Showcase your initiative, ministry or project",
                 ].map((item) => (
                   <div key={item} className="flex items-center gap-2 text-sm text-slate-600">
                     <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 flex-shrink-0" />
