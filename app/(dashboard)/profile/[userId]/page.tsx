@@ -511,9 +511,9 @@ export default function ProfilePage() {
               />
             </div>
           )}
-          {/* Cover upload overlay — own profile only */}
+          {/* Cover upload button — own profile only */}
           {isMe && (
-            <div className="absolute inset-0">
+            <div className="absolute bottom-3 right-3">
               <ImageUpload
                 currentUrl={profile.coverImage || null}
                 storagePath={`covers/${userId}`}
@@ -523,13 +523,15 @@ export default function ProfilePage() {
                   toast.success("Cover photo updated.");
                 }}
                 shape="rect"
-                size="lg"
-                cropAspect={4}
+                size="sm"
+                cropAspect={16 / 5}
                 placeholder={
-                  <div className="flex flex-col items-center gap-1 opacity-0 group-hover:opacity-100">
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-black/50 hover:bg-black/70 text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer">
+                    <Image className="w-3.5 h-3.5" />
+                    Change cover
                   </div>
                 }
-                className="absolute inset-0 w-full h-full opacity-0 hover:opacity-100 transition-opacity"
+                className="!rounded-xl overflow-visible bg-transparent"
               />
             </div>
           )}
