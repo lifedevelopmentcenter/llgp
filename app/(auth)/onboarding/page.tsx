@@ -102,9 +102,10 @@ export default function OnboardingPage() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
-          <Logo variant="dark" size="lg" className="mb-3" />
-          <h1 className="text-2xl font-bold text-slate-900">Welcome to<br />Leading Lights Global Network</h1>
-          <p className="text-sm text-slate-500 mt-1">Let's set up your profile — takes 1 minute</p>
+          <Logo variant="dark" size="lg" className="mb-4" />
+          <p className="text-sm font-semibold text-indigo-600 uppercase tracking-widest mb-1">Welcome to</p>
+          <h1 className="text-2xl font-black text-slate-900 text-center leading-tight">Leading Lights<br />Global Network</h1>
+          <p className="text-sm text-slate-500 mt-2">Let's set up your profile — takes 1 minute</p>
         </div>
 
         {/* Step indicators */}
