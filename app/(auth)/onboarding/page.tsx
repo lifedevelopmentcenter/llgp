@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { collection, getDocs, query, orderBy, doc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { collection, getDocs, query, orderBy, doc, updateDoc, addDoc, serverTimestamp } from "firebase/firestore";
 import { ChevronRight, Check } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { db } from "@/lib/firebase/config";
@@ -77,11 +77,27 @@ export default function OnboardingPage() {
       const nation = nations.find((n) => n.id === form.nationId);
       const city = cities.find((c) => c.id === form.cityId);
       const isOtherCity = form.cityId === "other";
+
+      // Auto-create new city in Firestore if user typed one
+      let resolvedCityId: string | null = isOtherCity ? null : (form.cityId || null);
+      let resolvedCityName: string | null = isOtherCity ? (customCity.trim() || null) : (city?.name || null);
+      if (isOtherCity && customCity.trim() && form.nationId) {
+        const newCityRef = await addDoc(collection(db, COLLECTIONS.CITIES), {
+          name: customCity.trim(),
+          nationId: form.nationId,
+          nationName: nation?.name || null,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+        resolvedCityId = newCityRef.id;
+        resolvedCityName = customCity.trim();
+      }
+
       await updateDoc(doc(db, COLLECTIONS.USERS, profile.id), {
         nationId: form.nationId || null,
         nationName: nation?.name || null,
-        cityId: isOtherCity ? null : (form.cityId || null),
-        cityName: isOtherCity ? (customCity.trim() || null) : (city?.name || null),
+        cityId: resolvedCityId,
+        cityName: resolvedCityName,
         profession: form.profession || null,
         sphereOfInfluence: form.sphereOfInfluence || null,
         passions: form.passions || null,

@@ -56,7 +56,8 @@ service cloud.firestore {
     // ── Cities ────────────────────────────────────────────────
     match /cities/{cityId} {
       allow read: if isAuth();
-      allow write: if isGlobalAdmin();
+      allow create: if isAuth();
+      allow update, delete: if isGlobalAdmin();
     }
 
     // ── Hubs ──────────────────────────────────────────────────
