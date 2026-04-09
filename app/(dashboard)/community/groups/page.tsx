@@ -42,6 +42,16 @@ function getGroupGradient(name: string) {
   return COVER_GRADIENTS[h % COVER_GRADIENTS.length];
 }
 
+// Infer group type from stored field or geographic data
+function effectiveType(g: Group): string {
+  const known = GROUP_TYPES.map(t => t.value);
+  if (g.type && known.includes(g.type)) return g.type;
+  if ((g as any).nationId && !(g as any).cityId && !(g as any).hubId) return "nation";
+  if ((g as any).cityId && !(g as any).hubId) return "city";
+  if ((g as any).hubId) return "hub";
+  return "general";
+}
+
 export default function GroupsPage() {
   const { profile } = useAuth();
   const [groups, setGroups] = useState<Group[]>([]);
@@ -153,10 +163,7 @@ export default function GroupsPage() {
       ) : (
         <div className="space-y-8">
           {GROUP_TYPES.map(({ value, label }) => {
-            const knownValues = GROUP_TYPES.map(t => t.value);
-            const sectionGroups = value === "general"
-              ? groups.filter(g => !g.type || !knownValues.includes(g.type) || g.type === "general")
-              : groups.filter(g => g.type === value);
+            const sectionGroups = groups.filter(g => effectiveType(g) === value);
             if (sectionGroups.length === 0) return null;
             return (
               <div key={value}>
