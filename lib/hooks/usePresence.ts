@@ -12,10 +12,20 @@ export function usePresence() {
     const presenceRef = ref(rtdb, `/presence/${profile.id}`);
     const connectedRef = ref(rtdb, ".info/connected");
 
+    // If user has hidden their online status, mark them as offline and stop
+    if (profile.hideOnlineStatus) {
+      set(presenceRef, {
+        online: false,
+        lastSeen: serverTimestamp(),
+        displayName: profile.displayName,
+        photoURL: profile.photoURL || null,
+      });
+      return;
+    }
+
     const unsub = onValue(connectedRef, (snap) => {
       if (!snap.val()) return;
 
-      // When disconnected, mark offline
       onDisconnect(presenceRef).set({
         online: false,
         lastSeen: serverTimestamp(),
@@ -23,7 +33,6 @@ export function usePresence() {
         photoURL: profile.photoURL || null,
       });
 
-      // Mark online now
       set(presenceRef, {
         online: true,
         lastSeen: serverTimestamp(),
@@ -34,7 +43,6 @@ export function usePresence() {
 
     return () => {
       unsub();
-      // Mark offline on component unmount (tab close handled by onDisconnect)
       set(presenceRef, {
         online: false,
         lastSeen: serverTimestamp(),
@@ -42,5 +50,5 @@ export function usePresence() {
         photoURL: profile.photoURL || null,
       });
     };
-  }, [profile?.id]);
+  }, [profile?.id, profile?.hideOnlineStatus]);
 }

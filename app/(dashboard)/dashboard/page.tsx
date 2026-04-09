@@ -696,13 +696,16 @@ export default function DashboardPage() {
         {/* ── Center column ── */}
         <div className="flex-1 min-w-0 space-y-4">
 
-          {/* 1. LIVE NOW carousel */}
-          <LiveEventsCarousel events={liveEvents} />
-
-          {/* 2. Stories strip */}
+          {/* 1. Stories strip */}
           <StoriesStrip stories={stories} onAdd={() => setCreateStoryOpen(true)} onView={setViewingStory} />
 
-          {/* 3. Post composer */}
+          {/* 2. Active members strip */}
+          <MembersStrip members={activeMembers} onlineIds={onlineIds} />
+
+          {/* 3. LIVE NOW carousel */}
+          <LiveEventsCarousel events={liveEvents} />
+
+          {/* 4. Post composer */}
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
             <div className="flex items-center gap-3 mb-3">
               <Avatar name={profile.displayName} photoURL={profile.photoURL} size="sm" className="flex-shrink-0" />
@@ -734,7 +737,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* 4. Featured initiatives carousel */}
+          {/* 5. Featured initiatives carousel */}
           <FeaturedCarousel
             spotlights={spotlights}
             onSubmit={() => setSpotlightOpen(true)}
@@ -742,9 +745,6 @@ export default function DashboardPage() {
             isAdmin={profile.role === "global_admin"}
             onEdit={openEdit}
           />
-
-          {/* 5. Active members strip */}
-          <MembersStrip members={activeMembers} onlineIds={onlineIds} />
 
           {/* 6. Feed tab switcher */}
           <div className="flex gap-2">
