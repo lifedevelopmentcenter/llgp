@@ -27,6 +27,8 @@ export default function OnboardingPage() {
   const [saving, setSaving] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
 
+  const [customCity, setCustomCity] = useState("");
+
   const [form, setForm] = useState({
     nationId: "",
     cityId: "",
@@ -74,11 +76,12 @@ export default function OnboardingPage() {
     try {
       const nation = nations.find((n) => n.id === form.nationId);
       const city = cities.find((c) => c.id === form.cityId);
+      const isOtherCity = form.cityId === "other";
       await updateDoc(doc(db, COLLECTIONS.USERS, profile.id), {
         nationId: form.nationId || null,
         nationName: nation?.name || null,
-        cityId: form.cityId || null,
-        cityName: city?.name || null,
+        cityId: isOtherCity ? null : (form.cityId || null),
+        cityName: isOtherCity ? (customCity.trim() || null) : (city?.name || null),
         profession: form.profession || null,
         sphereOfInfluence: form.sphereOfInfluence || null,
         passions: form.passions || null,
@@ -176,12 +179,22 @@ export default function OnboardingPage() {
               <Select
                 label="City"
                 value={form.cityId}
-                onChange={(e) => setForm({ ...form, cityId: e.target.value })}
+                onChange={(e) => { setForm({ ...form, cityId: e.target.value }); setCustomCity(""); }}
                 disabled={!form.nationId}
               >
                 <option value="">Select your city…</option>
                 {filteredCities.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                <option value="other">My city isn't listed…</option>
               </Select>
+              {form.cityId === "other" && (
+                <Input
+                  label="Enter your city"
+                  placeholder="e.g. Abuja"
+                  value={customCity}
+                  onChange={(e) => setCustomCity(e.target.value)}
+                  autoFocus
+                />
+              )}
               {nations.length === 0 && (
                 <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
                   No nations have been added yet. An admin will assign your location.
