@@ -348,6 +348,7 @@ export default function OnboardingPage() {
                   "Complete your profile to help others find you",
                   "Explore the member directory",
                   "Join a group space",
+                  "Connect with other LL Network members",
                   "Take courses or create your own course",
                   "Showcase your initiative, ministry or project",
                 ].map((item) => (
