@@ -537,9 +537,9 @@ export default function ProfilePage() {
       </div>
 
       {/* ── Hero card ── */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm">
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm relative">
         {/* Cover photo */}
-        <div className="relative h-48 rounded-t-2xl overflow-hidden z-0">
+        <div className="relative h-48 rounded-t-2xl overflow-hidden">
           {(coverPreview || profile.coverImage) ? (
             <img src={coverPreview || profile.coverImage!} alt="Cover" className="w-full h-full object-cover" />
           ) : (
@@ -554,32 +554,33 @@ export default function ProfilePage() {
               />
             </div>
           )}
-          {/* Cover upload button — own profile only */}
-          {isMe && (
-            <button
-              onClick={() => coverInputRef.current?.click()}
-              disabled={coverUploading}
-              className="absolute bottom-3 right-3 flex items-center gap-1.5 px-3 py-1.5 bg-black/50 hover:bg-black/70 text-white text-xs font-semibold rounded-xl transition-colors disabled:opacity-60"
-            >
-              <Image className="w-3.5 h-3.5" />
-              {coverUploading ? "Uploading…" : "Change cover"}
-            </button>
-          )}
-          <input
-            ref={coverInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={e => {
-              const f = e.target.files?.[0];
-              if (!f) return;
-              if (!f.type.startsWith("image/")) { toast.error("Please select an image."); return; }
-              if (f.size > 5 * 1024 * 1024) { toast.error("Image must be under 5 MB."); return; }
-              setCoverCropFile(f);
-              e.target.value = "";
-            }}
-          />
         </div>
+
+        {/* Change cover button — outside overflow-hidden and above avatar z-index */}
+        {isMe && (
+          <button
+            onClick={() => coverInputRef.current?.click()}
+            disabled={coverUploading}
+            className="absolute top-3 right-3 z-20 flex items-center gap-1.5 px-3 py-1.5 bg-black/50 hover:bg-black/70 text-white text-xs font-semibold rounded-xl transition-colors disabled:opacity-60"
+          >
+            <Image className="w-3.5 h-3.5" />
+            {coverUploading ? "Uploading…" : "Change cover"}
+          </button>
+        )}
+        <input
+          ref={coverInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={e => {
+            const f = e.target.files?.[0];
+            if (!f) return;
+            if (!f.type.startsWith("image/")) { toast.error("Please select an image."); return; }
+            if (f.size > 5 * 1024 * 1024) { toast.error("Image must be under 5 MB."); return; }
+            setCoverCropFile(f);
+            e.target.value = "";
+          }}
+        />
 
         {/* Avatar + actions row */}
         <div className="px-5 pb-5 relative z-10">
