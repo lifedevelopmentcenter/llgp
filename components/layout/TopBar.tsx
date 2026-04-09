@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { Menu, MessageSquare, Megaphone, Search } from "lucide-react";
 import Link from "next/link";
 import { Avatar } from "@/components/ui/Avatar";
+import { Logo } from "@/components/ui/Logo";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { collection, query, where, onSnapshot, orderBy, limit } from "firebase/firestore";
@@ -113,12 +114,7 @@ export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
         <button onClick={onMenuClick} className="lg:hidden p-2 -ml-1 rounded-xl hover:bg-slate-100 text-slate-500 transition-colors">
           <Menu className="w-5 h-5" />
         </button>
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center">
-            <span className="text-white text-[9px] font-black tracking-tight">LL</span>
-          </div>
-          <span className="text-sm font-black text-slate-900 tracking-tight hidden sm:block">Leading Lights</span>
-        </div>
+        <Logo variant="dark" size="sm" />
       </div>
 
       {/* Right: icons */}
