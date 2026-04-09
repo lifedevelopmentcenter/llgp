@@ -161,6 +161,11 @@ export default function ProfilePage() {
   const [coverCropFile, setCoverCropFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
   const [coverUploading, setCoverUploading] = useState(false);
+  const [posX, setPosX] = useState(50);
+  const [posY, setPosY] = useState(50);
+  const [repositioningCover, setRepositioningCover] = useState(false);
+  const [savedPosX, setSavedPosX] = useState(50);
+  const [savedPosY, setSavedPosY] = useState(50);
 
   // Personal form
   const [personalForm, setPersonalForm] = useState({
@@ -221,6 +226,12 @@ export default function ProfilePage() {
             setIsFollowing(followSnap.exists());
           }
           // Pre-fill forms for own profile
+          // Initialize cover position
+          const px = (p as any).coverPositionX ?? 50;
+          const py = (p as any).coverPositionY ?? 50;
+          setPosX(px); setSavedPosX(px);
+          setPosY(py); setSavedPosY(py);
+
           if (myProfile?.id === userId) {
             setPersonalForm({
               firstName: p.firstName || "",
@@ -485,6 +496,21 @@ export default function ProfilePage() {
     }
   };
 
+  const savePosition = async () => {
+    if (!profile) return;
+    try {
+      await updateDoc(doc(db, COLLECTIONS.USERS, profile.id), {
+        coverPositionX: posX, coverPositionY: posY, updatedAt: serverTimestamp(),
+      });
+      setSavedPosX(posX);
+      setSavedPosY(posY);
+      setRepositioningCover(false);
+      toast.success("Cover position saved.");
+    } catch {
+      toast.error("Failed to save position.");
+    }
+  };
+
   // ── Guards ───────────────────────────────────────────────────────────────────
   const uploadCover = async (blob: Blob) => {
     if (!profile) return;
@@ -541,7 +567,12 @@ export default function ProfilePage() {
         {/* Cover photo */}
         <div className="relative h-48 rounded-t-2xl overflow-hidden">
           {(coverPreview || profile.coverImage) ? (
-            <img src={coverPreview || profile.coverImage!} alt="Cover" className="w-full h-full object-cover" />
+            <img
+              src={coverPreview || profile.coverImage!}
+              alt="Cover"
+              className="w-full h-full object-cover transition-[object-position] duration-150"
+              style={{ objectPosition: `${posX}% ${posY}%` }}
+            />
           ) : (
             <div className={`h-full bg-gradient-to-br ${gradient} relative`}>
               <div
@@ -554,18 +585,62 @@ export default function ProfilePage() {
               />
             </div>
           )}
+
+          {/* Reposition overlay */}
+          {repositioningCover && (
+            <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-end pb-3 px-4 gap-2 z-30">
+              <div className="w-full space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-white text-[10px] font-bold w-16 flex-shrink-0">Up / Down</span>
+                  <input type="range" min={0} max={100} value={posY}
+                    onChange={e => setPosY(+e.target.value)}
+                    className="flex-1 accent-white h-1" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-white text-[10px] font-bold w-16 flex-shrink-0">Left / Right</span>
+                  <input type="range" min={0} max={100} value={posX}
+                    onChange={e => setPosX(+e.target.value)}
+                    className="flex-1 accent-white h-1" />
+                </div>
+              </div>
+              <div className="flex gap-2 w-full">
+                <button
+                  onClick={() => { setPosX(savedPosX); setPosY(savedPosY); setRepositioningCover(false); }}
+                  className="flex-1 py-1.5 rounded-xl text-xs font-semibold bg-white/20 hover:bg-white/30 text-white transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={savePosition}
+                  className="flex-1 py-1.5 rounded-xl text-xs font-semibold bg-white text-slate-900 hover:bg-slate-100 transition-colors"
+                >
+                  Save position
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Change cover button — outside overflow-hidden and above avatar z-index */}
-        {isMe && (
-          <button
-            onClick={() => coverInputRef.current?.click()}
-            disabled={coverUploading}
-            className="absolute top-3 right-3 z-20 flex items-center gap-1.5 px-3 py-1.5 bg-black/50 hover:bg-black/70 text-white text-xs font-semibold rounded-xl transition-colors disabled:opacity-60"
-          >
-            <Image className="w-3.5 h-3.5" />
-            {coverUploading ? "Uploading…" : "Change cover"}
-          </button>
+        {/* Cover buttons — outside overflow-hidden and above avatar z-index */}
+        {isMe && !repositioningCover && (
+          <div className="absolute top-3 right-3 z-20 flex gap-1.5">
+            {(profile.coverImage) && (
+              <button
+                onClick={() => setRepositioningCover(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-black/50 hover:bg-black/70 text-white text-xs font-semibold rounded-xl transition-colors"
+              >
+                Reposition
+              </button>
+            )}
+            <button
+              onClick={() => coverInputRef.current?.click()}
+              disabled={coverUploading}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-black/50 hover:bg-black/70 text-white text-xs font-semibold rounded-xl transition-colors disabled:opacity-60"
+            >
+              <Image className="w-3.5 h-3.5" />
+              {coverUploading ? "Uploading…" : "Change cover"}
+            </button>
+          </div>
         )}
         <input
           ref={coverInputRef}
