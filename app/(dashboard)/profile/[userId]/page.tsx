@@ -1,12 +1,14 @@
 "use client";
 export const dynamic = "force-dynamic";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   doc, getDoc, updateDoc, serverTimestamp,
   getDocs, collection, query, where, orderBy, limit,
   deleteDoc, setDoc,
 } from "firebase/firestore";
+import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
+import { storage } from "@/lib/firebase/config";
 import {
   ArrowLeft, Edit2, Globe, Mail, Check, MapPin, Briefcase,
   BookOpen, Layers, MessageSquare, UserPlus, Pencil, Plus,
@@ -19,6 +21,7 @@ import { useAuth } from "@/lib/hooks/useAuth";
 import { Badge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
 import { ImageUpload } from "@/components/ui/ImageUpload";
+import { CropModal } from "@/components/ui/CropModal";
 import { Button } from "@/components/ui/Button";
 import { Input, Textarea, Select } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
@@ -152,6 +155,12 @@ export default function ProfilePage() {
   const [editAdditional, setEditAdditional] = useState(false);
   const [editPurpose, setEditPurpose] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Cover photo
+  const coverInputRef = useRef<HTMLInputElement>(null);
+  const [coverCropFile, setCoverCropFile] = useState<File | null>(null);
+  const [coverPreview, setCoverPreview] = useState<string | null>(null);
+  const [coverUploading, setCoverUploading] = useState(false);
 
   // Personal form
   const [personalForm, setPersonalForm] = useState({
@@ -477,6 +486,30 @@ export default function ProfilePage() {
   };
 
   // ── Guards ───────────────────────────────────────────────────────────────────
+  const uploadCover = async (blob: Blob) => {
+    if (!profile) return;
+    setCoverCropFile(null);
+    // Show local preview immediately
+    const reader = new FileReader();
+    reader.onload = e => setCoverPreview(e.target?.result as string);
+    reader.readAsDataURL(blob);
+    setCoverUploading(true);
+    try {
+      const sRef = storageRef(storage, `covers/${userId}`);
+      const snapshot = await uploadBytes(sRef, blob);
+      const url = await getDownloadURL(snapshot.ref);
+      await updateDoc(doc(db, COLLECTIONS.USERS, profile.id), { coverImage: url, updatedAt: serverTimestamp() });
+      setProfile(prev => prev ? { ...prev, coverImage: url } : prev);
+      setCoverPreview(null); // clear preview — profile.coverImage now has the URL
+      toast.success("Cover photo updated.");
+    } catch (e: any) {
+      setCoverPreview(null);
+      toast.error("Upload failed. Please try again.");
+    } finally {
+      setCoverUploading(false);
+    }
+  };
+
   if (loading) return <PageLoader />;
   if (!profile) return <div className="text-center py-16 text-slate-400 text-sm">User not found.</div>;
 
@@ -485,6 +518,16 @@ export default function ProfilePage() {
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
     <div className="max-w-2xl mx-auto space-y-0 animate-fade-in pb-10">
+      {/* Cover crop modal — rendered at page level, outside overflow-hidden cover div */}
+      {coverCropFile && (
+        <CropModal
+          file={coverCropFile}
+          shape="rect"
+          aspect={16 / 5}
+          onConfirm={uploadCover}
+          onCancel={() => setCoverCropFile(null)}
+        />
+      )}
       {/* Back */}
       <div className="flex items-center gap-2 pb-3">
         <Link href="/community/directory" className="p-2 rounded-xl hover:bg-white text-slate-500 transition-colors">
@@ -497,8 +540,8 @@ export default function ProfilePage() {
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm">
         {/* Cover photo */}
         <div className="relative h-48 rounded-t-2xl overflow-hidden z-0">
-          {profile.coverImage ? (
-            <img src={profile.coverImage} alt="Cover" className="w-full h-full object-cover" />
+          {(coverPreview || profile.coverImage) ? (
+            <img src={coverPreview || profile.coverImage!} alt="Cover" className="w-full h-full object-cover" />
           ) : (
             <div className={`h-full bg-gradient-to-br ${gradient} relative`}>
               <div
@@ -513,28 +556,29 @@ export default function ProfilePage() {
           )}
           {/* Cover upload button — own profile only */}
           {isMe && (
-            <div className="absolute bottom-3 right-3">
-              <ImageUpload
-                currentUrl={null}
-                storagePath={`covers/${userId}`}
-                onUploadComplete={async (url) => {
-                  await updateDoc(doc(db, COLLECTIONS.USERS, profile.id), { coverImage: url, updatedAt: serverTimestamp() });
-                  setProfile(prev => prev ? { ...prev, coverImage: url } : prev);
-                  toast.success("Cover photo updated.");
-                }}
-                shape="rect"
-                size="sm"
-                cropAspect={16 / 5}
-                placeholder={
-                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-black/50 hover:bg-black/70 text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer">
-                    <Image className="w-3.5 h-3.5" />
-                    Change cover
-                  </div>
-                }
-                className="!rounded-xl overflow-visible bg-transparent"
-              />
-            </div>
+            <button
+              onClick={() => coverInputRef.current?.click()}
+              disabled={coverUploading}
+              className="absolute bottom-3 right-3 flex items-center gap-1.5 px-3 py-1.5 bg-black/50 hover:bg-black/70 text-white text-xs font-semibold rounded-xl transition-colors disabled:opacity-60"
+            >
+              <Image className="w-3.5 h-3.5" />
+              {coverUploading ? "Uploading…" : "Change cover"}
+            </button>
           )}
+          <input
+            ref={coverInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={e => {
+              const f = e.target.files?.[0];
+              if (!f) return;
+              if (!f.type.startsWith("image/")) { toast.error("Please select an image."); return; }
+              if (f.size > 5 * 1024 * 1024) { toast.error("Image must be under 5 MB."); return; }
+              setCoverCropFile(f);
+              e.target.value = "";
+            }}
+          />
         </div>
 
         {/* Avatar + actions row */}
