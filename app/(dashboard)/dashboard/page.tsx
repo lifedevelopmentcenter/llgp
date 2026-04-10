@@ -1037,6 +1037,13 @@ export default function DashboardPage() {
       {/* Compose */}
       <Modal open={composeOpen} onClose={() => setComposeOpen(false)} title="Create Post" size="md">
         <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-slate-400">Short post</span>
+            <Link href="/articles/new" onClick={() => setComposeOpen(false)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-700 text-xs font-bold rounded-full hover:bg-indigo-100 transition-colors">
+              ✍️ Write Article →
+            </Link>
+          </div>
           <Textarea placeholder="What's on your mind?" rows={5} value={composeBody} onChange={e => setComposeBody(e.target.value)} />
           {linkFetching && (
             <div className="text-xs text-slate-400 animate-pulse">Fetching preview…</div>
@@ -1157,6 +1164,61 @@ function FeedEmpty() {
   );
 }
 
+// ── Post Body (with see more) ──────────────────────────────
+
+function PostBody({ body }: { body: string }) {
+  const [expanded, setExpanded] = React.useState(false);
+  const LIMIT = 280;
+  const isLong = body.length > LIMIT;
+  return (
+    <div className="px-4 pb-3 text-sm text-slate-800 leading-relaxed whitespace-pre-wrap">
+      {renderHashtags(expanded ? body : body.slice(0, LIMIT) + (isLong && !expanded ? "…" : ""))}
+      {isLong && !expanded && (
+        <button onClick={() => setExpanded(true)} className="ml-1 text-indigo-600 font-semibold hover:text-indigo-700 transition-colors">
+          see more
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ── Carousel Images ────────────────────────────────────────
+
+function CarouselImages({ urls }: { urls: string[] }) {
+  const [idx, setIdx] = React.useState(0);
+  if (urls.length === 1) {
+    return <img src={urls[0]} className="w-full max-h-96 object-cover rounded-none" alt="" />;
+  }
+  return (
+    <div className="relative mx-4 mb-3 rounded-2xl overflow-hidden">
+      <img src={urls[idx]} className="w-full aspect-video object-cover" alt="" />
+      {/* Prev/Next arrows */}
+      {idx > 0 && (
+        <button onClick={() => setIdx(i => i - 1)}
+          className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/50 text-white rounded-full flex items-center justify-center hover:bg-black/70 transition-colors">
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+      )}
+      {idx < urls.length - 1 && (
+        <button onClick={() => setIdx(i => i + 1)}
+          className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/50 text-white rounded-full flex items-center justify-center hover:bg-black/70 transition-colors">
+          <ChevronRight className="w-4 h-4" />
+        </button>
+      )}
+      {/* Dot indicators */}
+      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+        {urls.map((_, i) => (
+          <button key={i} onClick={() => setIdx(i)}
+            className={`rounded-full transition-all duration-200 ${i === idx ? "w-4 h-1.5 bg-white" : "w-1.5 h-1.5 bg-white/60"}`} />
+        ))}
+      </div>
+      <span className="absolute top-2 right-2 bg-black/50 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+        {idx + 1}/{urls.length}
+      </span>
+    </div>
+  );
+}
+
 // ── Feed Post Card ─────────────────────────────────────────
 
 interface FeedPostCardProps {
@@ -1243,9 +1305,7 @@ function FeedPostCard({
       </div>
 
       {/* Body */}
-      <div className="px-4 pb-3 text-sm text-slate-800 leading-relaxed whitespace-pre-wrap">
-        {renderHashtags(post.body ?? "")}
-      </div>
+      <PostBody body={post.body ?? ""} />
 
       {/* Link preview */}
       {post.linkPreview && (
@@ -1292,13 +1352,7 @@ function FeedPostCard({
 
       {/* Media */}
       {(post.mediaUrls?.length ?? 0) > 0 && (
-        <div className={`grid gap-1 overflow-hidden ${post.mediaUrls!.length > 1 ? "grid-cols-2 mx-4 rounded-2xl" : ""}`}>
-          {post.mediaUrls!.map((url, i) => (
-            <img key={i} src={url}
-              className={`w-full object-cover ${post.mediaUrls!.length === 1 ? "max-h-96 rounded-none" : "aspect-square"}`}
-              alt="" />
-          ))}
-        </div>
+        <CarouselImages urls={post.mediaUrls!} />
       )}
 
       {/* Reaction counts */}

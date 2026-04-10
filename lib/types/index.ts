@@ -134,6 +134,11 @@ export interface UserProfile {
   isLLGLI?: boolean;
   llgliCohort?: string;
 
+  // LinkedIn-feel fields
+  headline?: string;
+  openTo?: string[]; // "mentorship" | "collaboration" | "speaking" | "partnership"
+  creatorMode?: boolean;
+
   // Privacy
   hideOnlineStatus?: boolean;
 
@@ -685,4 +690,51 @@ export interface StatCard {
   change?: number;
   icon: string;
   color: string;
+}
+
+// ----------------------------------------------------------
+// LINKEDIN-FEEL FEATURES
+// ----------------------------------------------------------
+
+export interface Recommendation {
+  id: string;
+  toUserId: string;
+  toUserName: string;
+  fromUserId: string;
+  fromUserName: string;
+  fromUserPhoto?: string | null;
+  fromUserHeadline?: string;
+  body: string; // max 500 chars
+  createdAt: Timestamp;
+}
+
+export interface Article {
+  id: string;
+  authorId: string;
+  authorName: string;
+  authorPhoto?: string | null;
+  authorHeadline?: string;
+  title: string;
+  subtitle?: string;
+  coverImage?: string;
+  body: string; // rich text stored as HTML
+  tags?: string[];
+  readTime?: number; // minutes, computed on save
+  viewCount: number;
+  commentCount: number;
+  reactionCounts: { like: number; heart: number; pray: number };
+  isPublished: boolean;
+  publishedAt?: Timestamp;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export interface ProfileView {
+  id: string; // `${profileId}_${viewerId}`
+  profileId: string;
+  viewerId: string;
+  viewerName: string;
+  viewerPhoto?: string | null;
+  viewerHeadline?: string;
+  createdAt: Timestamp;
 }

@@ -40,4 +40,8 @@ export const COLLECTIONS = {
   LESSON_NOTES: "lessonNotes",
   COURSE_ENROLLMENTS: "courseEnrollments",
   INVITATIONS: "invitations",
+  // LinkedIn-feel features
+  RECOMMENDATIONS: "recommendations",
+  ARTICLES: "articles",
+  PROFILE_VIEWS: "profileViews",
 } as const;

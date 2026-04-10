@@ -2,7 +2,7 @@
 export const dynamic = "force-dynamic";
 import React, { useEffect, useState } from "react";
 import { collection, getDocs, query, orderBy, where } from "firebase/firestore";
-import { Search, Users, MapPin, SlidersHorizontal, X, LayoutGrid, List } from "lucide-react";
+import { Search, Users, MapPin, SlidersHorizontal, X, LayoutGrid, List, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { db } from "@/lib/firebase/config";
 import { COLLECTIONS } from "@/lib/firebase/firestore";
@@ -11,11 +11,14 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { PageLoader } from "@/components/ui/Spinner";
 import { ROLE_LABELS } from "@/lib/types";
 import { getRoleColor } from "@/lib/utils";
+import { useAuth } from "@/lib/hooks/useAuth";
 import type { UserProfile, Nation } from "@/lib/types";
 
 export default function DirectoryPage() {
+  const { profile: myProfile } = useAuth();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [nations, setNations] = useState<Nation[]>([]);
+  const [follows, setFollows] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterNation, setFilterNation] = useState("");
@@ -27,17 +30,24 @@ export default function DirectoryPage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const [usersSnap, nationsSnap] = await Promise.all([
+        const queries: Promise<any>[] = [
           getDocs(query(collection(db, COLLECTIONS.USERS), where("isActive", "==", true), orderBy("displayName"))),
           getDocs(query(collection(db, COLLECTIONS.NATIONS), orderBy("name"))),
-        ]);
-        setUsers(usersSnap.docs.map(d => ({ id: d.id, ...d.data() } as UserProfile)));
-        setNations(nationsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Nation)));
+        ];
+        if (myProfile) {
+          queries.push(getDocs(query(collection(db, COLLECTIONS.FOLLOWS), where("followerId", "==", myProfile.id))));
+        }
+        const [usersSnap, nationsSnap, followsSnap] = await Promise.all(queries);
+        setUsers(usersSnap.docs.map((d: any) => ({ id: d.id, ...d.data() } as UserProfile)));
+        setNations(nationsSnap.docs.map((d: any) => ({ id: d.id, ...d.data() } as Nation)));
+        if (followsSnap) {
+          setFollows(new Set(followsSnap.docs.map((d: any) => d.data().followeeId as string)));
+        }
       } catch (e) { console.error(e); }
       finally { setLoading(false); }
     };
     load();
-  }, []);
+  }, [myProfile?.id]);
 
   const filtered = users.filter(u => {
     if (search && !u.displayName?.toLowerCase().includes(search.toLowerCase()) && !u.email.toLowerCase().includes(search.toLowerCase())) return false;
@@ -47,6 +57,15 @@ export default function DirectoryPage() {
   });
 
   const activeFilters = [filterNation, filterRole].filter(Boolean).length;
+
+  // People you may know: same nation as current user, excluding self and already followed
+  const suggestions = myProfile
+    ? users.filter(u =>
+        u.id !== myProfile.id &&
+        !follows.has(u.id) &&
+        u.nationId && u.nationId === myProfile.nationId
+      ).slice(0, 6)
+    : [];
 
   const sorted = [...filtered].sort((a, b) => {
     if (sortBy === "new") {
@@ -76,6 +95,27 @@ export default function DirectoryPage() {
           </button>
         </div>
       </div>
+
+      {/* People you may know */}
+      {suggestions.length > 0 && (
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <UserPlus className="w-4 h-4 text-indigo-500" />
+            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">People you may know</p>
+          </div>
+          <div className="overflow-x-auto no-scrollbar">
+            <div className="flex gap-3 pb-1">
+              {suggestions.map(user => (
+                <Link key={user.id} href={`/profile/${user.id}`} className="flex-shrink-0 flex flex-col items-center gap-1.5 w-20 text-center hover:opacity-80 transition-opacity">
+                  <Avatar name={user.displayName ?? "?"} photoURL={user.photoURL} size="md" />
+                  <span className="text-[10px] font-semibold text-slate-700 truncate w-full leading-tight">{(user.displayName ?? "?").split(" ")[0]}</span>
+                  {(user as any).headline && <span className="text-[9px] text-slate-400 truncate w-full leading-tight">{(user as any).headline}</span>}
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Search + filter bar */}
       <div className="flex gap-2">
@@ -164,13 +204,16 @@ export default function DirectoryPage() {
                     {user.isLLGLI && <span className="text-[9px] bg-violet-100 text-violet-700 font-bold px-1.5 py-0.5 rounded-full">LLGLI</span>}
                   </div>
                   <div className="flex items-center gap-3 mt-0.5 flex-wrap">
+                    {(user as any).headline && (
+                      <span className="text-xs text-slate-500 italic truncate max-w-[200px]">{(user as any).headline}</span>
+                    )}
                     {(user.nationName || user.cityName) && (
                       <span className="flex items-center gap-1 text-xs text-slate-400">
                         <MapPin className="w-3 h-3 flex-shrink-0" />
                         {[user.cityName, user.nationName].filter(Boolean).join(", ")}
                       </span>
                     )}
-                    {user.sphereOfInfluence && <span className="text-xs text-indigo-600 font-medium">{user.sphereOfInfluence}</span>}
+                    {!((user as any).headline) && user.sphereOfInfluence && <span className="text-xs text-indigo-600 font-medium">{user.sphereOfInfluence}</span>}
                   </div>
                 </div>
                 <span className="text-xs text-slate-400 flex-shrink-0">View →</span>
@@ -199,13 +242,16 @@ export default function DirectoryPage() {
                   </div>
                   <p className="font-bold text-slate-900 text-sm truncate">{user.displayName}</p>
                   <span className={`pill text-[10px] mt-0.5 ${getRoleColor(user.role)}`}>{ROLE_LABELS[user.role]}</span>
+                  {(user as any).headline && (
+                    <p className="text-xs text-slate-500 italic mt-1 line-clamp-2 leading-snug">{(user as any).headline}</p>
+                  )}
                   {(user.nationName || user.cityName) && (
                     <div className="flex items-center gap-1 mt-2 text-xs text-slate-400">
                       <MapPin className="w-3 h-3 flex-shrink-0" />
                       <span className="truncate">{[user.cityName, user.nationName].filter(Boolean).join(", ")}</span>
                     </div>
                   )}
-                  {user.sphereOfInfluence && (
+                  {!((user as any).headline) && user.sphereOfInfluence && (
                     <p className="text-xs text-indigo-600 font-medium mt-1 truncate">{user.sphereOfInfluence}</p>
                   )}
                   {user.bio && (

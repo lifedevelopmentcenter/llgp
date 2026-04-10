@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import {
   doc, getDoc, updateDoc, serverTimestamp,
   getDocs, collection, query, where, orderBy, limit,
-  deleteDoc, setDoc,
+  deleteDoc, setDoc, addDoc,
 } from "firebase/firestore";
 import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 import { storage } from "@/lib/firebase/config";
@@ -13,6 +13,7 @@ import {
   ArrowLeft, Edit2, Globe, Mail, Check, MapPin, Briefcase,
   BookOpen, Layers, MessageSquare, UserPlus, Pencil, Plus,
   Trash2, Users2, UserCheck, Image, GraduationCap, CalendarDays, LogOut,
+  Star, Eye, TrendingUp, Sparkles,
 } from "lucide-react";
 import Link from "next/link";
 import { db } from "@/lib/firebase/config";
@@ -29,7 +30,7 @@ import { PageLoader } from "@/components/ui/Spinner";
 import { ROLE_LABELS } from "@/lib/types";
 import { getRoleColor, timeAgo } from "@/lib/utils";
 import toast from "react-hot-toast";
-import type { UserProfile, Group, VentureCourse, UserProgress, Event, Follow } from "@/lib/types";
+import type { UserProfile, Group, VentureCourse, UserProgress, Event, Follow, ProfileView, Recommendation } from "@/lib/types";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -81,11 +82,12 @@ function getCoverGradient(name: string) {
   return COVER_GRADIENTS[h % COVER_GRADIENTS.length];
 }
 
-type TabId = "timeline" | "profile" | "connections" | "groups" | "photos" | "courses" | "events";
+type TabId = "timeline" | "profile" | "connections" | "recommendations" | "groups" | "photos" | "courses" | "events";
 const TABS: { id: TabId; label: string }[] = [
   { id: "timeline", label: "Timeline" },
   { id: "profile", label: "Profile" },
   { id: "connections", label: "Connections" },
+  { id: "recommendations", label: "Recommendations" },
   { id: "groups", label: "Groups" },
   { id: "photos", label: "Photos" },
   { id: "courses", label: "Courses" },
@@ -210,6 +212,23 @@ export default function ProfilePage() {
   const [userEvents, setUserEvents] = useState<Event[]>([]);
   const [eventsLoaded, setEventsLoaded] = useState(false);
 
+  // Headline editing
+  const [editingHeadline, setEditingHeadline] = useState(false);
+  const [headlineText, setHeadlineText] = useState("");
+
+  // Open to editing
+  const [editingOpenTo, setEditingOpenTo] = useState(false);
+
+  // Profile views (who viewed — own profile only)
+  const [profileViewers, setProfileViewers] = useState<ProfileView[]>([]);
+
+  // Recommendations
+  const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
+  const [recsLoaded, setRecsLoaded] = useState(false);
+  const [writingRec, setWritingRec] = useState(false);
+  const [recDraft, setRecDraft] = useState("");
+  const [sendingRec, setSendingRec] = useState(false);
+
   const isMe = myProfile?.id === userId;
 
   // ── Load profile ────────────────────────────────────────────────────────────
@@ -231,6 +250,33 @@ export default function ProfilePage() {
           const py = (p as any).coverPositionY ?? 50;
           setPosX(px); setSavedPosX(px);
           setPosY(py); setSavedPosY(py);
+
+          // Load profile viewers (own profile only)
+          if (myProfile?.id === userId) {
+            try {
+              const viewsSnap = await getDocs(query(
+                collection(db, COLLECTIONS.PROFILE_VIEWS),
+                where("profileId", "==", userId),
+                orderBy("createdAt", "desc"),
+                limit(5)
+              ));
+              setProfileViewers(viewsSnap.docs.map(d => ({ id: d.id, ...d.data() } as ProfileView)));
+            } catch { /* ignore */ }
+          }
+
+          // Record profile view (not own profile)
+          if (myProfile && myProfile.id !== userId) {
+            try {
+              await setDoc(doc(db, COLLECTIONS.PROFILE_VIEWS, `${userId}_${myProfile.id}`), {
+                profileId: userId,
+                viewerId: myProfile.id,
+                viewerName: myProfile.displayName,
+                viewerPhoto: myProfile.photoURL || null,
+                viewerHeadline: (myProfile as any).headline || null,
+                createdAt: serverTimestamp(),
+              });
+            } catch { /* ignore */ }
+          }
 
           if (myProfile?.id === userId) {
             setPersonalForm({
@@ -427,6 +473,68 @@ export default function ProfilePage() {
     }
   };
 
+  // ── Load recommendations ────────────────────────────────────────────────────
+  const loadRecommendations = async () => {
+    if (recsLoaded) return;
+    try {
+      const snap = await getDocs(query(
+        collection(db, COLLECTIONS.RECOMMENDATIONS),
+        where("toUserId", "==", userId),
+        orderBy("createdAt", "desc")
+      ));
+      setRecommendations(snap.docs.map(d => ({ id: d.id, ...d.data() } as Recommendation)));
+    } catch {}
+    finally { setRecsLoaded(true); }
+  };
+
+  // ── Send recommendation ─────────────────────────────────────────────────────
+  const sendRecommendation = async () => {
+    if (!myProfile || !profile || !recDraft.trim()) return;
+    setSendingRec(true);
+    try {
+      const recData: Omit<Recommendation, "id"> = {
+        toUserId: userId,
+        toUserName: profile.displayName,
+        fromUserId: myProfile.id,
+        fromUserName: myProfile.displayName,
+        fromUserPhoto: myProfile.photoURL || null,
+        fromUserHeadline: (myProfile as any).headline || undefined,
+        body: recDraft.trim(),
+        createdAt: serverTimestamp() as any,
+      };
+      const ref = await addDoc(collection(db, COLLECTIONS.RECOMMENDATIONS), recData);
+      setRecommendations(prev => [{ id: ref.id, ...recData } as Recommendation, ...prev]);
+      setRecDraft("");
+      setWritingRec(false);
+      toast.success("Recommendation sent!");
+    } catch { toast.error("Failed to send recommendation."); }
+    finally { setSendingRec(false); }
+  };
+
+  // ── Save headline ───────────────────────────────────────────────────────────
+  const saveHeadline = async () => {
+    if (!profile || !isMe) return;
+    try {
+      await updateDoc(doc(db, COLLECTIONS.USERS, profile.id), { headline: headlineText.trim() || null, updatedAt: serverTimestamp() });
+      setProfile(prev => prev ? { ...prev, headline: headlineText.trim() || undefined } : prev);
+      await refreshProfile();
+      setEditingHeadline(false);
+      toast.success("Headline saved.");
+    } catch { toast.error("Failed to save."); }
+  };
+
+  // ── Save open to ────────────────────────────────────────────────────────────
+  const saveOpenTo = async (openTo: string[]) => {
+    if (!profile || !isMe) return;
+    try {
+      await updateDoc(doc(db, COLLECTIONS.USERS, profile.id), { openTo, updatedAt: serverTimestamp() });
+      setProfile(prev => prev ? { ...prev, openTo } : prev);
+      await refreshProfile();
+      setEditingOpenTo(false);
+      toast.success("Saved.");
+    } catch { toast.error("Failed to save."); }
+  };
+
   // ── Save functions ───────────────────────────────────────────────────────────
   const savePersonal = async () => {
     if (!profile || !isMe) return;
@@ -540,6 +648,14 @@ export default function ProfilePage() {
   if (!profile) return <div className="text-center py-16 text-slate-400 text-sm">User not found.</div>;
 
   const gradient = getCoverGradient(profile.displayName || "user");
+
+  // Profile completeness score
+  const completenessFields = [
+    profile?.photoURL, profile?.coverImage, (profile as any).headline, profile?.bio,
+    profile?.profession, profile?.sphereOfInfluence, profile?.missionStatement,
+    profile?.nationName, profile?.cityName,
+  ];
+  const completenessScore = Math.round((completenessFields.filter(Boolean).length / completenessFields.length) * 100);
 
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
@@ -744,11 +860,115 @@ export default function ProfilePage() {
           {profile.nickname && (
             <p className="text-sm text-slate-400 font-medium">@{profile.nickname}</p>
           )}
+
+          {/* Headline */}
+          {editingHeadline ? (
+            <div className="flex items-center gap-2 mt-1.5">
+              <input
+                type="text"
+                value={headlineText}
+                onChange={e => setHeadlineText(e.target.value)}
+                maxLength={120}
+                placeholder="e.g. Leadership Coach · Entrepreneur · Speaker"
+                className="flex-1 px-3 py-1.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                autoFocus
+              />
+              <button onClick={saveHeadline} className="px-3 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded-xl hover:bg-indigo-700 transition-colors">Save</button>
+              <button onClick={() => setEditingHeadline(false)} className="px-3 py-1.5 bg-slate-100 text-slate-600 text-xs font-semibold rounded-xl hover:bg-slate-200 transition-colors">Cancel</button>
+            </div>
+          ) : (profile as any).headline ? (
+            <div className="flex items-center gap-2 mt-1.5">
+              <p className="text-sm text-slate-500 italic">{(profile as any).headline}</p>
+              {isMe && (
+                <button onClick={() => { setHeadlineText((profile as any).headline || ""); setEditingHeadline(true); }} className="text-slate-400 hover:text-indigo-600 transition-colors">
+                  <Pencil className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          ) : isMe ? (
+            <button onClick={() => { setHeadlineText(""); setEditingHeadline(true); }} className="mt-1.5 text-xs text-indigo-600 font-semibold hover:text-indigo-700 transition-colors flex items-center gap-1">
+              <Plus className="w-3 h-3" /> Add a professional headline
+            </button>
+          ) : null}
+
           <div className="flex flex-wrap gap-1.5 mt-1.5">
             <span className={`pill ${getRoleColor(profile.role)}`}>{ROLE_LABELS[profile.role]}</span>
-            {profile.isVenture100 && <span className="pill bg-green-100 text-green-700">✓ Venture 100</span>}
-            {profile.isLLGLI && <span className="pill bg-violet-100 text-violet-700">✓ LLGLI</span>}
+            {profile.isVenture100 && <span className="text-[10px] bg-green-100 text-green-700 font-bold px-2 py-0.5 rounded-full flex items-center gap-1"><span>✓</span> Venture 100</span>}
+            {profile.isLLGLI && <span className="text-[10px] bg-violet-100 text-violet-700 font-bold px-2 py-0.5 rounded-full flex items-center gap-1"><span>✓</span> LLGLI {profile.llgliCohort ? `· Cohort ${profile.llgliCohort}` : ""}</span>}
           </div>
+
+          {/* Open To badges */}
+          {((profile as any).openTo?.length > 0 || (isMe && editingOpenTo)) && (
+            <div className="mt-2">
+              {editingOpenTo ? (
+                <div className="space-y-2">
+                  <div className="flex flex-wrap gap-1.5">
+                    {["mentorship", "collaboration", "speaking", "partnership"].map(opt => {
+                      const selected = ((profile as any).openTo || []).includes(opt);
+                      return (
+                        <button key={opt}
+                          onClick={() => {
+                            const current: string[] = (profile as any).openTo || [];
+                            const next = selected ? current.filter(x => x !== opt) : [...current, opt];
+                            saveOpenTo(next);
+                          }}
+                          className={`text-xs font-semibold px-3 py-1 rounded-full border transition-colors ${selected ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-slate-600 border-slate-200 hover:border-indigo-300"}`}>
+                          Open to {opt}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <button onClick={() => setEditingOpenTo(false)} className="text-xs text-slate-400 hover:text-slate-600">Done</button>
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-1.5 items-center">
+                  {((profile as any).openTo || []).map((opt: string) => (
+                    <span key={opt} className="text-xs bg-indigo-50 text-indigo-700 font-medium px-2.5 py-1 rounded-full border border-indigo-100">
+                      Open to {opt}
+                    </span>
+                  ))}
+                  {isMe && (
+                    <button onClick={() => setEditingOpenTo(true)} className="text-slate-400 hover:text-indigo-600 transition-colors">
+                      <Pencil className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+          {isMe && !editingOpenTo && !((profile as any).openTo?.length > 0) && (
+            <button onClick={() => setEditingOpenTo(true)} className="mt-1 text-xs text-slate-400 hover:text-indigo-600 font-semibold flex items-center gap-1 transition-colors">
+              <Plus className="w-3 h-3" /> Open to opportunities
+            </button>
+          )}
+
+          {/* Profile completeness (isMe only) */}
+          {isMe && completenessScore < 100 && (
+            <div className="mt-3 p-3 bg-indigo-50 rounded-xl border border-indigo-100">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs font-bold text-indigo-700 flex items-center gap-1">
+                  <TrendingUp className="w-3.5 h-3.5" /> Profile strength: {completenessScore}%
+                </span>
+              </div>
+              <div className="w-full bg-indigo-100 rounded-full h-1.5">
+                <div className="bg-indigo-600 h-1.5 rounded-full transition-all" style={{ width: `${completenessScore}%` }} />
+              </div>
+              <p className="text-[10px] text-indigo-500 mt-1">Complete your profile to build trust with the community</p>
+            </div>
+          )}
+
+          {/* Who viewed your profile (isMe only) */}
+          {isMe && profileViewers.length > 0 && (
+            <div className="mt-3 flex items-center gap-2">
+              <Eye className="w-4 h-4 text-slate-400" />
+              <div className="flex -space-x-1">
+                {profileViewers.slice(0, 4).map(v => (
+                  <Avatar key={v.id} name={v.viewerName} photoURL={v.viewerPhoto ?? undefined} size="xs" className="ring-2 ring-white" />
+                ))}
+              </div>
+              <span className="text-xs text-slate-500 font-medium">{profileViewers.length} {profileViewers.length === 1 ? "person" : "people"} viewed your profile</span>
+            </div>
+          )}
 
           {/* Follower / following counts */}
           <div className="flex items-center gap-4 mt-3">
@@ -799,6 +1019,7 @@ export default function ProfilePage() {
                 setActiveTab(tab.id);
                 if (tab.id === "timeline") loadUserPosts();
                 if (tab.id === "connections" && !connectionsLoaded) loadConnections();
+                if (tab.id === "recommendations" && !recsLoaded) loadRecommendations();
                 if (tab.id === "groups" && !groupsLoaded) loadGroups();
                 if (tab.id === "photos" && !photosLoaded) loadPhotos();
                 if (tab.id === "courses" && !coursesLoaded) loadCourses();
@@ -1099,6 +1320,71 @@ export default function ProfilePage() {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* RECOMMENDATIONS TAB */}
+        {activeTab === "recommendations" && (
+          <div className="space-y-3">
+            {/* Write a recommendation button (not own profile, logged in, no existing rec) */}
+            {!isMe && myProfile && !recommendations.find(r => r.fromUserId === myProfile.id) && !writingRec && recsLoaded && (
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 text-center">
+                <Star className="w-8 h-8 text-amber-400 mx-auto mb-2" />
+                <p className="text-sm font-bold text-slate-900 mb-1">Write a recommendation</p>
+                <p className="text-xs text-slate-400 mb-3">Share your experience working with {profile.displayName}</p>
+                <button onClick={() => setWritingRec(true)} className="px-4 py-2 bg-indigo-600 text-white text-xs font-bold rounded-full hover:bg-indigo-700 transition-colors">
+                  Write Recommendation
+                </button>
+              </div>
+            )}
+            {/* Write form */}
+            {writingRec && (
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 space-y-3">
+                <p className="text-sm font-bold text-slate-900">Write a recommendation for {profile.displayName}</p>
+                <textarea
+                  rows={4}
+                  value={recDraft}
+                  onChange={e => setRecDraft(e.target.value.slice(0, 500))}
+                  placeholder="Share your experience working with this person…"
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-slate-400">{recDraft.length}/500</span>
+                  <div className="flex gap-2">
+                    <button onClick={() => { setWritingRec(false); setRecDraft(""); }} className="px-3 py-1.5 text-xs font-semibold text-slate-600 bg-slate-100 rounded-xl hover:bg-slate-200 transition-colors">Cancel</button>
+                    <button onClick={sendRecommendation} disabled={!recDraft.trim() || sendingRec} className="px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-colors">
+                      {sendingRec ? "Sending…" : "Send"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+            {/* Recommendations list */}
+            {!recsLoaded ? (
+              <div className="bg-white rounded-2xl border border-slate-100 p-8 text-center">
+                <p className="text-sm text-slate-400">Loading…</p>
+              </div>
+            ) : recommendations.length === 0 ? (
+              <div className="bg-white rounded-2xl border border-slate-100 p-8 text-center">
+                <Star className="w-8 h-8 text-slate-200 mx-auto mb-2" />
+                <p className="text-sm text-slate-400">{isMe ? "No recommendations yet. Ask your connections to write you one!" : "No recommendations yet."}</p>
+              </div>
+            ) : (
+              recommendations.map(rec => (
+                <div key={rec.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+                  <div className="flex items-center gap-3 mb-3">
+                    <Avatar name={rec.fromUserName} photoURL={rec.fromUserPhoto ?? undefined} size="md" />
+                    <div>
+                      <p className="font-bold text-slate-900 text-sm">{rec.fromUserName}</p>
+                      {rec.fromUserHeadline && <p className="text-xs text-slate-400">{rec.fromUserHeadline}</p>}
+                    </div>
+                  </div>
+                  <blockquote className="text-sm text-slate-700 leading-relaxed border-l-2 border-indigo-200 pl-3 italic">
+                    "{rec.body}"
+                  </blockquote>
+                </div>
+              ))
+            )}
           </div>
         )}
 

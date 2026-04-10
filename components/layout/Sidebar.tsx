@@ -6,7 +6,7 @@ import {
   LayoutDashboard, BookOpen, Users, Building2, FileText,
   Settings,
   ChevronDown, ChevronRight, LogOut, X,
-  Calendar, Radio, Search, Film, Heart, BarChart2, Bell, UserPlus,
+  Calendar, Radio, Search, Film, Heart, BarChart2, Bell, UserPlus, Edit3,
 } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { cn } from "@/lib/utils";
@@ -54,6 +54,12 @@ const navItems: NavItem[] = [
   {
     label: "Live", href: "/live",
     icon: <Radio className="w-[18px] h-[18px]" />,
+    roles: ["global_admin", "national_leader", "city_leader", "hub_leader", "participant"],
+    section: "main",
+  },
+  {
+    label: "Write Article", href: "/articles/new",
+    icon: <Edit3 className="w-[18px] h-[18px]" />,
     roles: ["global_admin", "national_leader", "city_leader", "hub_leader", "participant"],
     section: "main",
   },
