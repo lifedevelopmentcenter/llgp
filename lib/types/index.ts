@@ -305,6 +305,36 @@ export interface GlobalOperationMeetingItem {
   updatedAt: Timestamp;
 }
 
+export type GlobalOperationProcedureType =
+  | "playbook"
+  | "form"
+  | "checklist"
+  | "policy"
+  | "risk";
+
+export type GlobalOperationProcedureStatus =
+  | "not_started"
+  | "in_review"
+  | "complete"
+  | "blocked";
+
+export interface GlobalOperationProcedureItem {
+  id: string;
+  title: string;
+  type: GlobalOperationProcedureType;
+  status: GlobalOperationProcedureStatus;
+  requiredBeforeMission: boolean;
+  ownerId?: string | null;
+  ownerName?: string | null;
+  documentUrl?: string | null;
+  dueDate?: Timestamp | null;
+  notes?: string | null;
+  createdBy: string;
+  createdByName: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
 // ----------------------------------------------------------
 // VENTURE 100 TRAINING
 // ----------------------------------------------------------

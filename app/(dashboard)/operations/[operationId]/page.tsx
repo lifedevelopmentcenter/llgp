@@ -48,6 +48,9 @@ import type {
   GlobalOperationMeetingItem,
   GlobalOperationMeetingStatus,
   GlobalOperationNote,
+  GlobalOperationProcedureItem,
+  GlobalOperationProcedureStatus,
+  GlobalOperationProcedureType,
   GlobalOperationRecord,
   GlobalOperationStatus,
   GlobalOperationTask,
@@ -102,6 +105,21 @@ const MEETING_STATUS_LABELS: Record<GlobalOperationMeetingStatus, string> = {
   scheduled: "Scheduled",
   held: "Held",
   cancelled: "Cancelled",
+};
+
+const PROCEDURE_TYPE_LABELS: Record<GlobalOperationProcedureType, string> = {
+  playbook: "Playbook",
+  form: "Form",
+  checklist: "Checklist",
+  policy: "Policy",
+  risk: "Risk / Safety",
+};
+
+const PROCEDURE_STATUS_LABELS: Record<GlobalOperationProcedureStatus, string> = {
+  not_started: "Not Started",
+  in_review: "In Review",
+  complete: "Complete",
+  blocked: "Blocked",
 };
 
 const statusVariant = (status: GlobalOperationStatus) => {
@@ -159,6 +177,7 @@ export default function OperationDetailPage() {
   const [financeItems, setFinanceItems] = useState<GlobalOperationFinanceItem[]>([]);
   const [travelItems, setTravelItems] = useState<GlobalOperationTravelItem[]>([]);
   const [meetingItems, setMeetingItems] = useState<GlobalOperationMeetingItem[]>([]);
+  const [procedureItems, setProcedureItems] = useState<GlobalOperationProcedureItem[]>([]);
   const [nations, setNations] = useState<Nation[]>([]);
   const [leaders, setLeaders] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -206,6 +225,16 @@ export default function OperationDetailPage() {
     decisions: "",
     followUpActions: "",
   });
+  const [procedureForm, setProcedureForm] = useState({
+    title: "",
+    type: "checklist" as GlobalOperationProcedureType,
+    status: "not_started" as GlobalOperationProcedureStatus,
+    requiredBeforeMission: true,
+    ownerId: "",
+    documentUrl: "",
+    dueDate: "",
+    notes: "",
+  });
 
   useEffect(() => {
     if (!profile || !operationId) return;
@@ -213,13 +242,14 @@ export default function OperationDetailPage() {
     const load = async () => {
       try {
         const operationRef = doc(db, COLLECTIONS.GLOBAL_OPERATIONS, operationId);
-        const [operationSnap, tasksSnap, notesSnap, financeSnap, travelSnap, meetingsSnap, nationsSnap, usersSnap] = await Promise.all([
+        const [operationSnap, tasksSnap, notesSnap, financeSnap, travelSnap, meetingsSnap, proceduresSnap, nationsSnap, usersSnap] = await Promise.all([
           getDoc(operationRef),
           getDocs(query(collection(operationRef, "tasks"), orderBy("createdAt", "asc"))),
           getDocs(query(collection(operationRef, "notes"), orderBy("createdAt", "desc"))),
           getDocs(query(collection(operationRef, "finance"), orderBy("createdAt", "desc"))),
           getDocs(query(collection(operationRef, "travel"), orderBy("createdAt", "desc"))),
           getDocs(query(collection(operationRef, "meetings"), orderBy("meetingDate", "desc"))),
+          getDocs(query(collection(operationRef, "procedures"), orderBy("createdAt", "desc"))),
           getDocs(query(collection(db, COLLECTIONS.NATIONS), orderBy("name"))),
           getDocs(query(collection(db, COLLECTIONS.USERS), orderBy("displayName"))),
         ]);
@@ -237,6 +267,7 @@ export default function OperationDetailPage() {
         setFinanceItems(financeSnap.docs.map((d) => ({ id: d.id, ...d.data() } as GlobalOperationFinanceItem)));
         setTravelItems(travelSnap.docs.map((d) => ({ id: d.id, ...d.data() } as GlobalOperationTravelItem)));
         setMeetingItems(meetingsSnap.docs.map((d) => ({ id: d.id, ...d.data() } as GlobalOperationMeetingItem)));
+        setProcedureItems(proceduresSnap.docs.map((d) => ({ id: d.id, ...d.data() } as GlobalOperationProcedureItem)));
         setNations(nationsSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Nation)));
         setLeaders(
           usersSnap.docs
@@ -288,6 +319,17 @@ export default function OperationDetailPage() {
       followUps: meetingItems.filter((item) => Boolean(item.followUpActions?.trim())).length,
     };
   }, [meetingItems]);
+
+  const procedureSummary = useMemo(() => {
+    const required = procedureItems.filter((item) => item.requiredBeforeMission);
+    return {
+      total: procedureItems.length,
+      required: required.length,
+      complete: procedureItems.filter((item) => item.status === "complete").length,
+      blockers: procedureItems.filter((item) => item.status === "blocked").length,
+      gatesOpen: required.length > 0 && required.every((item) => item.status === "complete"),
+    };
+  }, [procedureItems]);
 
   const updateOperation = async () => {
     if (!record || !operationForm?.title?.trim()) return;
@@ -509,6 +551,57 @@ export default function OperationDetailPage() {
     } catch (error) {
       console.error(error);
       toast.error("Could not add meeting.");
+    }
+  };
+
+  const addProcedureItem = async () => {
+    if (!record || !profile || !procedureForm.title.trim()) return;
+    try {
+      const owner = leaders.find((leader) => leader.id === procedureForm.ownerId);
+      const data = {
+        title: procedureForm.title.trim(),
+        type: procedureForm.type,
+        status: procedureForm.status,
+        requiredBeforeMission: procedureForm.requiredBeforeMission,
+        ownerId: owner?.id || null,
+        ownerName: owner?.displayName || null,
+        documentUrl: procedureForm.documentUrl.trim() || null,
+        dueDate: procedureForm.dueDate ? Timestamp.fromDate(new Date(procedureForm.dueDate)) : null,
+        notes: procedureForm.notes.trim() || null,
+        createdBy: profile.id,
+        createdByName: profile.displayName,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      };
+      const ref = await addDoc(collection(db, COLLECTIONS.GLOBAL_OPERATIONS, record.id, "procedures"), data);
+      setProcedureItems((prev) => [{ id: ref.id, ...data, createdAt: Timestamp.now(), updatedAt: Timestamp.now() } as GlobalOperationProcedureItem, ...prev]);
+      setProcedureForm({
+        title: "",
+        type: "checklist",
+        status: "not_started",
+        requiredBeforeMission: true,
+        ownerId: "",
+        documentUrl: "",
+        dueDate: "",
+        notes: "",
+      });
+    } catch (error) {
+      console.error(error);
+      toast.error("Could not add procedure.");
+    }
+  };
+
+  const updateProcedureStatus = async (item: GlobalOperationProcedureItem, status: GlobalOperationProcedureStatus) => {
+    if (!record) return;
+    try {
+      await updateDoc(doc(db, COLLECTIONS.GLOBAL_OPERATIONS, record.id, "procedures", item.id), {
+        status,
+        updatedAt: serverTimestamp(),
+      });
+      setProcedureItems((prev) => prev.map((procedure) => (procedure.id === item.id ? { ...procedure, status } : procedure)));
+    } catch (error) {
+      console.error(error);
+      toast.error("Could not update procedure.");
     }
   };
 
@@ -845,6 +938,123 @@ export default function OperationDetailPage() {
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <div className="flex items-center gap-2">
+              <FileCheck2 className="w-4 h-4 text-violet-600" />
+              <h2 className="font-black text-slate-900">Procedures, Playbooks & Forms</h2>
+            </div>
+            <p className="mt-1 text-sm text-slate-500">Track required mission gates, procedure documents, forms, safety checks, and completion status.</p>
+          </div>
+          <div className="grid grid-cols-4 gap-2 text-center">
+            <ProcedureStat label="Items" value={procedureSummary.total} />
+            <ProcedureStat label="Required" value={procedureSummary.required} />
+            <ProcedureStat label="Complete" value={procedureSummary.complete} />
+            <ProcedureStat label="Blocked" value={procedureSummary.blockers} tone="blocked" />
+          </div>
+        </div>
+
+        <div className={`mt-4 rounded-2xl border p-3 text-sm ${
+          procedureSummary.required === 0
+            ? "border-slate-200 bg-slate-50 text-slate-600"
+            : procedureSummary.gatesOpen
+              ? "border-green-200 bg-green-50 text-green-800"
+              : "border-amber-200 bg-amber-50 text-amber-800"
+        }`}>
+          <strong>Mission gate:</strong>{" "}
+          {procedureSummary.required === 0
+            ? "No required pre-mission procedures have been marked yet."
+            : procedureSummary.gatesOpen
+              ? "All required pre-mission procedures are complete."
+              : "Required procedures remain incomplete before the mission should proceed."}
+        </div>
+
+        <div className="mt-4 grid gap-2 lg:grid-cols-[1fr_150px_150px_150px_1fr]">
+          <Input aria-label="Procedure title" value={procedureForm.title} onChange={(e) => setProcedureForm({ ...procedureForm, title: e.target.value })} placeholder="Visa form, safety checklist, outreach playbook..." />
+          <Select aria-label="Procedure type" value={procedureForm.type} onChange={(e) => setProcedureForm({ ...procedureForm, type: e.target.value as GlobalOperationProcedureType })}>
+            {(Object.keys(PROCEDURE_TYPE_LABELS) as GlobalOperationProcedureType[]).map((type) => (
+              <option key={type} value={type}>{PROCEDURE_TYPE_LABELS[type]}</option>
+            ))}
+          </Select>
+          <Select aria-label="Procedure status" value={procedureForm.status} onChange={(e) => setProcedureForm({ ...procedureForm, status: e.target.value as GlobalOperationProcedureStatus })}>
+            {(Object.keys(PROCEDURE_STATUS_LABELS) as GlobalOperationProcedureStatus[]).map((status) => (
+              <option key={status} value={status}>{PROCEDURE_STATUS_LABELS[status]}</option>
+            ))}
+          </Select>
+          <Select aria-label="Procedure owner" value={procedureForm.ownerId} onChange={(e) => setProcedureForm({ ...procedureForm, ownerId: e.target.value })}>
+            <option value="">No owner</option>
+            {leaders.map((leader) => <option key={leader.id} value={leader.id}>{leader.displayName}</option>)}
+          </Select>
+          <Input aria-label="Procedure document URL" value={procedureForm.documentUrl} onChange={(e) => setProcedureForm({ ...procedureForm, documentUrl: e.target.value })} placeholder="Document / form URL" />
+        </div>
+
+        <div className="mt-2 grid gap-2 lg:grid-cols-[160px_1fr_auto]">
+          <Input aria-label="Procedure due date" type="date" value={procedureForm.dueDate} onChange={(e) => setProcedureForm({ ...procedureForm, dueDate: e.target.value })} />
+          <Input aria-label="Procedure notes" value={procedureForm.notes} onChange={(e) => setProcedureForm({ ...procedureForm, notes: e.target.value })} placeholder="Notes, instructions, approval requirements..." />
+          <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700">
+            <input
+              type="checkbox"
+              checked={procedureForm.requiredBeforeMission}
+              onChange={(e) => setProcedureForm({ ...procedureForm, requiredBeforeMission: e.target.checked })}
+              className="h-4 w-4 rounded border-slate-300"
+            />
+            Required before mission
+          </label>
+        </div>
+
+        <div className="mt-2 flex justify-end">
+          <Button onClick={addProcedureItem} disabled={!procedureForm.title.trim()}>
+            <Plus className="w-4 h-4" />
+            Add Procedure
+          </Button>
+        </div>
+
+        <div className="mt-4 overflow-hidden rounded-2xl border border-slate-100">
+          {procedureItems.length === 0 ? (
+            <div className="p-6 text-center text-sm text-slate-500">
+              Add required forms, mission playbooks, safety checks, and approval gates for this operation.
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {procedureItems.map((item) => (
+                <div key={item.id} className="grid gap-3 p-3 text-sm lg:grid-cols-[220px_1fr_190px] lg:items-start">
+                  <div>
+                    <p className="font-black text-slate-900">{item.title}</p>
+                    <div className="mt-1 flex flex-wrap gap-1.5">
+                      <span className="rounded-full bg-violet-50 px-2 py-0.5 text-xs font-bold text-violet-700">{PROCEDURE_TYPE_LABELS[item.type]}</span>
+                      {item.requiredBeforeMission && <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-700">Required gate</span>}
+                    </div>
+                  </div>
+                  <div className="space-y-1 text-slate-600">
+                    <p><strong>Owner:</strong> {item.ownerName || "Unassigned"}</p>
+                    <p><strong>Due:</strong> {formatDate(item.dueDate)}</p>
+                    {item.notes && <p><strong>Notes:</strong> {item.notes}</p>}
+                    {item.documentUrl && <a className="font-semibold text-indigo-600 hover:text-indigo-700" href={item.documentUrl} target="_blank" rel="noreferrer">Open document/form</a>}
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <Select aria-label={`Status for ${item.title}`} value={item.status} onChange={(e) => updateProcedureStatus(item, e.target.value as GlobalOperationProcedureStatus)}>
+                      {(Object.keys(PROCEDURE_STATUS_LABELS) as GlobalOperationProcedureStatus[]).map((status) => (
+                        <option key={status} value={status}>{PROCEDURE_STATUS_LABELS[status]}</option>
+                      ))}
+                    </Select>
+                    <span className={`rounded-full px-2.5 py-1 text-center text-xs font-bold ${
+                      item.status === "complete"
+                        ? "bg-green-100 text-green-800"
+                        : item.status === "blocked"
+                          ? "bg-red-100 text-red-800"
+                          : "bg-slate-100 text-slate-700"
+                    }`}>
+                      {PROCEDURE_STATUS_LABELS[item.status]}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </Card>
+
+      <Card className="p-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <div className="flex items-center gap-2">
               <Plane className="w-4 h-4 text-rose-600" />
               <h2 className="font-black text-slate-900">Travel Manifest</h2>
             </div>
@@ -1041,6 +1251,15 @@ function MeetingText({ label, value }: { label: string; value: string }) {
     <div className="rounded-2xl bg-slate-50 p-3">
       <p className="text-xs font-black uppercase tracking-widest text-slate-400">{label}</p>
       <p className="mt-1 whitespace-pre-wrap leading-6 text-slate-700">{value}</p>
+    </div>
+  );
+}
+
+function ProcedureStat({ label, value, tone }: { label: string; value: number; tone?: "blocked" }) {
+  return (
+    <div className={`rounded-2xl px-3 py-2 ${tone === "blocked" ? "bg-red-50" : "bg-violet-50"}`}>
+      <p className={`text-[10px] font-black uppercase tracking-widest ${tone === "blocked" ? "text-red-700" : "text-violet-700"}`}>{label}</p>
+      <p className="mt-1 text-sm font-black text-slate-900">{value.toLocaleString()}</p>
     </div>
   );
 }

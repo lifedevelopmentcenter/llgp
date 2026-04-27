@@ -367,6 +367,10 @@ service cloud.firestore {
       match /meetings/{meetingId} {
         allow read, write: if isGlobalAdmin();
       }
+
+      match /procedures/{procedureId} {
+        allow read, write: if isGlobalAdmin();
+      }
     }
   }
 }
