@@ -363,6 +363,10 @@ service cloud.firestore {
       match /travel/{travelId} {
         allow read, write: if isGlobalAdmin();
       }
+
+      match /meetings/{meetingId} {
+        allow read, write: if isGlobalAdmin();
+      }
     }
   }
 }

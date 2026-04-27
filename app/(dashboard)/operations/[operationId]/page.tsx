@@ -45,6 +45,8 @@ import type {
   GlobalOperationFinanceItem,
   GlobalOperationFinanceStatus,
   GlobalOperationFinanceType,
+  GlobalOperationMeetingItem,
+  GlobalOperationMeetingStatus,
   GlobalOperationNote,
   GlobalOperationRecord,
   GlobalOperationStatus,
@@ -94,6 +96,12 @@ const TRAVEL_STATUS_LABELS: Record<GlobalOperationTravelStatus, string> = {
   arrived: "Arrived",
   completed: "Completed",
   issue: "Issue",
+};
+
+const MEETING_STATUS_LABELS: Record<GlobalOperationMeetingStatus, string> = {
+  scheduled: "Scheduled",
+  held: "Held",
+  cancelled: "Cancelled",
 };
 
 const statusVariant = (status: GlobalOperationStatus) => {
@@ -150,6 +158,7 @@ export default function OperationDetailPage() {
   const [notes, setNotes] = useState<GlobalOperationNote[]>([]);
   const [financeItems, setFinanceItems] = useState<GlobalOperationFinanceItem[]>([]);
   const [travelItems, setTravelItems] = useState<GlobalOperationTravelItem[]>([]);
+  const [meetingItems, setMeetingItems] = useState<GlobalOperationMeetingItem[]>([]);
   const [nations, setNations] = useState<Nation[]>([]);
   const [leaders, setLeaders] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -186,6 +195,17 @@ export default function OperationDetailPage() {
     emergencyContact: "",
     notes: "",
   });
+  const [meetingForm, setMeetingForm] = useState({
+    title: "",
+    status: "scheduled" as GlobalOperationMeetingStatus,
+    meetingDate: "",
+    meetingLink: "",
+    attendees: "",
+    agenda: "",
+    minutes: "",
+    decisions: "",
+    followUpActions: "",
+  });
 
   useEffect(() => {
     if (!profile || !operationId) return;
@@ -193,12 +213,13 @@ export default function OperationDetailPage() {
     const load = async () => {
       try {
         const operationRef = doc(db, COLLECTIONS.GLOBAL_OPERATIONS, operationId);
-        const [operationSnap, tasksSnap, notesSnap, financeSnap, travelSnap, nationsSnap, usersSnap] = await Promise.all([
+        const [operationSnap, tasksSnap, notesSnap, financeSnap, travelSnap, meetingsSnap, nationsSnap, usersSnap] = await Promise.all([
           getDoc(operationRef),
           getDocs(query(collection(operationRef, "tasks"), orderBy("createdAt", "asc"))),
           getDocs(query(collection(operationRef, "notes"), orderBy("createdAt", "desc"))),
           getDocs(query(collection(operationRef, "finance"), orderBy("createdAt", "desc"))),
           getDocs(query(collection(operationRef, "travel"), orderBy("createdAt", "desc"))),
+          getDocs(query(collection(operationRef, "meetings"), orderBy("meetingDate", "desc"))),
           getDocs(query(collection(db, COLLECTIONS.NATIONS), orderBy("name"))),
           getDocs(query(collection(db, COLLECTIONS.USERS), orderBy("displayName"))),
         ]);
@@ -215,6 +236,7 @@ export default function OperationDetailPage() {
         setNotes(notesSnap.docs.map((d) => ({ id: d.id, ...d.data() } as GlobalOperationNote)));
         setFinanceItems(financeSnap.docs.map((d) => ({ id: d.id, ...d.data() } as GlobalOperationFinanceItem)));
         setTravelItems(travelSnap.docs.map((d) => ({ id: d.id, ...d.data() } as GlobalOperationTravelItem)));
+        setMeetingItems(meetingsSnap.docs.map((d) => ({ id: d.id, ...d.data() } as GlobalOperationMeetingItem)));
         setNations(nationsSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Nation)));
         setLeaders(
           usersSnap.docs
@@ -257,6 +279,15 @@ export default function OperationDetailPage() {
       arrived: travelItems.filter((item) => item.status === "arrived" || item.status === "completed").length,
     };
   }, [travelItems]);
+
+  const meetingSummary = useMemo(() => {
+    return {
+      total: meetingItems.length,
+      scheduled: meetingItems.filter((item) => item.status === "scheduled").length,
+      held: meetingItems.filter((item) => item.status === "held").length,
+      followUps: meetingItems.filter((item) => Boolean(item.followUpActions?.trim())).length,
+    };
+  }, [meetingItems]);
 
   const updateOperation = async () => {
     if (!record || !operationForm?.title?.trim()) return;
@@ -444,6 +475,43 @@ export default function OperationDetailPage() {
     }
   };
 
+  const addMeetingItem = async () => {
+    if (!record || !profile || !meetingForm.title.trim()) return;
+    try {
+      const data = {
+        title: meetingForm.title.trim(),
+        status: meetingForm.status,
+        meetingDate: meetingForm.meetingDate ? Timestamp.fromDate(new Date(meetingForm.meetingDate)) : null,
+        meetingLink: meetingForm.meetingLink.trim() || null,
+        attendees: meetingForm.attendees.trim() || null,
+        agenda: meetingForm.agenda.trim() || null,
+        minutes: meetingForm.minutes.trim() || null,
+        decisions: meetingForm.decisions.trim() || null,
+        followUpActions: meetingForm.followUpActions.trim() || null,
+        createdBy: profile.id,
+        createdByName: profile.displayName,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      };
+      const ref = await addDoc(collection(db, COLLECTIONS.GLOBAL_OPERATIONS, record.id, "meetings"), data);
+      setMeetingItems((prev) => [{ id: ref.id, ...data, createdAt: Timestamp.now(), updatedAt: Timestamp.now() } as GlobalOperationMeetingItem, ...prev]);
+      setMeetingForm({
+        title: "",
+        status: "scheduled",
+        meetingDate: "",
+        meetingLink: "",
+        attendees: "",
+        agenda: "",
+        minutes: "",
+        decisions: "",
+        followUpActions: "",
+      });
+    } catch (error) {
+      console.error(error);
+      toast.error("Could not add meeting.");
+    }
+  };
+
   const archiveOperation = async () => {
     if (!record) return;
     try {
@@ -534,6 +602,88 @@ export default function OperationDetailPage() {
           </div>
         </div>
       </div>
+
+      <Card className="p-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <CalendarDays className="w-4 h-4 text-indigo-600" />
+              <h2 className="font-black text-slate-900">Meetings</h2>
+            </div>
+            <p className="mt-1 text-sm text-slate-500">Track national leader meetings, planning calls, agenda, attendance, minutes, decisions, and follow-up.</p>
+          </div>
+          <div className="grid grid-cols-4 gap-2 text-center">
+            <MeetingStat label="Meetings" value={meetingSummary.total} />
+            <MeetingStat label="Scheduled" value={meetingSummary.scheduled} />
+            <MeetingStat label="Held" value={meetingSummary.held} />
+            <MeetingStat label="Follow-up" value={meetingSummary.followUps} />
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-2 lg:grid-cols-[1fr_140px_170px_1fr]">
+          <Input aria-label="Meeting title" value={meetingForm.title} onChange={(e) => setMeetingForm({ ...meetingForm, title: e.target.value })} placeholder="Monthly national leaders meeting" />
+          <Select aria-label="Meeting status" value={meetingForm.status} onChange={(e) => setMeetingForm({ ...meetingForm, status: e.target.value as GlobalOperationMeetingStatus })}>
+            {(Object.keys(MEETING_STATUS_LABELS) as GlobalOperationMeetingStatus[]).map((status) => (
+              <option key={status} value={status}>{MEETING_STATUS_LABELS[status]}</option>
+            ))}
+          </Select>
+          <Input aria-label="Meeting date" type="datetime-local" value={meetingForm.meetingDate} onChange={(e) => setMeetingForm({ ...meetingForm, meetingDate: e.target.value })} />
+          <Input aria-label="Meeting link" value={meetingForm.meetingLink} onChange={(e) => setMeetingForm({ ...meetingForm, meetingLink: e.target.value })} placeholder="Zoom / Meet / Teams link" />
+        </div>
+
+        <div className="mt-2 grid gap-2 lg:grid-cols-2">
+          <Textarea aria-label="Attendees" rows={3} value={meetingForm.attendees} onChange={(e) => setMeetingForm({ ...meetingForm, attendees: e.target.value })} placeholder="Attendees: national leaders, coordinators, team members..." />
+          <Textarea aria-label="Agenda" rows={3} value={meetingForm.agenda} onChange={(e) => setMeetingForm({ ...meetingForm, agenda: e.target.value })} placeholder="Agenda items..." />
+        </div>
+
+        <div className="mt-2 grid gap-2 lg:grid-cols-3">
+          <Textarea aria-label="Minutes" rows={3} value={meetingForm.minutes} onChange={(e) => setMeetingForm({ ...meetingForm, minutes: e.target.value })} placeholder="Minutes / key discussion notes..." />
+          <Textarea aria-label="Decisions" rows={3} value={meetingForm.decisions} onChange={(e) => setMeetingForm({ ...meetingForm, decisions: e.target.value })} placeholder="Decisions made..." />
+          <Textarea aria-label="Follow-up actions" rows={3} value={meetingForm.followUpActions} onChange={(e) => setMeetingForm({ ...meetingForm, followUpActions: e.target.value })} placeholder="Follow-up actions and responsible people..." />
+        </div>
+
+        <div className="mt-2 flex justify-end">
+          <Button onClick={addMeetingItem} disabled={!meetingForm.title.trim()}>
+            <Plus className="w-4 h-4" />
+            Add Meeting
+          </Button>
+        </div>
+
+        <div className="mt-4 overflow-hidden rounded-2xl border border-slate-100">
+          {meetingItems.length === 0 ? (
+            <div className="p-6 text-center text-sm text-slate-500">
+              Add the first meeting record for this operation.
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {meetingItems.map((item) => (
+                <div key={item.id} className="p-4">
+                  <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-black text-slate-900">{item.title}</p>
+                        <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${item.status === "cancelled" ? "bg-red-100 text-red-700" : "bg-indigo-50 text-indigo-700"}`}>
+                          {MEETING_STATUS_LABELS[item.status]}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs text-slate-500">{formatDate(item.meetingDate)} · {item.attendees || "No attendees recorded"}</p>
+                    </div>
+                    {item.meetingLink && (
+                      <a className="text-sm font-semibold text-indigo-600 hover:text-indigo-700" href={item.meetingLink} target="_blank" rel="noreferrer">Open meeting link</a>
+                    )}
+                  </div>
+                  <div className="mt-3 grid gap-3 text-sm text-slate-600 lg:grid-cols-2">
+                    {item.agenda && <MeetingText label="Agenda" value={item.agenda} />}
+                    {item.minutes && <MeetingText label="Minutes" value={item.minutes} />}
+                    {item.decisions && <MeetingText label="Decisions" value={item.decisions} />}
+                    {item.followUpActions && <MeetingText label="Follow-up" value={item.followUpActions} />}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </Card>
 
       <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
         <Card className="p-4">
@@ -873,6 +1023,24 @@ function TravelStat({ label, value, tone }: { label: string; value: number; tone
     <div className={`rounded-2xl px-3 py-2 ${tone === "issue" ? "bg-red-50" : "bg-rose-50"}`}>
       <p className={`text-[10px] font-black uppercase tracking-widest ${tone === "issue" ? "text-red-700" : "text-rose-700"}`}>{label}</p>
       <p className="mt-1 text-sm font-black text-slate-900">{value.toLocaleString()}</p>
+    </div>
+  );
+}
+
+function MeetingStat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-2xl bg-indigo-50 px-3 py-2">
+      <p className="text-[10px] font-black uppercase tracking-widest text-indigo-700">{label}</p>
+      <p className="mt-1 text-sm font-black text-slate-900">{value.toLocaleString()}</p>
+    </div>
+  );
+}
+
+function MeetingText({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl bg-slate-50 p-3">
+      <p className="text-xs font-black uppercase tracking-widest text-slate-400">{label}</p>
+      <p className="mt-1 whitespace-pre-wrap leading-6 text-slate-700">{value}</p>
     </div>
   );
 }

@@ -283,6 +283,28 @@ export interface GlobalOperationTravelItem {
   updatedAt: Timestamp;
 }
 
+export type GlobalOperationMeetingStatus =
+  | "scheduled"
+  | "held"
+  | "cancelled";
+
+export interface GlobalOperationMeetingItem {
+  id: string;
+  title: string;
+  status: GlobalOperationMeetingStatus;
+  meetingDate?: Timestamp | null;
+  meetingLink?: string | null;
+  attendees?: string | null;
+  agenda?: string | null;
+  minutes?: string | null;
+  decisions?: string | null;
+  followUpActions?: string | null;
+  createdBy: string;
+  createdByName: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
 // ----------------------------------------------------------
 // VENTURE 100 TRAINING
 // ----------------------------------------------------------
