@@ -347,6 +347,14 @@ service cloud.firestore {
     // ── Global Operations ─────────────────────────────────────
     match /globalOperations/{operationId} {
       allow read, write: if isGlobalAdmin();
+
+      match /tasks/{taskId} {
+        allow read, write: if isGlobalAdmin();
+      }
+
+      match /notes/{noteId} {
+        allow read, write: if isGlobalAdmin();
+      }
     }
   }
 }

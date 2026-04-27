@@ -194,10 +194,33 @@ export interface GlobalOperationRecord {
   meetingLink?: string;
   documentUrl?: string;
   nextAction?: string;
+  archivedAt?: Timestamp | null;
   createdBy: string;
   createdByName: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
+}
+
+export interface GlobalOperationTask {
+  id: string;
+  title: string;
+  assignedToId?: string | null;
+  assignedToName?: string | null;
+  dueDate?: Timestamp | null;
+  isComplete: boolean;
+  completedAt?: Timestamp | null;
+  createdBy: string;
+  createdByName: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export interface GlobalOperationNote {
+  id: string;
+  body: string;
+  authorId: string;
+  authorName: string;
+  createdAt: Timestamp;
 }
 
 // ----------------------------------------------------------

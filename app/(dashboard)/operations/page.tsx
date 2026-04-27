@@ -2,6 +2,7 @@
 export const dynamic = "force-dynamic";
 
 import React, { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import {
   addDoc,
   collection,
@@ -149,7 +150,7 @@ export default function OperationsPage() {
           getDocs(query(collection(db, COLLECTIONS.USERS), orderBy("displayName"))),
         ]);
 
-        setRecords(recordsSnap.docs.map((d) => ({ id: d.id, ...d.data() } as GlobalOperationRecord)));
+        setRecords(recordsSnap.docs.map((d) => ({ id: d.id, ...d.data() } as GlobalOperationRecord)).filter((record) => !record.archivedAt));
         setNations(nationsSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Nation)));
         setLeaders(
           usersSnap.docs
@@ -361,7 +362,9 @@ export default function OperationsPage() {
                         <Badge variant={statusVariant(record.status) as any}>{STATUS_LABELS[record.status]}</Badge>
                         <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold capitalize text-slate-500">{record.priority}</span>
                       </div>
-                      <h3 className="mt-2 text-base font-black text-slate-950">{record.title}</h3>
+                      <Link href={`/operations/${record.id}`} className="mt-2 block text-base font-black text-slate-950 hover:text-indigo-700">
+                        {record.title}
+                      </Link>
                       {record.summary && <p className="mt-1 text-sm leading-6 text-slate-600">{record.summary}</p>}
                       <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
                         <span>Nation: <strong className="text-slate-700">{record.nationName || "Global"}</strong></span>
@@ -383,6 +386,9 @@ export default function OperationsPage() {
                       )}
                     </div>
                     <div className="flex flex-wrap gap-2 lg:justify-end">
+                      <Button variant="secondary" size="sm" onClick={() => window.location.assign(`/operations/${record.id}`)}>
+                        Open
+                      </Button>
                       {record.status !== "in_progress" && (
                         <Button variant="secondary" size="sm" onClick={() => updateStatus(record, "in_progress")}>Start</Button>
                       )}
