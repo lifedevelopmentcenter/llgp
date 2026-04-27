@@ -91,7 +91,23 @@ export default function LoginPage() {
                     await signInWithGoogle();
                     router.replace("/dashboard");
                   } catch (err: any) {
-                    setError(err.code === "auth/popup-closed-by-user" ? "" : "Google sign-in failed.");
+                    console.error("Google sign-in error:", err);
+                    const code = err?.code ?? "";
+                    if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
+                      setError("");
+                    } else if (code === "auth/popup-blocked") {
+                      setError("Your browser blocked the Google popup. Allow popups for this site and try again.");
+                    } else if (code === "auth/unauthorized-domain") {
+                      setError("This domain isn't authorized in Firebase. Add it under Authentication → Settings → Authorized domains.");
+                    } else if (code === "auth/operation-not-allowed") {
+                      setError("Google sign-in isn't enabled in Firebase. Enable it under Authentication → Sign-in method.");
+                    } else if (code === "auth/account-exists-with-different-credential") {
+                      setError("An account already exists with this email using a different sign-in method. Sign in with email and password instead.");
+                    } else if (code === "auth/network-request-failed") {
+                      setError("Network error. Check your connection and try again.");
+                    } else {
+                      setError(`Google sign-in failed${code ? ` (${code})` : ""}.`);
+                    }
                   } finally { setLoading(false); }
                 }}
                 disabled={loading}
