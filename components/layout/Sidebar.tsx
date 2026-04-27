@@ -7,6 +7,7 @@ import {
   Settings,
   ChevronDown, ChevronRight, LogOut, X,
   Calendar, Radio, Search, Film, Heart, BarChart2, Bell, UserPlus, Edit3,
+  ClipboardList,
 } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { cn } from "@/lib/utils";
@@ -103,6 +104,12 @@ const navItems: NavItem[] = [
     label: "Hubs", href: "/hubs",
     icon: <Building2 className="w-[18px] h-[18px]" />,
     roles: ["global_admin", "national_leader", "city_leader", "hub_leader"],
+    section: "manage",
+  },
+  {
+    label: "Global Operations", href: "/operations",
+    icon: <ClipboardList className="w-[18px] h-[18px]" />,
+    roles: ["global_admin"],
     section: "manage",
   },
   {

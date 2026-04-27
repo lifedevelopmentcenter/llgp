@@ -343,5 +343,10 @@ service cloud.firestore {
       allow read: if isAuth();
       allow create, update: if isAuth() && request.resource.data.viewerId == uid();
     }
+
+    // ── Global Operations ─────────────────────────────────────
+    match /globalOperations/{operationId} {
+      allow read, write: if isGlobalAdmin();
+    }
   }
 }

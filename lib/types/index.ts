@@ -157,6 +157,50 @@ export interface UserProfile {
 }
 
 // ----------------------------------------------------------
+// GLOBAL OPERATIONS
+// ----------------------------------------------------------
+
+export type GlobalOperationCategory =
+  | "team"
+  | "meeting"
+  | "mission_event"
+  | "funding"
+  | "travel"
+  | "procedure";
+
+export type GlobalOperationStatus =
+  | "planned"
+  | "in_progress"
+  | "waiting"
+  | "completed"
+  | "blocked";
+
+export interface GlobalOperationRecord {
+  id: string;
+  category: GlobalOperationCategory;
+  title: string;
+  summary: string;
+  status: GlobalOperationStatus;
+  priority: "low" | "medium" | "high" | "urgent";
+  nationId?: string;
+  nationName?: string;
+  ownerId?: string;
+  ownerName?: string;
+  dueDate?: Timestamp | null;
+  budgetAmount?: number | null;
+  fundsSent?: number | null;
+  currency?: string;
+  travelRoute?: string;
+  meetingLink?: string;
+  documentUrl?: string;
+  nextAction?: string;
+  createdBy: string;
+  createdByName: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+// ----------------------------------------------------------
 // VENTURE 100 TRAINING
 // ----------------------------------------------------------
 
