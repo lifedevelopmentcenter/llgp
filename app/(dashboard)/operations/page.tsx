@@ -15,6 +15,7 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import {
+  AlertTriangle,
   CalendarDays,
   CheckCircle2,
   ClipboardList,
@@ -36,8 +37,13 @@ import { Modal } from "@/components/ui/Modal";
 import { PageLoader } from "@/components/ui/Spinner";
 import type {
   GlobalOperationCategory,
+  GlobalOperationFinanceItem,
+  GlobalOperationMeetingItem,
+  GlobalOperationProcedureItem,
   GlobalOperationRecord,
   GlobalOperationStatus,
+  GlobalOperationTask,
+  GlobalOperationTravelItem,
   Nation,
   UserProfile,
 } from "@/lib/types";
@@ -127,11 +133,28 @@ const initialForm = {
   nextAction: "",
 };
 
+interface OperationSignals {
+  overdueTasks: Array<{ operation: GlobalOperationRecord; task: GlobalOperationTask }>;
+  upcomingMeetings: Array<{ operation: GlobalOperationRecord; meeting: GlobalOperationMeetingItem }>;
+  pendingGates: Array<{ operation: GlobalOperationRecord; procedure: GlobalOperationProcedureItem }>;
+  travelIssues: Array<{ operation: GlobalOperationRecord; travel: GlobalOperationTravelItem }>;
+  financeThisMonth: number;
+}
+
+const emptySignals: OperationSignals = {
+  overdueTasks: [],
+  upcomingMeetings: [],
+  pendingGates: [],
+  travelIssues: [],
+  financeThisMonth: 0,
+};
+
 export default function OperationsPage() {
   const { profile } = useAuth();
   const [records, setRecords] = useState<GlobalOperationRecord[]>([]);
   const [nations, setNations] = useState<Nation[]>([]);
   const [leaders, setLeaders] = useState<UserProfile[]>([]);
+  const [signals, setSignals] = useState<OperationSignals>(emptySignals);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -150,13 +173,75 @@ export default function OperationsPage() {
           getDocs(query(collection(db, COLLECTIONS.USERS), orderBy("displayName"))),
         ]);
 
-        setRecords(recordsSnap.docs.map((d) => ({ id: d.id, ...d.data() } as GlobalOperationRecord)).filter((record) => !record.archivedAt));
+        const activeRecords = recordsSnap.docs
+          .map((d) => ({ id: d.id, ...d.data() } as GlobalOperationRecord))
+          .filter((record) => !record.archivedAt);
+
+        setRecords(activeRecords);
         setNations(nationsSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Nation)));
         setLeaders(
           usersSnap.docs
             .map((d) => ({ id: d.id, ...d.data() } as UserProfile))
             .filter((user) => user.role !== "participant" && user.isActive !== false)
         );
+
+        const now = new Date();
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const nextThirtyDays = new Date(now);
+        nextThirtyDays.setDate(now.getDate() + 30);
+
+        const nested = await Promise.all(
+          activeRecords.map(async (record) => {
+            const operationRef = doc(db, COLLECTIONS.GLOBAL_OPERATIONS, record.id);
+            const [tasksSnap, meetingsSnap, proceduresSnap, travelSnap, financeSnap] = await Promise.all([
+              getDocs(query(collection(operationRef, "tasks"), orderBy("createdAt", "asc"))),
+              getDocs(query(collection(operationRef, "meetings"), orderBy("meetingDate", "asc"))),
+              getDocs(query(collection(operationRef, "procedures"), orderBy("createdAt", "desc"))),
+              getDocs(query(collection(operationRef, "travel"), orderBy("createdAt", "desc"))),
+              getDocs(query(collection(operationRef, "finance"), orderBy("createdAt", "desc"))),
+            ]);
+            return {
+              record,
+              tasks: tasksSnap.docs.map((d) => ({ id: d.id, ...d.data() } as GlobalOperationTask)),
+              meetings: meetingsSnap.docs.map((d) => ({ id: d.id, ...d.data() } as GlobalOperationMeetingItem)),
+              procedures: proceduresSnap.docs.map((d) => ({ id: d.id, ...d.data() } as GlobalOperationProcedureItem)),
+              travel: travelSnap.docs.map((d) => ({ id: d.id, ...d.data() } as GlobalOperationTravelItem)),
+              finance: financeSnap.docs.map((d) => ({ id: d.id, ...d.data() } as GlobalOperationFinanceItem)),
+            };
+          })
+        );
+
+        const nextSignals = nested.reduce<OperationSignals>((acc, item) => {
+          item.tasks.forEach((task) => {
+            const due = task.dueDate?.toDate();
+            if (!task.isComplete && due && due < now) acc.overdueTasks.push({ operation: item.record, task });
+          });
+          item.meetings.forEach((meeting) => {
+            const meetingDate = meeting.meetingDate?.toDate();
+            if (meeting.status === "scheduled" && meetingDate && meetingDate >= now && meetingDate <= nextThirtyDays) {
+              acc.upcomingMeetings.push({ operation: item.record, meeting });
+            }
+          });
+          item.procedures.forEach((procedure) => {
+            if (procedure.requiredBeforeMission && procedure.status !== "complete") {
+              acc.pendingGates.push({ operation: item.record, procedure });
+            }
+          });
+          item.travel.forEach((travel) => {
+            if (travel.status === "issue") acc.travelIssues.push({ operation: item.record, travel });
+          });
+          item.finance.forEach((finance) => {
+            const transactionDate = finance.transactionDate?.toDate();
+            if (finance.type === "disbursement" && transactionDate && transactionDate >= monthStart) {
+              acc.financeThisMonth += Number(finance.amount) || 0;
+            }
+          });
+          return acc;
+        }, { ...emptySignals, overdueTasks: [], upcomingMeetings: [], pendingGates: [], travelIssues: [] });
+
+        nextSignals.overdueTasks.sort((a, b) => (a.task.dueDate?.toMillis() || 0) - (b.task.dueDate?.toMillis() || 0));
+        nextSignals.upcomingMeetings.sort((a, b) => (a.meeting.meetingDate?.toMillis() || 0) - (b.meeting.meetingDate?.toMillis() || 0));
+        setSignals(nextSignals);
       } catch (error) {
         console.error(error);
         toast.error("Could not load global operations.");
@@ -286,6 +371,76 @@ export default function OperationsPage() {
             <p className="mt-1 text-xs text-slate-500">{item.detail}</p>
           </Card>
         ))}
+      </div>
+
+      <div className="grid gap-3 lg:grid-cols-5">
+        <SignalCard
+          label="Overdue Tasks"
+          value={signals.overdueTasks.length}
+          tone={signals.overdueTasks.length ? "danger" : "normal"}
+          detail="need follow-up"
+        />
+        <SignalCard
+          label="Upcoming Meetings"
+          value={signals.upcomingMeetings.length}
+          detail="next 30 days"
+        />
+        <SignalCard
+          label="Pending Gates"
+          value={signals.pendingGates.length}
+          tone={signals.pendingGates.length ? "warning" : "normal"}
+          detail="required before mission"
+        />
+        <SignalCard
+          label="Travel Issues"
+          value={signals.travelIssues.length}
+          tone={signals.travelIssues.length ? "danger" : "normal"}
+          detail="movement blockers"
+        />
+        <SignalCard
+          label="Sent This Month"
+          value={`$${signals.financeThisMonth.toLocaleString()}`}
+          detail="finance ledger"
+        />
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-2">
+        <CommandPanel
+          title="Immediate Attention"
+          icon={<AlertTriangle className="w-4 h-4 text-red-600" />}
+          empty="No overdue tasks, blocked gates, or travel issues."
+          items={[
+            ...signals.overdueTasks.slice(0, 4).map(({ operation, task }) => ({
+              href: `/operations/${operation.id}`,
+              title: task.title,
+              meta: `${operation.title} · overdue ${formatDate(task.dueDate)}`,
+              tone: "danger" as const,
+            })),
+            ...signals.pendingGates.slice(0, 4).map(({ operation, procedure }) => ({
+              href: `/operations/${operation.id}`,
+              title: procedure.title,
+              meta: `${operation.title} · required gate · ${procedure.status.replaceAll("_", " ")}`,
+              tone: "warning" as const,
+            })),
+            ...signals.travelIssues.slice(0, 4).map(({ operation, travel }) => ({
+              href: `/operations/${operation.id}`,
+              title: travel.travelerName,
+              meta: `${operation.title} · ${travel.origin || "Origin TBD"} → ${travel.destination || "Destination TBD"}`,
+              tone: "danger" as const,
+            })),
+          ].slice(0, 8)}
+        />
+        <CommandPanel
+          title="Upcoming Meetings"
+          icon={<CalendarDays className="w-4 h-4 text-indigo-600" />}
+          empty="No scheduled meetings in the next 30 days."
+          items={signals.upcomingMeetings.slice(0, 8).map(({ operation, meeting }) => ({
+            href: `/operations/${operation.id}`,
+            title: meeting.title,
+            meta: `${operation.title} · ${formatDate(meeting.meetingDate)}`,
+            tone: "normal" as const,
+          }))}
+        />
       </div>
 
       <div className="grid gap-3 lg:grid-cols-3">
@@ -464,5 +619,74 @@ export default function OperationsPage() {
         </div>
       </Modal>
     </div>
+  );
+}
+
+function SignalCard({
+  label,
+  value,
+  detail,
+  tone = "normal",
+}: {
+  label: string;
+  value: number | string;
+  detail: string;
+  tone?: "normal" | "warning" | "danger";
+}) {
+  const color =
+    tone === "danger"
+      ? "bg-red-50 text-red-700"
+      : tone === "warning"
+        ? "bg-amber-50 text-amber-700"
+        : "bg-slate-50 text-slate-700";
+
+  return (
+    <Card className="p-4">
+      <p className="text-xs font-bold uppercase tracking-widest text-slate-400">{label}</p>
+      <p className={`mt-2 inline-flex rounded-2xl px-3 py-1 text-2xl font-black ${color}`}>{value}</p>
+      <p className="mt-2 text-xs text-slate-500">{detail}</p>
+    </Card>
+  );
+}
+
+function CommandPanel({
+  title,
+  icon,
+  items,
+  empty,
+}: {
+  title: string;
+  icon: React.ReactNode;
+  items: Array<{ href: string; title: string; meta: string; tone: "normal" | "warning" | "danger" }>;
+  empty: string;
+}) {
+  return (
+    <Card className="p-4">
+      <div className="flex items-center gap-2">
+        {icon}
+        <h2 className="font-black text-slate-900">{title}</h2>
+      </div>
+      {items.length === 0 ? (
+        <p className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">{empty}</p>
+      ) : (
+        <div className="mt-4 divide-y divide-slate-100">
+          {items.map((item, idx) => (
+            <Link key={`${item.href}-${idx}-${item.title}`} href={item.href} className="block py-3 first:pt-0 last:pb-0">
+              <div className="flex items-start gap-3">
+                <span
+                  className={`mt-1 h-2.5 w-2.5 rounded-full ${
+                    item.tone === "danger" ? "bg-red-500" : item.tone === "warning" ? "bg-amber-500" : "bg-indigo-500"
+                  }`}
+                />
+                <div>
+                  <p className="text-sm font-black text-slate-900 hover:text-indigo-700">{item.title}</p>
+                  <p className="mt-0.5 text-xs text-slate-500">{item.meta}</p>
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
+    </Card>
   );
 }
