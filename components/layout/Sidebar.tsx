@@ -27,101 +27,133 @@ interface NavItem {
   section?: string;
 }
 
+const ALL_MEMBER_ROLES: UserRole[] = [
+  "global_admin",
+  "global_team_lead",
+  "global_operations_member",
+  "finance_coordinator",
+  "travel_coordinator",
+  "missions_coordinator",
+  "national_leader",
+  "city_leader",
+  "hub_leader",
+  "participant",
+];
+
+const LEADER_ROLES: UserRole[] = [
+  "global_admin",
+  "global_team_lead",
+  "global_operations_member",
+  "missions_coordinator",
+  "national_leader",
+  "city_leader",
+  "hub_leader",
+];
+
+const OPERATIONS_ROLES: UserRole[] = [
+  "global_admin",
+  "global_team_lead",
+  "global_operations_member",
+  "finance_coordinator",
+  "travel_coordinator",
+  "missions_coordinator",
+];
+
 const navItems: NavItem[] = [
   {
     label: "Home", href: "/dashboard",
     icon: <LayoutDashboard className="w-[18px] h-[18px]" />,
-    roles: ["global_admin", "national_leader", "city_leader", "hub_leader", "participant"],
+    roles: ALL_MEMBER_ROLES,
     section: "main",
   },
   {
     label: "Stories", href: "/stories",
     icon: <Film className="w-[18px] h-[18px]" />,
-    roles: ["global_admin", "national_leader", "city_leader", "hub_leader", "participant"],
+    roles: ALL_MEMBER_ROLES,
     section: "main",
   },
   {
     label: "Prayer Wall", href: "/prayer",
     icon: <Heart className="w-[18px] h-[18px]" />,
-    roles: ["global_admin", "national_leader", "city_leader", "hub_leader", "participant"],
+    roles: ALL_MEMBER_ROLES,
     section: "main",
   },
   {
     label: "Search", href: "/search",
     icon: <Search className="w-[18px] h-[18px]" />,
-    roles: ["global_admin", "national_leader", "city_leader", "hub_leader", "participant"],
+    roles: ALL_MEMBER_ROLES,
     section: "main",
   },
   {
     label: "Live", href: "/live",
     icon: <Radio className="w-[18px] h-[18px]" />,
-    roles: ["global_admin", "national_leader", "city_leader", "hub_leader", "participant"],
+    roles: ALL_MEMBER_ROLES,
     section: "main",
   },
   {
     label: "Write Article", href: "/articles/new",
     icon: <Edit3 className="w-[18px] h-[18px]" />,
-    roles: ["global_admin", "national_leader", "city_leader", "hub_leader", "participant"],
+    roles: ALL_MEMBER_ROLES,
     section: "main",
   },
   {
     label: "Leading Lights University",
     icon: <BookOpen className="w-[18px] h-[18px]" />,
-    roles: ["global_admin", "national_leader", "city_leader", "hub_leader", "participant"],
+    roles: ALL_MEMBER_ROLES,
     section: "learn",
     children: [
-      { label: "Venture 100", href: "/training", roles: ["global_admin", "national_leader", "city_leader", "hub_leader", "participant"] },
-      { label: "Community Courses", href: "/training/community", roles: ["global_admin", "national_leader", "city_leader", "hub_leader", "participant"] },
-      { label: "Leadership Incubator", href: "/incubator", roles: ["global_admin", "national_leader", "city_leader", "hub_leader", "participant"] },
-      { label: "Resources", href: "/resources", roles: ["global_admin", "national_leader", "city_leader", "hub_leader", "participant"] },
+      { label: "Venture 100", href: "/training", roles: ALL_MEMBER_ROLES },
+      { label: "Community Courses", href: "/training/community", roles: ALL_MEMBER_ROLES },
+      { label: "Leadership Incubator", href: "/incubator", roles: ALL_MEMBER_ROLES },
+      { label: "Resources", href: "/resources", roles: ALL_MEMBER_ROLES },
     ],
   },
   {
     label: "Events", href: "/events",
     icon: <Calendar className="w-[18px] h-[18px]" />,
-    roles: ["global_admin", "national_leader", "city_leader", "hub_leader", "participant"],
+    roles: ALL_MEMBER_ROLES,
     section: "learn",
   },
   {
     label: "Community",
     icon: <Users className="w-[18px] h-[18px]" />,
-    roles: ["global_admin", "national_leader", "city_leader", "hub_leader", "participant"],
+    roles: ALL_MEMBER_ROLES,
     section: "community",
     children: [
-      { label: "Member Directory", href: "/community/directory", roles: ["global_admin","national_leader","city_leader","hub_leader","participant"] },
-      { label: "Groups", href: "/community/groups", roles: ["global_admin","national_leader","city_leader","hub_leader","participant"] },
-      { label: "Prayer & Testimony", href: "/community/wall", roles: ["global_admin","national_leader","city_leader","hub_leader","participant"] },
-      { label: "Announcements", href: "/community/announcements", roles: ["global_admin","national_leader","city_leader","hub_leader","participant"] },
+      { label: "Member Directory", href: "/community/directory", roles: ALL_MEMBER_ROLES },
+      { label: "Groups", href: "/community/groups", roles: ALL_MEMBER_ROLES },
+      { label: "Prayer & Testimony", href: "/community/wall", roles: ALL_MEMBER_ROLES },
+      { label: "Announcements", href: "/community/announcements", roles: ALL_MEMBER_ROLES },
     ],
   },
   {
     label: "Invite Members", href: "/invite",
     icon: <UserPlus className="w-[18px] h-[18px]" />,
-    roles: ["global_admin", "national_leader", "city_leader", "hub_leader", "participant"],
+    roles: ALL_MEMBER_ROLES,
     section: "community",
   },
   {
     label: "Hubs", href: "/hubs",
     icon: <Building2 className="w-[18px] h-[18px]" />,
-    roles: ["global_admin", "national_leader", "city_leader", "hub_leader"],
+    roles: LEADER_ROLES,
     section: "manage",
   },
   {
     label: "Global Operations", href: "/operations",
     icon: <ClipboardList className="w-[18px] h-[18px]" />,
-    roles: ["global_admin"],
+    roles: OPERATIONS_ROLES,
     section: "manage",
   },
   {
     label: "Reports", href: "/reports",
     icon: <FileText className="w-[18px] h-[18px]" />,
-    roles: ["global_admin", "national_leader", "city_leader", "hub_leader"],
+    roles: LEADER_ROLES,
     section: "manage",
   },
   {
     label: "Metrics", href: "/metrics",
     icon: <BarChart2 className="w-[18px] h-[18px]" />,
-    roles: ["global_admin", "national_leader", "city_leader"],
+    roles: ["global_admin", "global_team_lead", "global_operations_member", "national_leader", "city_leader"],
     section: "manage",
   },
   {

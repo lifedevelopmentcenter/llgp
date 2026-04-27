@@ -10,6 +10,11 @@ import { Timestamp } from "firebase/firestore";
 
 export type UserRole =
   | "global_admin"
+  | "global_team_lead"
+  | "global_operations_member"
+  | "finance_coordinator"
+  | "travel_coordinator"
+  | "missions_coordinator"
   | "national_leader"
   | "city_leader"
   | "hub_leader"
@@ -17,6 +22,11 @@ export type UserRole =
 
 export const ROLE_LABELS: Record<UserRole, string> = {
   global_admin: "Global Admin",
+  global_team_lead: "Global Team Lead",
+  global_operations_member: "Global Operations Member",
+  finance_coordinator: "Finance Coordinator",
+  travel_coordinator: "Travel Coordinator",
+  missions_coordinator: "Missions Coordinator",
   national_leader: "National Leader",
   city_leader: "City Leader",
   hub_leader: "Hub Leader",
@@ -24,10 +34,15 @@ export const ROLE_LABELS: Record<UserRole, string> = {
 };
 
 export const ROLE_HIERARCHY: Record<UserRole, number> = {
-  global_admin: 5,
-  national_leader: 4,
-  city_leader: 3,
-  hub_leader: 2,
+  global_admin: 10,
+  global_team_lead: 9,
+  global_operations_member: 8,
+  national_leader: 7,
+  missions_coordinator: 6,
+  finance_coordinator: 6,
+  travel_coordinator: 6,
+  city_leader: 5,
+  hub_leader: 4,
   participant: 1,
 };
 

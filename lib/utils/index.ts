@@ -4,6 +4,15 @@ import { format, formatDistanceToNow } from "date-fns";
 import { Timestamp } from "firebase/firestore";
 import type { UserRole } from "../types";
 
+const GLOBAL_ACCESS_ROLES: UserRole[] = [
+  "global_admin",
+  "global_team_lead",
+  "global_operations_member",
+  "finance_coordinator",
+  "travel_coordinator",
+  "missions_coordinator",
+];
+
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
@@ -36,25 +45,25 @@ export function getMonthName(month: number): string {
 }
 
 export function canAccessNation(userRole: UserRole, userNationId: string | undefined, targetNationId: string): boolean {
-  if (userRole === "global_admin") return true;
+  if (GLOBAL_ACCESS_ROLES.includes(userRole)) return true;
   if (userRole === "national_leader") return userNationId === targetNationId;
   return false;
 }
 
 export function canAccessCity(userRole: UserRole, userCityId: string | undefined, targetCityId: string): boolean {
-  if (userRole === "global_admin" || userRole === "national_leader") return true;
+  if (GLOBAL_ACCESS_ROLES.includes(userRole) || userRole === "national_leader") return true;
   if (userRole === "city_leader") return userCityId === targetCityId;
   return false;
 }
 
 export function canAccessHub(userRole: UserRole, userHubId: string | undefined, targetHubId: string): boolean {
-  if (["global_admin", "national_leader", "city_leader"].includes(userRole)) return true;
+  if (GLOBAL_ACCESS_ROLES.includes(userRole) || ["national_leader", "city_leader"].includes(userRole)) return true;
   if (userRole === "hub_leader") return userHubId === targetHubId;
   return false;
 }
 
 export function isLeader(role: UserRole): boolean {
-  return ["global_admin", "national_leader", "city_leader", "hub_leader"].includes(role);
+  return ["global_admin", "global_team_lead", "global_operations_member", "missions_coordinator", "national_leader", "city_leader", "hub_leader"].includes(role);
 }
 
 export function isAdmin(role: UserRole): boolean {
@@ -64,6 +73,11 @@ export function isAdmin(role: UserRole): boolean {
 export function getRoleColor(role: UserRole): string {
   const colors: Record<UserRole, string> = {
     global_admin: "bg-purple-100 text-purple-800",
+    global_team_lead: "bg-fuchsia-100 text-fuchsia-800",
+    global_operations_member: "bg-slate-100 text-slate-800",
+    finance_coordinator: "bg-amber-100 text-amber-800",
+    travel_coordinator: "bg-rose-100 text-rose-800",
+    missions_coordinator: "bg-emerald-100 text-emerald-800",
     national_leader: "bg-blue-100 text-blue-800",
     city_leader: "bg-indigo-100 text-indigo-800",
     hub_leader: "bg-teal-100 text-teal-800",

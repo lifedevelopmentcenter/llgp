@@ -58,6 +58,7 @@ import type {
   GlobalOperationTravelStatus,
   Nation,
   UserProfile,
+  UserRole,
 } from "@/lib/types";
 import toast from "react-hot-toast";
 
@@ -165,6 +166,22 @@ const operationFormFrom = (record: GlobalOperationRecord) => ({
   nextAction: record.nextAction || "",
 });
 
+const OPS_ACCESS_ROLES: UserRole[] = [
+  "global_admin",
+  "global_team_lead",
+  "global_operations_member",
+  "finance_coordinator",
+  "travel_coordinator",
+  "missions_coordinator",
+];
+
+const OPS_EDITOR_ROLES: UserRole[] = ["global_admin", "global_team_lead", "global_operations_member"];
+const FINANCE_EDITOR_ROLES: UserRole[] = ["global_admin", "global_team_lead", "global_operations_member", "finance_coordinator"];
+const TRAVEL_EDITOR_ROLES: UserRole[] = ["global_admin", "global_team_lead", "global_operations_member", "travel_coordinator"];
+const MISSION_EDITOR_ROLES: UserRole[] = ["global_admin", "global_team_lead", "global_operations_member", "missions_coordinator"];
+
+const hasRole = (role: UserRole | undefined, roles: UserRole[]) => Boolean(role && roles.includes(role));
+
 export default function OperationDetailPage() {
   const { profile } = useAuth();
   const params = useParams<{ operationId: string }>();
@@ -235,6 +252,11 @@ export default function OperationDetailPage() {
     dueDate: "",
     notes: "",
   });
+  const canAccessOperations = hasRole(profile?.role, OPS_ACCESS_ROLES);
+  const canEditOperation = hasRole(profile?.role, OPS_EDITOR_ROLES);
+  const canEditFinance = hasRole(profile?.role, FINANCE_EDITOR_ROLES);
+  const canEditTravel = hasRole(profile?.role, TRAVEL_EDITOR_ROLES);
+  const canEditMission = hasRole(profile?.role, MISSION_EDITOR_ROLES);
 
   useEffect(() => {
     if (!profile || !operationId) return;
@@ -332,7 +354,7 @@ export default function OperationDetailPage() {
   }, [procedureItems]);
 
   const updateOperation = async () => {
-    if (!record || !operationForm?.title?.trim()) return;
+    if (!canEditOperation || !record || !operationForm?.title?.trim()) return;
 
     setSaving(true);
     try {
@@ -372,7 +394,7 @@ export default function OperationDetailPage() {
   };
 
   const addTask = async () => {
-    if (!record || !profile || !taskForm.title.trim()) return;
+    if (!canEditMission || !record || !profile || !taskForm.title.trim()) return;
     try {
       const assignee = leaders.find((leader) => leader.id === taskForm.assignedToId);
       const data = {
@@ -397,7 +419,7 @@ export default function OperationDetailPage() {
   };
 
   const toggleTask = async (task: GlobalOperationTask) => {
-    if (!record) return;
+    if (!canEditMission || !record) return;
     const nextComplete = !task.isComplete;
     try {
       await updateDoc(doc(db, COLLECTIONS.GLOBAL_OPERATIONS, record.id, "tasks", task.id), {
@@ -431,7 +453,7 @@ export default function OperationDetailPage() {
   };
 
   const addFinanceItem = async () => {
-    if (!record || !profile || !financeForm.description.trim() || !financeForm.amount) return;
+    if (!canEditFinance || !record || !profile || !financeForm.description.trim() || !financeForm.amount) return;
     try {
       const data = {
         type: financeForm.type,
@@ -466,7 +488,7 @@ export default function OperationDetailPage() {
   };
 
   const addTravelItem = async () => {
-    if (!record || !profile || !travelForm.travelerName.trim()) return;
+    if (!canEditTravel || !record || !profile || !travelForm.travelerName.trim()) return;
     try {
       const traveler = leaders.find((leader) => leader.id === travelForm.travelerUserId);
       const data = {
@@ -518,7 +540,7 @@ export default function OperationDetailPage() {
   };
 
   const addMeetingItem = async () => {
-    if (!record || !profile || !meetingForm.title.trim()) return;
+    if (!canEditMission || !record || !profile || !meetingForm.title.trim()) return;
     try {
       const data = {
         title: meetingForm.title.trim(),
@@ -555,7 +577,7 @@ export default function OperationDetailPage() {
   };
 
   const addProcedureItem = async () => {
-    if (!record || !profile || !procedureForm.title.trim()) return;
+    if (!canEditMission || !record || !profile || !procedureForm.title.trim()) return;
     try {
       const owner = leaders.find((leader) => leader.id === procedureForm.ownerId);
       const data = {
@@ -592,7 +614,7 @@ export default function OperationDetailPage() {
   };
 
   const updateProcedureStatus = async (item: GlobalOperationProcedureItem, status: GlobalOperationProcedureStatus) => {
-    if (!record) return;
+    if (!canEditMission || !record) return;
     try {
       await updateDoc(doc(db, COLLECTIONS.GLOBAL_OPERATIONS, record.id, "procedures", item.id), {
         status,
@@ -606,7 +628,7 @@ export default function OperationDetailPage() {
   };
 
   const archiveOperation = async () => {
-    if (!record) return;
+    if (!canEditOperation || !record) return;
     try {
       await updateDoc(doc(db, COLLECTIONS.GLOBAL_OPERATIONS, record.id), {
         archivedAt: serverTimestamp(),
@@ -622,12 +644,12 @@ export default function OperationDetailPage() {
 
   if (loading) return <PageLoader />;
 
-  if (profile?.role !== "global_admin") {
+  if (!canAccessOperations) {
     return (
       <EmptyState
         icon={<ClipboardList className="w-6 h-6" />}
         title="Global operations is restricted"
-        description="Only global admins can administer mission operations, funds, travel, and procedures."
+        description="Only assigned global operations roles can access mission operations, funds, travel, and procedures."
       />
     );
   }
@@ -666,16 +688,18 @@ export default function OperationDetailPage() {
             <h1 className="mt-3 text-2xl font-black text-slate-950">{record.title}</h1>
             {record.summary && <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">{record.summary}</p>}
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" onClick={() => setEditOpen(true)}>
-              <Edit3 className="w-4 h-4" />
-              Edit
-            </Button>
-            <Button variant="danger" onClick={archiveOperation}>
-              <Archive className="w-4 h-4" />
-              Archive
-            </Button>
-          </div>
+          {canEditOperation && (
+            <div className="flex flex-wrap gap-2">
+              <Button variant="secondary" onClick={() => setEditOpen(true)}>
+                <Edit3 className="w-4 h-4" />
+                Edit
+              </Button>
+              <Button variant="danger" onClick={archiveOperation}>
+                <Archive className="w-4 h-4" />
+                Archive
+              </Button>
+            </div>
+          )}
         </div>
 
         <div className="mt-5 grid gap-3 md:grid-cols-4">
@@ -713,39 +737,43 @@ export default function OperationDetailPage() {
           </div>
         </div>
 
-        <div className="mt-4 grid gap-2 lg:grid-cols-[1fr_140px_170px_1fr]">
-          <Input aria-label="Meeting title" value={meetingForm.title} onChange={(e) => setMeetingForm({ ...meetingForm, title: e.target.value })} placeholder="Monthly national leaders meeting" />
-          <Select aria-label="Meeting status" value={meetingForm.status} onChange={(e) => setMeetingForm({ ...meetingForm, status: e.target.value as GlobalOperationMeetingStatus })}>
-            {(Object.keys(MEETING_STATUS_LABELS) as GlobalOperationMeetingStatus[]).map((status) => (
-              <option key={status} value={status}>{MEETING_STATUS_LABELS[status]}</option>
-            ))}
-          </Select>
-          <Input aria-label="Meeting date" type="datetime-local" value={meetingForm.meetingDate} onChange={(e) => setMeetingForm({ ...meetingForm, meetingDate: e.target.value })} />
-          <Input aria-label="Meeting link" value={meetingForm.meetingLink} onChange={(e) => setMeetingForm({ ...meetingForm, meetingLink: e.target.value })} placeholder="Zoom / Meet / Teams link" />
-        </div>
+        {canEditMission && (
+          <>
+            <div className="mt-4 grid gap-2 lg:grid-cols-[1fr_140px_170px_1fr]">
+              <Input aria-label="Meeting title" value={meetingForm.title} onChange={(e) => setMeetingForm({ ...meetingForm, title: e.target.value })} placeholder="Monthly national leaders meeting" />
+              <Select aria-label="Meeting status" value={meetingForm.status} onChange={(e) => setMeetingForm({ ...meetingForm, status: e.target.value as GlobalOperationMeetingStatus })}>
+                {(Object.keys(MEETING_STATUS_LABELS) as GlobalOperationMeetingStatus[]).map((status) => (
+                  <option key={status} value={status}>{MEETING_STATUS_LABELS[status]}</option>
+                ))}
+              </Select>
+              <Input aria-label="Meeting date" type="datetime-local" value={meetingForm.meetingDate} onChange={(e) => setMeetingForm({ ...meetingForm, meetingDate: e.target.value })} />
+              <Input aria-label="Meeting link" value={meetingForm.meetingLink} onChange={(e) => setMeetingForm({ ...meetingForm, meetingLink: e.target.value })} placeholder="Zoom / Meet / Teams link" />
+            </div>
 
-        <div className="mt-2 grid gap-2 lg:grid-cols-2">
-          <Textarea aria-label="Attendees" rows={3} value={meetingForm.attendees} onChange={(e) => setMeetingForm({ ...meetingForm, attendees: e.target.value })} placeholder="Attendees: national leaders, coordinators, team members..." />
-          <Textarea aria-label="Agenda" rows={3} value={meetingForm.agenda} onChange={(e) => setMeetingForm({ ...meetingForm, agenda: e.target.value })} placeholder="Agenda items..." />
-        </div>
+            <div className="mt-2 grid gap-2 lg:grid-cols-2">
+              <Textarea aria-label="Attendees" rows={3} value={meetingForm.attendees} onChange={(e) => setMeetingForm({ ...meetingForm, attendees: e.target.value })} placeholder="Attendees: national leaders, coordinators, team members..." />
+              <Textarea aria-label="Agenda" rows={3} value={meetingForm.agenda} onChange={(e) => setMeetingForm({ ...meetingForm, agenda: e.target.value })} placeholder="Agenda items..." />
+            </div>
 
-        <div className="mt-2 grid gap-2 lg:grid-cols-3">
-          <Textarea aria-label="Minutes" rows={3} value={meetingForm.minutes} onChange={(e) => setMeetingForm({ ...meetingForm, minutes: e.target.value })} placeholder="Minutes / key discussion notes..." />
-          <Textarea aria-label="Decisions" rows={3} value={meetingForm.decisions} onChange={(e) => setMeetingForm({ ...meetingForm, decisions: e.target.value })} placeholder="Decisions made..." />
-          <Textarea aria-label="Follow-up actions" rows={3} value={meetingForm.followUpActions} onChange={(e) => setMeetingForm({ ...meetingForm, followUpActions: e.target.value })} placeholder="Follow-up actions and responsible people..." />
-        </div>
+            <div className="mt-2 grid gap-2 lg:grid-cols-3">
+              <Textarea aria-label="Minutes" rows={3} value={meetingForm.minutes} onChange={(e) => setMeetingForm({ ...meetingForm, minutes: e.target.value })} placeholder="Minutes / key discussion notes..." />
+              <Textarea aria-label="Decisions" rows={3} value={meetingForm.decisions} onChange={(e) => setMeetingForm({ ...meetingForm, decisions: e.target.value })} placeholder="Decisions made..." />
+              <Textarea aria-label="Follow-up actions" rows={3} value={meetingForm.followUpActions} onChange={(e) => setMeetingForm({ ...meetingForm, followUpActions: e.target.value })} placeholder="Follow-up actions and responsible people..." />
+            </div>
 
-        <div className="mt-2 flex justify-end">
-          <Button onClick={addMeetingItem} disabled={!meetingForm.title.trim()}>
-            <Plus className="w-4 h-4" />
-            Add Meeting
-          </Button>
-        </div>
+            <div className="mt-2 flex justify-end">
+              <Button onClick={addMeetingItem} disabled={!meetingForm.title.trim()}>
+                <Plus className="w-4 h-4" />
+                Add Meeting
+              </Button>
+            </div>
+          </>
+        )}
 
         <div className="mt-4 overflow-hidden rounded-2xl border border-slate-100">
           {meetingItems.length === 0 ? (
             <div className="p-6 text-center text-sm text-slate-500">
-              Add the first meeting record for this operation.
+              {canEditMission ? "Add the first meeting record for this operation." : "No meeting records yet."}
             </div>
           ) : (
             <div className="divide-y divide-slate-100">
@@ -790,18 +818,20 @@ export default function OperationDetailPage() {
             </div>
           </div>
 
-          <div className="mt-4 grid gap-2 md:grid-cols-[1fr_180px_140px_auto]">
-            <Input aria-label="Task title" value={taskForm.title} onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })} placeholder="Add a task or checklist item" />
-            <Select aria-label="Assign task" value={taskForm.assignedToId} onChange={(e) => setTaskForm({ ...taskForm, assignedToId: e.target.value })}>
-              <option value="">Unassigned</option>
-              {leaders.map((leader) => <option key={leader.id} value={leader.id}>{leader.displayName}</option>)}
-            </Select>
-            <Input aria-label="Task due date" type="date" value={taskForm.dueDate} onChange={(e) => setTaskForm({ ...taskForm, dueDate: e.target.value })} />
-            <Button onClick={addTask} disabled={!taskForm.title.trim()}>
-              <Plus className="w-4 h-4" />
-              Add
-            </Button>
-          </div>
+          {canEditMission && (
+            <div className="mt-4 grid gap-2 md:grid-cols-[1fr_180px_140px_auto]">
+              <Input aria-label="Task title" value={taskForm.title} onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })} placeholder="Add a task or checklist item" />
+              <Select aria-label="Assign task" value={taskForm.assignedToId} onChange={(e) => setTaskForm({ ...taskForm, assignedToId: e.target.value })}>
+                <option value="">Unassigned</option>
+                {leaders.map((leader) => <option key={leader.id} value={leader.id}>{leader.displayName}</option>)}
+              </Select>
+              <Input aria-label="Task due date" type="date" value={taskForm.dueDate} onChange={(e) => setTaskForm({ ...taskForm, dueDate: e.target.value })} />
+              <Button onClick={addTask} disabled={!taskForm.title.trim()}>
+                <Plus className="w-4 h-4" />
+                Add
+              </Button>
+            </div>
+          )}
 
           <div className="mt-4 space-y-2">
             {tasks.length === 0 ? (
@@ -813,7 +843,8 @@ export default function OperationDetailPage() {
                 <button
                   key={task.id}
                   onClick={() => toggleTask(task)}
-                  className="flex w-full items-start gap-3 rounded-2xl border border-slate-100 bg-white p-3 text-left transition-colors hover:bg-slate-50"
+                  disabled={!canEditMission}
+                  className="flex w-full items-start gap-3 rounded-2xl border border-slate-100 bg-white p-3 text-left transition-colors hover:bg-slate-50 disabled:cursor-default disabled:hover:bg-white"
                 >
                   <span className={`mt-0.5 flex h-5 w-5 items-center justify-center rounded-full border ${task.isComplete ? "border-green-500 bg-green-500 text-white" : "border-slate-300"}`}>
                     {task.isComplete && <CheckCircle2 className="w-3.5 h-3.5" />}
@@ -877,33 +908,37 @@ export default function OperationDetailPage() {
           </div>
         </div>
 
-        <div className="mt-4 grid gap-2 lg:grid-cols-[130px_140px_1fr_120px_110px_150px_1fr_auto]">
-          <Select aria-label="Finance type" value={financeForm.type} onChange={(e) => setFinanceForm({ ...financeForm, type: e.target.value as GlobalOperationFinanceType })}>
-            {(Object.keys(FINANCE_TYPE_LABELS) as GlobalOperationFinanceType[]).map((type) => (
-              <option key={type} value={type}>{FINANCE_TYPE_LABELS[type]}</option>
-            ))}
-          </Select>
-          <Select aria-label="Finance status" value={financeForm.status} onChange={(e) => setFinanceForm({ ...financeForm, status: e.target.value as GlobalOperationFinanceStatus })}>
-            {(Object.keys(FINANCE_STATUS_LABELS) as GlobalOperationFinanceStatus[]).map((status) => (
-              <option key={status} value={status}>{FINANCE_STATUS_LABELS[status]}</option>
-            ))}
-          </Select>
-          <Input aria-label="Finance description" value={financeForm.description} onChange={(e) => setFinanceForm({ ...financeForm, description: e.target.value })} placeholder="Flights, venue, outreach materials..." />
-          <Input aria-label="Finance amount" type="number" min={0} value={financeForm.amount} onChange={(e) => setFinanceForm({ ...financeForm, amount: e.target.value })} placeholder="Amount" />
-          <Input aria-label="Finance currency" value={financeForm.currency} onChange={(e) => setFinanceForm({ ...financeForm, currency: e.target.value.toUpperCase() })} />
-          <Input aria-label="Finance date" type="date" value={financeForm.transactionDate} onChange={(e) => setFinanceForm({ ...financeForm, transactionDate: e.target.value })} />
-          <Input aria-label="Receipt URL" value={financeForm.receiptUrl} onChange={(e) => setFinanceForm({ ...financeForm, receiptUrl: e.target.value })} placeholder="Receipt URL" />
-          <Button onClick={addFinanceItem} disabled={!financeForm.description.trim() || !financeForm.amount}>
-            <Plus className="w-4 h-4" />
-            Add
-          </Button>
-        </div>
-        <Input className="mt-2" aria-label="Finance recipient" value={financeForm.recipient} onChange={(e) => setFinanceForm({ ...financeForm, recipient: e.target.value })} placeholder="Recipient, vendor, or team member" />
+        {canEditFinance && (
+          <>
+            <div className="mt-4 grid gap-2 lg:grid-cols-[130px_140px_1fr_120px_110px_150px_1fr_auto]">
+              <Select aria-label="Finance type" value={financeForm.type} onChange={(e) => setFinanceForm({ ...financeForm, type: e.target.value as GlobalOperationFinanceType })}>
+                {(Object.keys(FINANCE_TYPE_LABELS) as GlobalOperationFinanceType[]).map((type) => (
+                  <option key={type} value={type}>{FINANCE_TYPE_LABELS[type]}</option>
+                ))}
+              </Select>
+              <Select aria-label="Finance status" value={financeForm.status} onChange={(e) => setFinanceForm({ ...financeForm, status: e.target.value as GlobalOperationFinanceStatus })}>
+                {(Object.keys(FINANCE_STATUS_LABELS) as GlobalOperationFinanceStatus[]).map((status) => (
+                  <option key={status} value={status}>{FINANCE_STATUS_LABELS[status]}</option>
+                ))}
+              </Select>
+              <Input aria-label="Finance description" value={financeForm.description} onChange={(e) => setFinanceForm({ ...financeForm, description: e.target.value })} placeholder="Flights, venue, outreach materials..." />
+              <Input aria-label="Finance amount" type="number" min={0} value={financeForm.amount} onChange={(e) => setFinanceForm({ ...financeForm, amount: e.target.value })} placeholder="Amount" />
+              <Input aria-label="Finance currency" value={financeForm.currency} onChange={(e) => setFinanceForm({ ...financeForm, currency: e.target.value.toUpperCase() })} />
+              <Input aria-label="Finance date" type="date" value={financeForm.transactionDate} onChange={(e) => setFinanceForm({ ...financeForm, transactionDate: e.target.value })} />
+              <Input aria-label="Receipt URL" value={financeForm.receiptUrl} onChange={(e) => setFinanceForm({ ...financeForm, receiptUrl: e.target.value })} placeholder="Receipt URL" />
+              <Button onClick={addFinanceItem} disabled={!financeForm.description.trim() || !financeForm.amount}>
+                <Plus className="w-4 h-4" />
+                Add
+              </Button>
+            </div>
+            <Input className="mt-2" aria-label="Finance recipient" value={financeForm.recipient} onChange={(e) => setFinanceForm({ ...financeForm, recipient: e.target.value })} placeholder="Recipient, vendor, or team member" />
+          </>
+        )}
 
         <div className="mt-4 overflow-hidden rounded-2xl border border-slate-100">
           {financeItems.length === 0 ? (
             <div className="p-6 text-center text-sm text-slate-500">
-              Add budget lines, disbursements, expenses, and receipt links for this operation.
+              {canEditFinance ? "Add budget lines, disbursements, expenses, and receipt links for this operation." : "No finance entries yet."}
             </div>
           ) : (
             <div className="divide-y divide-slate-100">
@@ -966,50 +1001,54 @@ export default function OperationDetailPage() {
               : "Required procedures remain incomplete before the mission should proceed."}
         </div>
 
-        <div className="mt-4 grid gap-2 lg:grid-cols-[1fr_150px_150px_150px_1fr]">
-          <Input aria-label="Procedure title" value={procedureForm.title} onChange={(e) => setProcedureForm({ ...procedureForm, title: e.target.value })} placeholder="Visa form, safety checklist, outreach playbook..." />
-          <Select aria-label="Procedure type" value={procedureForm.type} onChange={(e) => setProcedureForm({ ...procedureForm, type: e.target.value as GlobalOperationProcedureType })}>
-            {(Object.keys(PROCEDURE_TYPE_LABELS) as GlobalOperationProcedureType[]).map((type) => (
-              <option key={type} value={type}>{PROCEDURE_TYPE_LABELS[type]}</option>
-            ))}
-          </Select>
-          <Select aria-label="Procedure status" value={procedureForm.status} onChange={(e) => setProcedureForm({ ...procedureForm, status: e.target.value as GlobalOperationProcedureStatus })}>
-            {(Object.keys(PROCEDURE_STATUS_LABELS) as GlobalOperationProcedureStatus[]).map((status) => (
-              <option key={status} value={status}>{PROCEDURE_STATUS_LABELS[status]}</option>
-            ))}
-          </Select>
-          <Select aria-label="Procedure owner" value={procedureForm.ownerId} onChange={(e) => setProcedureForm({ ...procedureForm, ownerId: e.target.value })}>
-            <option value="">No owner</option>
-            {leaders.map((leader) => <option key={leader.id} value={leader.id}>{leader.displayName}</option>)}
-          </Select>
-          <Input aria-label="Procedure document URL" value={procedureForm.documentUrl} onChange={(e) => setProcedureForm({ ...procedureForm, documentUrl: e.target.value })} placeholder="Document / form URL" />
-        </div>
+        {canEditMission && (
+          <>
+            <div className="mt-4 grid gap-2 lg:grid-cols-[1fr_150px_150px_150px_1fr]">
+              <Input aria-label="Procedure title" value={procedureForm.title} onChange={(e) => setProcedureForm({ ...procedureForm, title: e.target.value })} placeholder="Visa form, safety checklist, outreach playbook..." />
+              <Select aria-label="Procedure type" value={procedureForm.type} onChange={(e) => setProcedureForm({ ...procedureForm, type: e.target.value as GlobalOperationProcedureType })}>
+                {(Object.keys(PROCEDURE_TYPE_LABELS) as GlobalOperationProcedureType[]).map((type) => (
+                  <option key={type} value={type}>{PROCEDURE_TYPE_LABELS[type]}</option>
+                ))}
+              </Select>
+              <Select aria-label="Procedure status" value={procedureForm.status} onChange={(e) => setProcedureForm({ ...procedureForm, status: e.target.value as GlobalOperationProcedureStatus })}>
+                {(Object.keys(PROCEDURE_STATUS_LABELS) as GlobalOperationProcedureStatus[]).map((status) => (
+                  <option key={status} value={status}>{PROCEDURE_STATUS_LABELS[status]}</option>
+                ))}
+              </Select>
+              <Select aria-label="Procedure owner" value={procedureForm.ownerId} onChange={(e) => setProcedureForm({ ...procedureForm, ownerId: e.target.value })}>
+                <option value="">No owner</option>
+                {leaders.map((leader) => <option key={leader.id} value={leader.id}>{leader.displayName}</option>)}
+              </Select>
+              <Input aria-label="Procedure document URL" value={procedureForm.documentUrl} onChange={(e) => setProcedureForm({ ...procedureForm, documentUrl: e.target.value })} placeholder="Document / form URL" />
+            </div>
 
-        <div className="mt-2 grid gap-2 lg:grid-cols-[160px_1fr_auto]">
-          <Input aria-label="Procedure due date" type="date" value={procedureForm.dueDate} onChange={(e) => setProcedureForm({ ...procedureForm, dueDate: e.target.value })} />
-          <Input aria-label="Procedure notes" value={procedureForm.notes} onChange={(e) => setProcedureForm({ ...procedureForm, notes: e.target.value })} placeholder="Notes, instructions, approval requirements..." />
-          <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700">
-            <input
-              type="checkbox"
-              checked={procedureForm.requiredBeforeMission}
-              onChange={(e) => setProcedureForm({ ...procedureForm, requiredBeforeMission: e.target.checked })}
-              className="h-4 w-4 rounded border-slate-300"
-            />
-            Required before mission
-          </label>
-        </div>
+            <div className="mt-2 grid gap-2 lg:grid-cols-[160px_1fr_auto]">
+              <Input aria-label="Procedure due date" type="date" value={procedureForm.dueDate} onChange={(e) => setProcedureForm({ ...procedureForm, dueDate: e.target.value })} />
+              <Input aria-label="Procedure notes" value={procedureForm.notes} onChange={(e) => setProcedureForm({ ...procedureForm, notes: e.target.value })} placeholder="Notes, instructions, approval requirements..." />
+              <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={procedureForm.requiredBeforeMission}
+                  onChange={(e) => setProcedureForm({ ...procedureForm, requiredBeforeMission: e.target.checked })}
+                  className="h-4 w-4 rounded border-slate-300"
+                />
+                Required before mission
+              </label>
+            </div>
 
-        <div className="mt-2 flex justify-end">
-          <Button onClick={addProcedureItem} disabled={!procedureForm.title.trim()}>
-            <Plus className="w-4 h-4" />
-            Add Procedure
-          </Button>
-        </div>
+            <div className="mt-2 flex justify-end">
+              <Button onClick={addProcedureItem} disabled={!procedureForm.title.trim()}>
+                <Plus className="w-4 h-4" />
+                Add Procedure
+              </Button>
+            </div>
+          </>
+        )}
 
         <div className="mt-4 overflow-hidden rounded-2xl border border-slate-100">
           {procedureItems.length === 0 ? (
             <div className="p-6 text-center text-sm text-slate-500">
-              Add required forms, mission playbooks, safety checks, and approval gates for this operation.
+              {canEditMission ? "Add required forms, mission playbooks, safety checks, and approval gates for this operation." : "No procedures, playbooks, or forms yet."}
             </div>
           ) : (
             <div className="divide-y divide-slate-100">
@@ -1029,11 +1068,13 @@ export default function OperationDetailPage() {
                     {item.documentUrl && <a className="font-semibold text-indigo-600 hover:text-indigo-700" href={item.documentUrl} target="_blank" rel="noreferrer">Open document/form</a>}
                   </div>
                   <div className="flex flex-col gap-2">
-                    <Select aria-label={`Status for ${item.title}`} value={item.status} onChange={(e) => updateProcedureStatus(item, e.target.value as GlobalOperationProcedureStatus)}>
-                      {(Object.keys(PROCEDURE_STATUS_LABELS) as GlobalOperationProcedureStatus[]).map((status) => (
-                        <option key={status} value={status}>{PROCEDURE_STATUS_LABELS[status]}</option>
-                      ))}
-                    </Select>
+                    {canEditMission && (
+                      <Select aria-label={`Status for ${item.title}`} value={item.status} onChange={(e) => updateProcedureStatus(item, e.target.value as GlobalOperationProcedureStatus)}>
+                        {(Object.keys(PROCEDURE_STATUS_LABELS) as GlobalOperationProcedureStatus[]).map((status) => (
+                          <option key={status} value={status}>{PROCEDURE_STATUS_LABELS[status]}</option>
+                        ))}
+                      </Select>
+                    )}
                     <span className={`rounded-full px-2.5 py-1 text-center text-xs font-bold ${
                       item.status === "complete"
                         ? "bg-green-100 text-green-800"
@@ -1068,52 +1109,56 @@ export default function OperationDetailPage() {
           </div>
         </div>
 
-        <div className="mt-4 grid gap-2 lg:grid-cols-[1fr_180px_140px_1fr_1fr]">
-          <Input aria-label="Traveler name" value={travelForm.travelerName} onChange={(e) => setTravelForm({ ...travelForm, travelerName: e.target.value })} placeholder="Traveler name" />
-          <Select aria-label="Linked team member" value={travelForm.travelerUserId} onChange={(e) => {
-            const leader = leaders.find((item) => item.id === e.target.value);
-            setTravelForm({ ...travelForm, travelerUserId: e.target.value, travelerName: leader?.displayName || travelForm.travelerName });
-          }}>
-            <option value="">No linked member</option>
-            {leaders.map((leader) => <option key={leader.id} value={leader.id}>{leader.displayName}</option>)}
-          </Select>
-          <Select aria-label="Travel status" value={travelForm.status} onChange={(e) => setTravelForm({ ...travelForm, status: e.target.value as GlobalOperationTravelStatus })}>
-            {(Object.keys(TRAVEL_STATUS_LABELS) as GlobalOperationTravelStatus[]).map((status) => (
-              <option key={status} value={status}>{TRAVEL_STATUS_LABELS[status]}</option>
-            ))}
-          </Select>
-          <Input aria-label="Origin" value={travelForm.origin} onChange={(e) => setTravelForm({ ...travelForm, origin: e.target.value })} placeholder="Origin" />
-          <Input aria-label="Destination" value={travelForm.destination} onChange={(e) => setTravelForm({ ...travelForm, destination: e.target.value })} placeholder="Destination" />
-        </div>
+        {canEditTravel && (
+          <>
+            <div className="mt-4 grid gap-2 lg:grid-cols-[1fr_180px_140px_1fr_1fr]">
+              <Input aria-label="Traveler name" value={travelForm.travelerName} onChange={(e) => setTravelForm({ ...travelForm, travelerName: e.target.value })} placeholder="Traveler name" />
+              <Select aria-label="Linked team member" value={travelForm.travelerUserId} onChange={(e) => {
+                const leader = leaders.find((item) => item.id === e.target.value);
+                setTravelForm({ ...travelForm, travelerUserId: e.target.value, travelerName: leader?.displayName || travelForm.travelerName });
+              }}>
+                <option value="">No linked member</option>
+                {leaders.map((leader) => <option key={leader.id} value={leader.id}>{leader.displayName}</option>)}
+              </Select>
+              <Select aria-label="Travel status" value={travelForm.status} onChange={(e) => setTravelForm({ ...travelForm, status: e.target.value as GlobalOperationTravelStatus })}>
+                {(Object.keys(TRAVEL_STATUS_LABELS) as GlobalOperationTravelStatus[]).map((status) => (
+                  <option key={status} value={status}>{TRAVEL_STATUS_LABELS[status]}</option>
+                ))}
+              </Select>
+              <Input aria-label="Origin" value={travelForm.origin} onChange={(e) => setTravelForm({ ...travelForm, origin: e.target.value })} placeholder="Origin" />
+              <Input aria-label="Destination" value={travelForm.destination} onChange={(e) => setTravelForm({ ...travelForm, destination: e.target.value })} placeholder="Destination" />
+            </div>
 
-        <div className="mt-2 grid gap-2 lg:grid-cols-4">
-          <Input aria-label="Arrival date" type="date" value={travelForm.arrivalDate} onChange={(e) => setTravelForm({ ...travelForm, arrivalDate: e.target.value })} />
-          <Input aria-label="Departure date" type="date" value={travelForm.departureDate} onChange={(e) => setTravelForm({ ...travelForm, departureDate: e.target.value })} />
-          <Input aria-label="Flight details" value={travelForm.flightInfo} onChange={(e) => setTravelForm({ ...travelForm, flightInfo: e.target.value })} placeholder="Flight / airline / booking" />
-          <Input aria-label="Accommodation" value={travelForm.accommodation} onChange={(e) => setTravelForm({ ...travelForm, accommodation: e.target.value })} placeholder="Hotel / host / address" />
-        </div>
+            <div className="mt-2 grid gap-2 lg:grid-cols-4">
+              <Input aria-label="Arrival date" type="date" value={travelForm.arrivalDate} onChange={(e) => setTravelForm({ ...travelForm, arrivalDate: e.target.value })} />
+              <Input aria-label="Departure date" type="date" value={travelForm.departureDate} onChange={(e) => setTravelForm({ ...travelForm, departureDate: e.target.value })} />
+              <Input aria-label="Flight details" value={travelForm.flightInfo} onChange={(e) => setTravelForm({ ...travelForm, flightInfo: e.target.value })} placeholder="Flight / airline / booking" />
+              <Input aria-label="Accommodation" value={travelForm.accommodation} onChange={(e) => setTravelForm({ ...travelForm, accommodation: e.target.value })} placeholder="Hotel / host / address" />
+            </div>
 
-        <div className="mt-2 grid gap-2 lg:grid-cols-4">
-          <Input aria-label="Room assignment" value={travelForm.roomAssignment} onChange={(e) => setTravelForm({ ...travelForm, roomAssignment: e.target.value })} placeholder="Room assignment" />
-          <Input aria-label="Local transport" value={travelForm.localTransport} onChange={(e) => setTravelForm({ ...travelForm, localTransport: e.target.value })} placeholder="Local transport" />
-          <Input aria-label="Pickup plan" value={travelForm.pickupPlan} onChange={(e) => setTravelForm({ ...travelForm, pickupPlan: e.target.value })} placeholder="Airport pickup plan" />
-          <Input aria-label="Emergency contact" value={travelForm.emergencyContact} onChange={(e) => setTravelForm({ ...travelForm, emergencyContact: e.target.value })} placeholder="Emergency contact" />
-        </div>
+            <div className="mt-2 grid gap-2 lg:grid-cols-4">
+              <Input aria-label="Room assignment" value={travelForm.roomAssignment} onChange={(e) => setTravelForm({ ...travelForm, roomAssignment: e.target.value })} placeholder="Room assignment" />
+              <Input aria-label="Local transport" value={travelForm.localTransport} onChange={(e) => setTravelForm({ ...travelForm, localTransport: e.target.value })} placeholder="Local transport" />
+              <Input aria-label="Pickup plan" value={travelForm.pickupPlan} onChange={(e) => setTravelForm({ ...travelForm, pickupPlan: e.target.value })} placeholder="Airport pickup plan" />
+              <Input aria-label="Emergency contact" value={travelForm.emergencyContact} onChange={(e) => setTravelForm({ ...travelForm, emergencyContact: e.target.value })} placeholder="Emergency contact" />
+            </div>
 
-        <div className="mt-2 grid gap-2 lg:grid-cols-[1fr_1fr_2fr_auto]">
-          <Input aria-label="Passport status" value={travelForm.passportStatus} onChange={(e) => setTravelForm({ ...travelForm, passportStatus: e.target.value })} placeholder="Passport status" />
-          <Input aria-label="Visa status" value={travelForm.visaStatus} onChange={(e) => setTravelForm({ ...travelForm, visaStatus: e.target.value })} placeholder="Visa status" />
-          <Input aria-label="Travel notes" value={travelForm.notes} onChange={(e) => setTravelForm({ ...travelForm, notes: e.target.value })} placeholder="Movement notes, dietary needs, risks..." />
-          <Button onClick={addTravelItem} disabled={!travelForm.travelerName.trim()}>
-            <Plus className="w-4 h-4" />
-            Add Traveler
-          </Button>
-        </div>
+            <div className="mt-2 grid gap-2 lg:grid-cols-[1fr_1fr_2fr_auto]">
+              <Input aria-label="Passport status" value={travelForm.passportStatus} onChange={(e) => setTravelForm({ ...travelForm, passportStatus: e.target.value })} placeholder="Passport status" />
+              <Input aria-label="Visa status" value={travelForm.visaStatus} onChange={(e) => setTravelForm({ ...travelForm, visaStatus: e.target.value })} placeholder="Visa status" />
+              <Input aria-label="Travel notes" value={travelForm.notes} onChange={(e) => setTravelForm({ ...travelForm, notes: e.target.value })} placeholder="Movement notes, dietary needs, risks..." />
+              <Button onClick={addTravelItem} disabled={!travelForm.travelerName.trim()}>
+                <Plus className="w-4 h-4" />
+                Add Traveler
+              </Button>
+            </div>
+          </>
+        )}
 
         <div className="mt-4 overflow-hidden rounded-2xl border border-slate-100">
           {travelItems.length === 0 ? (
             <div className="p-6 text-center text-sm text-slate-500">
-              Add travelers, volunteers, team members, accommodation, flights, pickup, and document status for this mission.
+              {canEditTravel ? "Add travelers, volunteers, team members, accommodation, flights, pickup, and document status for this mission." : "No travel manifest entries yet."}
             </div>
           ) : (
             <div className="divide-y divide-slate-100">

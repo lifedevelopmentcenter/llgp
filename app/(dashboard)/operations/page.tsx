@@ -46,6 +46,7 @@ import type {
   GlobalOperationTravelItem,
   Nation,
   UserProfile,
+  UserRole,
 } from "@/lib/types";
 import toast from "react-hot-toast";
 
@@ -149,6 +150,24 @@ const emptySignals: OperationSignals = {
   financeThisMonth: 0,
 };
 
+const OPS_ACCESS_ROLES: UserRole[] = [
+  "global_admin",
+  "global_team_lead",
+  "global_operations_member",
+  "finance_coordinator",
+  "travel_coordinator",
+  "missions_coordinator",
+];
+
+const OPS_EDITOR_ROLES: UserRole[] = [
+  "global_admin",
+  "global_team_lead",
+  "global_operations_member",
+  "missions_coordinator",
+];
+
+const hasRole = (role: UserRole | undefined, roles: UserRole[]) => Boolean(role && roles.includes(role));
+
 export default function OperationsPage() {
   const { profile } = useAuth();
   const [records, setRecords] = useState<GlobalOperationRecord[]>([]);
@@ -161,6 +180,8 @@ export default function OperationsPage() {
   const [categoryFilter, setCategoryFilter] = useState<"all" | GlobalOperationCategory>("all");
   const [statusFilter, setStatusFilter] = useState<"all" | GlobalOperationStatus>("all");
   const [form, setForm] = useState(initialForm);
+  const canAccessOperations = hasRole(profile?.role, OPS_ACCESS_ROLES);
+  const canEditOperations = hasRole(profile?.role, OPS_EDITOR_ROLES);
 
   useEffect(() => {
     if (!profile) return;
@@ -270,7 +291,7 @@ export default function OperationsPage() {
   }, [records]);
 
   const createRecord = async () => {
-    if (!profile || !form.title.trim()) return;
+    if (!profile || !canEditOperations || !form.title.trim()) return;
 
     setSaving(true);
     try {
@@ -314,6 +335,7 @@ export default function OperationsPage() {
   };
 
   const updateStatus = async (record: GlobalOperationRecord, status: GlobalOperationStatus) => {
+    if (!canEditOperations) return;
     try {
       await updateDoc(doc(db, COLLECTIONS.GLOBAL_OPERATIONS, record.id), {
         status,
@@ -328,12 +350,12 @@ export default function OperationsPage() {
 
   if (loading) return <PageLoader />;
 
-  if (profile?.role !== "global_admin") {
+  if (!canAccessOperations) {
     return (
       <EmptyState
         icon={<ClipboardList className="w-6 h-6" />}
         title="Global operations is restricted"
-        description="Only global admins can administer mission operations, funds, travel, and procedures."
+        description="Only assigned global operations roles can access mission operations, funds, travel, and procedures."
       />
     );
   }
@@ -351,10 +373,12 @@ export default function OperationsPage() {
               Use this workspace to administer the global team, national leader meetings, event playbooks, mission budgets, travel logistics, and field procedures.
             </p>
           </div>
-          <Button onClick={() => setModalOpen(true)} className="bg-white text-slate-950 hover:bg-slate-100">
-            <Plus className="w-4 h-4" />
-            New Operations Record
-          </Button>
+          {canEditOperations && (
+            <Button onClick={() => setModalOpen(true)} className="bg-white text-slate-950 hover:bg-slate-100">
+              <Plus className="w-4 h-4" />
+              New Operations Record
+            </Button>
+          )}
         </div>
       </div>
 
@@ -497,8 +521,8 @@ export default function OperationsPage() {
             <EmptyState
               icon={<ClipboardList className="w-6 h-6" />}
               title="No operation records yet"
-              description="Create the first record for a mission event, team assignment, meeting, funding item, travel plan, or procedure."
-              action={<Button onClick={() => setModalOpen(true)}><Plus className="w-4 h-4" />Create Record</Button>}
+              description={canEditOperations ? "Create the first record for a mission event, team assignment, meeting, funding item, travel plan, or procedure." : "No mission operations have been created yet."}
+              action={canEditOperations ? <Button onClick={() => setModalOpen(true)}><Plus className="w-4 h-4" />Create Record</Button> : undefined}
             />
           </div>
         ) : (
@@ -544,10 +568,10 @@ export default function OperationsPage() {
                       <Button variant="secondary" size="sm" onClick={() => window.location.assign(`/operations/${record.id}`)}>
                         Open
                       </Button>
-                      {record.status !== "in_progress" && (
+                      {canEditOperations && record.status !== "in_progress" && (
                         <Button variant="secondary" size="sm" onClick={() => updateStatus(record, "in_progress")}>Start</Button>
                       )}
-                      {record.status !== "completed" && (
+                      {canEditOperations && record.status !== "completed" && (
                         <Button variant="secondary" size="sm" onClick={() => updateStatus(record, "completed")}>
                           <CheckCircle2 className="w-3.5 h-3.5" />
                           Complete
