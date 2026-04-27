@@ -42,6 +42,9 @@ import { Modal } from "@/components/ui/Modal";
 import { PageLoader } from "@/components/ui/Spinner";
 import type {
   GlobalOperationCategory,
+  GlobalOperationFinanceItem,
+  GlobalOperationFinanceStatus,
+  GlobalOperationFinanceType,
   GlobalOperationNote,
   GlobalOperationRecord,
   GlobalOperationStatus,
@@ -66,6 +69,21 @@ const STATUS_LABELS: Record<GlobalOperationStatus, string> = {
   waiting: "Waiting",
   completed: "Completed",
   blocked: "Blocked",
+};
+
+const FINANCE_TYPE_LABELS: Record<GlobalOperationFinanceType, string> = {
+  budget: "Budget",
+  disbursement: "Disbursement",
+  expense: "Expense",
+};
+
+const FINANCE_STATUS_LABELS: Record<GlobalOperationFinanceStatus, string> = {
+  planned: "Planned",
+  requested: "Requested",
+  approved: "Approved",
+  sent: "Sent",
+  spent: "Spent",
+  reconciled: "Reconciled",
 };
 
 const statusVariant = (status: GlobalOperationStatus) => {
@@ -120,6 +138,7 @@ export default function OperationDetailPage() {
   const [record, setRecord] = useState<GlobalOperationRecord | null>(null);
   const [tasks, setTasks] = useState<GlobalOperationTask[]>([]);
   const [notes, setNotes] = useState<GlobalOperationNote[]>([]);
+  const [financeItems, setFinanceItems] = useState<GlobalOperationFinanceItem[]>([]);
   const [nations, setNations] = useState<Nation[]>([]);
   const [leaders, setLeaders] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -128,6 +147,16 @@ export default function OperationDetailPage() {
   const [operationForm, setOperationForm] = useState<any>(null);
   const [taskForm, setTaskForm] = useState({ title: "", assignedToId: "", dueDate: "" });
   const [noteBody, setNoteBody] = useState("");
+  const [financeForm, setFinanceForm] = useState({
+    type: "budget" as GlobalOperationFinanceType,
+    status: "planned" as GlobalOperationFinanceStatus,
+    description: "",
+    amount: "",
+    currency: "USD",
+    recipient: "",
+    transactionDate: "",
+    receiptUrl: "",
+  });
 
   useEffect(() => {
     if (!profile || !operationId) return;
@@ -135,10 +164,11 @@ export default function OperationDetailPage() {
     const load = async () => {
       try {
         const operationRef = doc(db, COLLECTIONS.GLOBAL_OPERATIONS, operationId);
-        const [operationSnap, tasksSnap, notesSnap, nationsSnap, usersSnap] = await Promise.all([
+        const [operationSnap, tasksSnap, notesSnap, financeSnap, nationsSnap, usersSnap] = await Promise.all([
           getDoc(operationRef),
           getDocs(query(collection(operationRef, "tasks"), orderBy("createdAt", "asc"))),
           getDocs(query(collection(operationRef, "notes"), orderBy("createdAt", "desc"))),
+          getDocs(query(collection(operationRef, "finance"), orderBy("createdAt", "desc"))),
           getDocs(query(collection(db, COLLECTIONS.NATIONS), orderBy("name"))),
           getDocs(query(collection(db, COLLECTIONS.USERS), orderBy("displayName"))),
         ]);
@@ -153,6 +183,7 @@ export default function OperationDetailPage() {
         setOperationForm(operationFormFrom(operation));
         setTasks(tasksSnap.docs.map((d) => ({ id: d.id, ...d.data() } as GlobalOperationTask)));
         setNotes(notesSnap.docs.map((d) => ({ id: d.id, ...d.data() } as GlobalOperationNote)));
+        setFinanceItems(financeSnap.docs.map((d) => ({ id: d.id, ...d.data() } as GlobalOperationFinanceItem)));
         setNations(nationsSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Nation)));
         setLeaders(
           usersSnap.docs
@@ -174,6 +205,18 @@ export default function OperationDetailPage() {
     if (tasks.length === 0) return 0;
     return Math.round((tasks.filter((task) => task.isComplete).length / tasks.length) * 100);
   }, [tasks]);
+
+  const financeSummary = useMemo(() => {
+    return financeItems.reduce(
+      (summary, item) => {
+        if (item.type === "budget") summary.budget += Number(item.amount) || 0;
+        if (item.type === "disbursement") summary.sent += Number(item.amount) || 0;
+        if (item.type === "expense") summary.spent += Number(item.amount) || 0;
+        return summary;
+      },
+      { budget: 0, sent: 0, spent: 0 }
+    );
+  }, [financeItems]);
 
   const updateOperation = async () => {
     if (!record || !operationForm?.title?.trim()) return;
@@ -271,6 +314,41 @@ export default function OperationDetailPage() {
     } catch (error) {
       console.error(error);
       toast.error("Could not add note.");
+    }
+  };
+
+  const addFinanceItem = async () => {
+    if (!record || !profile || !financeForm.description.trim() || !financeForm.amount) return;
+    try {
+      const data = {
+        type: financeForm.type,
+        status: financeForm.status,
+        description: financeForm.description.trim(),
+        amount: Number(financeForm.amount),
+        currency: financeForm.currency || record.currency || "USD",
+        recipient: financeForm.recipient.trim() || null,
+        receiptUrl: financeForm.receiptUrl.trim() || null,
+        transactionDate: financeForm.transactionDate ? Timestamp.fromDate(new Date(financeForm.transactionDate)) : null,
+        createdBy: profile.id,
+        createdByName: profile.displayName,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      };
+      const ref = await addDoc(collection(db, COLLECTIONS.GLOBAL_OPERATIONS, record.id, "finance"), data);
+      setFinanceItems((prev) => [{ id: ref.id, ...data, createdAt: Timestamp.now(), updatedAt: Timestamp.now() } as GlobalOperationFinanceItem, ...prev]);
+      setFinanceForm({
+        type: "budget",
+        status: "planned",
+        description: "",
+        amount: "",
+        currency: record.currency || "USD",
+        recipient: "",
+        transactionDate: "",
+        receiptUrl: "",
+      });
+    } catch (error) {
+      console.error(error);
+      toast.error("Could not add finance item.");
     }
   };
 
@@ -448,6 +526,79 @@ export default function OperationDetailPage() {
         </Card>
       </div>
 
+      <Card className="p-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <WalletCards className="w-4 h-4 text-amber-600" />
+              <h2 className="font-black text-slate-900">Finance Ledger</h2>
+            </div>
+            <p className="mt-1 text-sm text-slate-500">Track mission budgets, funds sent, expenses, receipts, and reconciliation.</p>
+          </div>
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <FinanceStat label="Budget" value={financeSummary.budget} currency={record.currency || "USD"} />
+            <FinanceStat label="Sent" value={financeSummary.sent} currency={record.currency || "USD"} />
+            <FinanceStat label="Spent" value={financeSummary.spent} currency={record.currency || "USD"} />
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-2 lg:grid-cols-[130px_140px_1fr_120px_110px_150px_1fr_auto]">
+          <Select aria-label="Finance type" value={financeForm.type} onChange={(e) => setFinanceForm({ ...financeForm, type: e.target.value as GlobalOperationFinanceType })}>
+            {(Object.keys(FINANCE_TYPE_LABELS) as GlobalOperationFinanceType[]).map((type) => (
+              <option key={type} value={type}>{FINANCE_TYPE_LABELS[type]}</option>
+            ))}
+          </Select>
+          <Select aria-label="Finance status" value={financeForm.status} onChange={(e) => setFinanceForm({ ...financeForm, status: e.target.value as GlobalOperationFinanceStatus })}>
+            {(Object.keys(FINANCE_STATUS_LABELS) as GlobalOperationFinanceStatus[]).map((status) => (
+              <option key={status} value={status}>{FINANCE_STATUS_LABELS[status]}</option>
+            ))}
+          </Select>
+          <Input aria-label="Finance description" value={financeForm.description} onChange={(e) => setFinanceForm({ ...financeForm, description: e.target.value })} placeholder="Flights, venue, outreach materials..." />
+          <Input aria-label="Finance amount" type="number" min={0} value={financeForm.amount} onChange={(e) => setFinanceForm({ ...financeForm, amount: e.target.value })} placeholder="Amount" />
+          <Input aria-label="Finance currency" value={financeForm.currency} onChange={(e) => setFinanceForm({ ...financeForm, currency: e.target.value.toUpperCase() })} />
+          <Input aria-label="Finance date" type="date" value={financeForm.transactionDate} onChange={(e) => setFinanceForm({ ...financeForm, transactionDate: e.target.value })} />
+          <Input aria-label="Receipt URL" value={financeForm.receiptUrl} onChange={(e) => setFinanceForm({ ...financeForm, receiptUrl: e.target.value })} placeholder="Receipt URL" />
+          <Button onClick={addFinanceItem} disabled={!financeForm.description.trim() || !financeForm.amount}>
+            <Plus className="w-4 h-4" />
+            Add
+          </Button>
+        </div>
+        <Input className="mt-2" aria-label="Finance recipient" value={financeForm.recipient} onChange={(e) => setFinanceForm({ ...financeForm, recipient: e.target.value })} placeholder="Recipient, vendor, or team member" />
+
+        <div className="mt-4 overflow-hidden rounded-2xl border border-slate-100">
+          {financeItems.length === 0 ? (
+            <div className="p-6 text-center text-sm text-slate-500">
+              Add budget lines, disbursements, expenses, and receipt links for this operation.
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {financeItems.map((item) => (
+                <div key={item.id} className="grid gap-2 p-3 text-sm md:grid-cols-[120px_120px_1fr_120px] md:items-center">
+                  <div>
+                    <p className="font-black text-slate-900">{FINANCE_TYPE_LABELS[item.type]}</p>
+                    <p className="text-xs text-slate-400">{FINANCE_STATUS_LABELS[item.status]}</p>
+                  </div>
+                  <p className="font-black text-slate-900">{item.currency} {Number(item.amount || 0).toLocaleString()}</p>
+                  <div>
+                    <p className="font-semibold text-slate-700">{item.description}</p>
+                    <p className="text-xs text-slate-500">
+                      {item.recipient || "No recipient"} · {formatDate(item.transactionDate)}
+                    </p>
+                  </div>
+                  <div className="md:text-right">
+                    {item.receiptUrl ? (
+                      <a className="font-semibold text-indigo-600 hover:text-indigo-700" href={item.receiptUrl} target="_blank" rel="noreferrer">Receipt</a>
+                    ) : (
+                      <span className="text-xs text-slate-400">No receipt</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </Card>
+
       <Modal open={editOpen} onClose={() => setEditOpen(false)} title="Edit Operation" size="xl">
         {operationForm && (
           <div className="space-y-4">
@@ -515,6 +666,15 @@ function InfoTile({ label, value }: { label: string; value: string }) {
     <div className="rounded-2xl bg-slate-50 p-3">
       <p className="text-xs font-bold uppercase tracking-widest text-slate-400">{label}</p>
       <p className="mt-1 truncate text-sm font-black text-slate-900">{value}</p>
+    </div>
+  );
+}
+
+function FinanceStat({ label, value, currency }: { label: string; value: number; currency: string }) {
+  return (
+    <div className="rounded-2xl bg-amber-50 px-3 py-2">
+      <p className="text-[10px] font-black uppercase tracking-widest text-amber-700">{label}</p>
+      <p className="mt-1 text-sm font-black text-slate-900">{currency} {value.toLocaleString()}</p>
     </div>
   );
 }

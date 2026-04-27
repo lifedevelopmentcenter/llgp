@@ -223,6 +223,35 @@ export interface GlobalOperationNote {
   createdAt: Timestamp;
 }
 
+export type GlobalOperationFinanceType =
+  | "budget"
+  | "disbursement"
+  | "expense";
+
+export type GlobalOperationFinanceStatus =
+  | "planned"
+  | "requested"
+  | "approved"
+  | "sent"
+  | "spent"
+  | "reconciled";
+
+export interface GlobalOperationFinanceItem {
+  id: string;
+  type: GlobalOperationFinanceType;
+  status: GlobalOperationFinanceStatus;
+  description: string;
+  amount: number;
+  currency: string;
+  recipient?: string | null;
+  receiptUrl?: string | null;
+  transactionDate?: Timestamp | null;
+  createdBy: string;
+  createdByName: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
 // ----------------------------------------------------------
 // VENTURE 100 TRAINING
 // ----------------------------------------------------------
