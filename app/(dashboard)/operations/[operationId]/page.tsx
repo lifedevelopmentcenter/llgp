@@ -49,6 +49,8 @@ import type {
   GlobalOperationRecord,
   GlobalOperationStatus,
   GlobalOperationTask,
+  GlobalOperationTravelItem,
+  GlobalOperationTravelStatus,
   Nation,
   UserProfile,
 } from "@/lib/types";
@@ -84,6 +86,14 @@ const FINANCE_STATUS_LABELS: Record<GlobalOperationFinanceStatus, string> = {
   sent: "Sent",
   spent: "Spent",
   reconciled: "Reconciled",
+};
+
+const TRAVEL_STATUS_LABELS: Record<GlobalOperationTravelStatus, string> = {
+  planning: "Planning",
+  booked: "Booked",
+  arrived: "Arrived",
+  completed: "Completed",
+  issue: "Issue",
 };
 
 const statusVariant = (status: GlobalOperationStatus) => {
@@ -139,6 +149,7 @@ export default function OperationDetailPage() {
   const [tasks, setTasks] = useState<GlobalOperationTask[]>([]);
   const [notes, setNotes] = useState<GlobalOperationNote[]>([]);
   const [financeItems, setFinanceItems] = useState<GlobalOperationFinanceItem[]>([]);
+  const [travelItems, setTravelItems] = useState<GlobalOperationTravelItem[]>([]);
   const [nations, setNations] = useState<Nation[]>([]);
   const [leaders, setLeaders] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -157,6 +168,24 @@ export default function OperationDetailPage() {
     transactionDate: "",
     receiptUrl: "",
   });
+  const [travelForm, setTravelForm] = useState({
+    travelerName: "",
+    travelerUserId: "",
+    status: "planning" as GlobalOperationTravelStatus,
+    origin: "",
+    destination: "",
+    arrivalDate: "",
+    departureDate: "",
+    flightInfo: "",
+    accommodation: "",
+    roomAssignment: "",
+    localTransport: "",
+    pickupPlan: "",
+    passportStatus: "",
+    visaStatus: "",
+    emergencyContact: "",
+    notes: "",
+  });
 
   useEffect(() => {
     if (!profile || !operationId) return;
@@ -164,11 +193,12 @@ export default function OperationDetailPage() {
     const load = async () => {
       try {
         const operationRef = doc(db, COLLECTIONS.GLOBAL_OPERATIONS, operationId);
-        const [operationSnap, tasksSnap, notesSnap, financeSnap, nationsSnap, usersSnap] = await Promise.all([
+        const [operationSnap, tasksSnap, notesSnap, financeSnap, travelSnap, nationsSnap, usersSnap] = await Promise.all([
           getDoc(operationRef),
           getDocs(query(collection(operationRef, "tasks"), orderBy("createdAt", "asc"))),
           getDocs(query(collection(operationRef, "notes"), orderBy("createdAt", "desc"))),
           getDocs(query(collection(operationRef, "finance"), orderBy("createdAt", "desc"))),
+          getDocs(query(collection(operationRef, "travel"), orderBy("createdAt", "desc"))),
           getDocs(query(collection(db, COLLECTIONS.NATIONS), orderBy("name"))),
           getDocs(query(collection(db, COLLECTIONS.USERS), orderBy("displayName"))),
         ]);
@@ -184,6 +214,7 @@ export default function OperationDetailPage() {
         setTasks(tasksSnap.docs.map((d) => ({ id: d.id, ...d.data() } as GlobalOperationTask)));
         setNotes(notesSnap.docs.map((d) => ({ id: d.id, ...d.data() } as GlobalOperationNote)));
         setFinanceItems(financeSnap.docs.map((d) => ({ id: d.id, ...d.data() } as GlobalOperationFinanceItem)));
+        setTravelItems(travelSnap.docs.map((d) => ({ id: d.id, ...d.data() } as GlobalOperationTravelItem)));
         setNations(nationsSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Nation)));
         setLeaders(
           usersSnap.docs
@@ -217,6 +248,15 @@ export default function OperationDetailPage() {
       { budget: 0, sent: 0, spent: 0 }
     );
   }, [financeItems]);
+
+  const travelSummary = useMemo(() => {
+    return {
+      total: travelItems.length,
+      booked: travelItems.filter((item) => ["booked", "arrived", "completed"].includes(item.status)).length,
+      issues: travelItems.filter((item) => item.status === "issue").length,
+      arrived: travelItems.filter((item) => item.status === "arrived" || item.status === "completed").length,
+    };
+  }, [travelItems]);
 
   const updateOperation = async () => {
     if (!record || !operationForm?.title?.trim()) return;
@@ -349,6 +389,58 @@ export default function OperationDetailPage() {
     } catch (error) {
       console.error(error);
       toast.error("Could not add finance item.");
+    }
+  };
+
+  const addTravelItem = async () => {
+    if (!record || !profile || !travelForm.travelerName.trim()) return;
+    try {
+      const traveler = leaders.find((leader) => leader.id === travelForm.travelerUserId);
+      const data = {
+        travelerName: traveler?.displayName || travelForm.travelerName.trim(),
+        travelerUserId: traveler?.id || null,
+        status: travelForm.status,
+        origin: travelForm.origin.trim() || null,
+        destination: travelForm.destination.trim() || null,
+        arrivalDate: travelForm.arrivalDate ? Timestamp.fromDate(new Date(travelForm.arrivalDate)) : null,
+        departureDate: travelForm.departureDate ? Timestamp.fromDate(new Date(travelForm.departureDate)) : null,
+        flightInfo: travelForm.flightInfo.trim() || null,
+        accommodation: travelForm.accommodation.trim() || null,
+        roomAssignment: travelForm.roomAssignment.trim() || null,
+        localTransport: travelForm.localTransport.trim() || null,
+        pickupPlan: travelForm.pickupPlan.trim() || null,
+        passportStatus: travelForm.passportStatus.trim() || null,
+        visaStatus: travelForm.visaStatus.trim() || null,
+        emergencyContact: travelForm.emergencyContact.trim() || null,
+        notes: travelForm.notes.trim() || null,
+        createdBy: profile.id,
+        createdByName: profile.displayName,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      };
+      const ref = await addDoc(collection(db, COLLECTIONS.GLOBAL_OPERATIONS, record.id, "travel"), data);
+      setTravelItems((prev) => [{ id: ref.id, ...data, createdAt: Timestamp.now(), updatedAt: Timestamp.now() } as GlobalOperationTravelItem, ...prev]);
+      setTravelForm({
+        travelerName: "",
+        travelerUserId: "",
+        status: "planning",
+        origin: "",
+        destination: "",
+        arrivalDate: "",
+        departureDate: "",
+        flightInfo: "",
+        accommodation: "",
+        roomAssignment: "",
+        localTransport: "",
+        pickupPlan: "",
+        passportStatus: "",
+        visaStatus: "",
+        emergencyContact: "",
+        notes: "",
+      });
+    } catch (error) {
+      console.error(error);
+      toast.error("Could not add travel item.");
     }
   };
 
@@ -599,6 +691,103 @@ export default function OperationDetailPage() {
         </div>
       </Card>
 
+      <Card className="p-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <Plane className="w-4 h-4 text-rose-600" />
+              <h2 className="font-black text-slate-900">Travel Manifest</h2>
+            </div>
+            <p className="mt-1 text-sm text-slate-500">Coordinate travelers, flights, accommodation, pickup, documents, and local movement.</p>
+          </div>
+          <div className="grid grid-cols-4 gap-2 text-center">
+            <TravelStat label="Travelers" value={travelSummary.total} />
+            <TravelStat label="Booked" value={travelSummary.booked} />
+            <TravelStat label="Arrived" value={travelSummary.arrived} />
+            <TravelStat label="Issues" value={travelSummary.issues} tone="issue" />
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-2 lg:grid-cols-[1fr_180px_140px_1fr_1fr]">
+          <Input aria-label="Traveler name" value={travelForm.travelerName} onChange={(e) => setTravelForm({ ...travelForm, travelerName: e.target.value })} placeholder="Traveler name" />
+          <Select aria-label="Linked team member" value={travelForm.travelerUserId} onChange={(e) => {
+            const leader = leaders.find((item) => item.id === e.target.value);
+            setTravelForm({ ...travelForm, travelerUserId: e.target.value, travelerName: leader?.displayName || travelForm.travelerName });
+          }}>
+            <option value="">No linked member</option>
+            {leaders.map((leader) => <option key={leader.id} value={leader.id}>{leader.displayName}</option>)}
+          </Select>
+          <Select aria-label="Travel status" value={travelForm.status} onChange={(e) => setTravelForm({ ...travelForm, status: e.target.value as GlobalOperationTravelStatus })}>
+            {(Object.keys(TRAVEL_STATUS_LABELS) as GlobalOperationTravelStatus[]).map((status) => (
+              <option key={status} value={status}>{TRAVEL_STATUS_LABELS[status]}</option>
+            ))}
+          </Select>
+          <Input aria-label="Origin" value={travelForm.origin} onChange={(e) => setTravelForm({ ...travelForm, origin: e.target.value })} placeholder="Origin" />
+          <Input aria-label="Destination" value={travelForm.destination} onChange={(e) => setTravelForm({ ...travelForm, destination: e.target.value })} placeholder="Destination" />
+        </div>
+
+        <div className="mt-2 grid gap-2 lg:grid-cols-4">
+          <Input aria-label="Arrival date" type="date" value={travelForm.arrivalDate} onChange={(e) => setTravelForm({ ...travelForm, arrivalDate: e.target.value })} />
+          <Input aria-label="Departure date" type="date" value={travelForm.departureDate} onChange={(e) => setTravelForm({ ...travelForm, departureDate: e.target.value })} />
+          <Input aria-label="Flight details" value={travelForm.flightInfo} onChange={(e) => setTravelForm({ ...travelForm, flightInfo: e.target.value })} placeholder="Flight / airline / booking" />
+          <Input aria-label="Accommodation" value={travelForm.accommodation} onChange={(e) => setTravelForm({ ...travelForm, accommodation: e.target.value })} placeholder="Hotel / host / address" />
+        </div>
+
+        <div className="mt-2 grid gap-2 lg:grid-cols-4">
+          <Input aria-label="Room assignment" value={travelForm.roomAssignment} onChange={(e) => setTravelForm({ ...travelForm, roomAssignment: e.target.value })} placeholder="Room assignment" />
+          <Input aria-label="Local transport" value={travelForm.localTransport} onChange={(e) => setTravelForm({ ...travelForm, localTransport: e.target.value })} placeholder="Local transport" />
+          <Input aria-label="Pickup plan" value={travelForm.pickupPlan} onChange={(e) => setTravelForm({ ...travelForm, pickupPlan: e.target.value })} placeholder="Airport pickup plan" />
+          <Input aria-label="Emergency contact" value={travelForm.emergencyContact} onChange={(e) => setTravelForm({ ...travelForm, emergencyContact: e.target.value })} placeholder="Emergency contact" />
+        </div>
+
+        <div className="mt-2 grid gap-2 lg:grid-cols-[1fr_1fr_2fr_auto]">
+          <Input aria-label="Passport status" value={travelForm.passportStatus} onChange={(e) => setTravelForm({ ...travelForm, passportStatus: e.target.value })} placeholder="Passport status" />
+          <Input aria-label="Visa status" value={travelForm.visaStatus} onChange={(e) => setTravelForm({ ...travelForm, visaStatus: e.target.value })} placeholder="Visa status" />
+          <Input aria-label="Travel notes" value={travelForm.notes} onChange={(e) => setTravelForm({ ...travelForm, notes: e.target.value })} placeholder="Movement notes, dietary needs, risks..." />
+          <Button onClick={addTravelItem} disabled={!travelForm.travelerName.trim()}>
+            <Plus className="w-4 h-4" />
+            Add Traveler
+          </Button>
+        </div>
+
+        <div className="mt-4 overflow-hidden rounded-2xl border border-slate-100">
+          {travelItems.length === 0 ? (
+            <div className="p-6 text-center text-sm text-slate-500">
+              Add travelers, volunteers, team members, accommodation, flights, pickup, and document status for this mission.
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {travelItems.map((item) => (
+                <div key={item.id} className="grid gap-3 p-3 text-sm lg:grid-cols-[180px_1fr_1fr_1fr] lg:items-start">
+                  <div>
+                    <p className="font-black text-slate-900">{item.travelerName}</p>
+                    <p className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-xs font-bold ${item.status === "issue" ? "bg-red-100 text-red-700" : "bg-rose-50 text-rose-700"}`}>
+                      {TRAVEL_STATUS_LABELS[item.status]}
+                    </p>
+                  </div>
+                  <div className="space-y-1 text-slate-600">
+                    <p><strong>Route:</strong> {item.origin || "Origin TBD"} → {item.destination || "Destination TBD"}</p>
+                    <p><strong>Arrival:</strong> {formatDate(item.arrivalDate)}</p>
+                    <p><strong>Departure:</strong> {formatDate(item.departureDate)}</p>
+                  </div>
+                  <div className="space-y-1 text-slate-600">
+                    <p><strong>Flight:</strong> {item.flightInfo || "Not set"}</p>
+                    <p><strong>Stay:</strong> {item.accommodation || "Not set"}</p>
+                    <p><strong>Room:</strong> {item.roomAssignment || "Not set"}</p>
+                  </div>
+                  <div className="space-y-1 text-slate-600">
+                    <p><strong>Pickup:</strong> {item.pickupPlan || "Not set"}</p>
+                    <p><strong>Visa:</strong> {item.visaStatus || "Not set"}</p>
+                    <p><strong>Passport:</strong> {item.passportStatus || "Not set"}</p>
+                    {item.notes && <p><strong>Notes:</strong> {item.notes}</p>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </Card>
+
       <Modal open={editOpen} onClose={() => setEditOpen(false)} title="Edit Operation" size="xl">
         {operationForm && (
           <div className="space-y-4">
@@ -675,6 +864,15 @@ function FinanceStat({ label, value, currency }: { label: string; value: number;
     <div className="rounded-2xl bg-amber-50 px-3 py-2">
       <p className="text-[10px] font-black uppercase tracking-widest text-amber-700">{label}</p>
       <p className="mt-1 text-sm font-black text-slate-900">{currency} {value.toLocaleString()}</p>
+    </div>
+  );
+}
+
+function TravelStat({ label, value, tone }: { label: string; value: number; tone?: "issue" }) {
+  return (
+    <div className={`rounded-2xl px-3 py-2 ${tone === "issue" ? "bg-red-50" : "bg-rose-50"}`}>
+      <p className={`text-[10px] font-black uppercase tracking-widest ${tone === "issue" ? "text-red-700" : "text-rose-700"}`}>{label}</p>
+      <p className="mt-1 text-sm font-black text-slate-900">{value.toLocaleString()}</p>
     </div>
   );
 }

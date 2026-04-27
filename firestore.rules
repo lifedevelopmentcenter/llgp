@@ -359,6 +359,10 @@ service cloud.firestore {
       match /finance/{financeId} {
         allow read, write: if isGlobalAdmin();
       }
+
+      match /travel/{travelId} {
+        allow read, write: if isGlobalAdmin();
+      }
     }
   }
 }

@@ -252,6 +252,37 @@ export interface GlobalOperationFinanceItem {
   updatedAt: Timestamp;
 }
 
+export type GlobalOperationTravelStatus =
+  | "planning"
+  | "booked"
+  | "arrived"
+  | "completed"
+  | "issue";
+
+export interface GlobalOperationTravelItem {
+  id: string;
+  travelerName: string;
+  travelerUserId?: string | null;
+  status: GlobalOperationTravelStatus;
+  origin?: string | null;
+  destination?: string | null;
+  arrivalDate?: Timestamp | null;
+  departureDate?: Timestamp | null;
+  flightInfo?: string | null;
+  accommodation?: string | null;
+  roomAssignment?: string | null;
+  localTransport?: string | null;
+  pickupPlan?: string | null;
+  passportStatus?: string | null;
+  visaStatus?: string | null;
+  emergencyContact?: string | null;
+  notes?: string | null;
+  createdBy: string;
+  createdByName: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
 // ----------------------------------------------------------
 // VENTURE 100 TRAINING
 // ----------------------------------------------------------
