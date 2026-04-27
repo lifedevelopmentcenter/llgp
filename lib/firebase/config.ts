@@ -17,6 +17,18 @@ export const firebaseConfig = {
   databaseURL: env("NEXT_PUBLIC_FIREBASE_DATABASE_URL"),
 };
 
+if (typeof window !== "undefined") {
+  // Diagnostic: does the bundle have Firebase config? Logs key presence only.
+  // eslint-disable-next-line no-console
+  console.log("[firebase-config-debug]", {
+    apiKey: firebaseConfig.apiKey ? `present (len=${firebaseConfig.apiKey.length})` : "MISSING",
+    authDomain: firebaseConfig.authDomain || "MISSING",
+    projectId: firebaseConfig.projectId || "MISSING",
+    storageBucket: firebaseConfig.storageBucket || "MISSING",
+    appId: firebaseConfig.appId ? "present" : "MISSING",
+  });
+}
+
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
