@@ -21,7 +21,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageLoader } from "@/components/ui/Spinner";
-import { OPS_ACCESS_ROLES, hasRole } from "@/lib/operations/roles";
+import { OPS_ACCESS_ROLES, OPS_TEAM_ADMIN_ROLES, hasRole } from "@/lib/operations/roles";
 import type {
   GlobalOperationFinanceItem,
   GlobalOperationMeetingItem,
@@ -85,6 +85,7 @@ export default function OperationAssignmentsPage() {
   const [loading, setLoading] = useState(true);
 
   const canAccess = hasRole(profile?.role, OPS_ACCESS_ROLES);
+  const canApprove = hasRole(profile?.role, OPS_TEAM_ADMIN_ROLES);
 
   useEffect(() => {
     if (!profile) return;
@@ -136,6 +137,50 @@ export default function OperationAssignmentsPage() {
         });
 
         nested.forEach(({ record, tasks, procedures, travel, finance, meetings }) => {
+          if (canApprove) {
+            procedures.forEach((procedure) => {
+              if (procedure.requiredBeforeMission && procedure.status !== "complete") {
+                nextAssignments.push({
+                  id: `approval-procedure-${record.id}-${procedure.id}`,
+                  type: "procedure",
+                  title: procedure.title,
+                  operation: record,
+                  meta: `Approval needed · mission gate · ${procedure.status.replaceAll("_", " ")} · due ${formatDate(procedure.dueDate)}`,
+                  dueDate: procedure.dueDate,
+                  tone: procedure.status === "blocked" || isPast(procedure.dueDate) ? "danger" : "warning",
+                });
+              }
+            });
+
+            travel.forEach((item) => {
+              if (item.status === "planning" && !item.approvedAt) {
+                nextAssignments.push({
+                  id: `approval-travel-${record.id}-${item.id}`,
+                  type: "travel",
+                  title: item.travelerName,
+                  operation: record,
+                  meta: `Approval needed · ${item.origin || "Origin TBD"} to ${item.destination || "Destination TBD"} · arrival ${formatDate(item.arrivalDate)}`,
+                  dueDate: item.arrivalDate,
+                  tone: "warning",
+                });
+              }
+            });
+
+            finance.forEach((item) => {
+              if (item.status === "requested" && !item.approvedAt) {
+                nextAssignments.push({
+                  id: `approval-finance-${record.id}-${item.id}`,
+                  type: "finance",
+                  title: item.description,
+                  operation: record,
+                  meta: `Approval needed · ${item.currency} ${Number(item.amount || 0).toLocaleString()} · ${item.recipient || "No recipient"}`,
+                  dueDate: item.transactionDate,
+                  tone: "warning",
+                });
+              }
+            });
+          }
+
           tasks.forEach((task) => {
             const assignedToMe = task.assignedToId === uid;
             const inMissionQueue = role === "missions_coordinator" && !task.isComplete;
@@ -228,7 +273,7 @@ export default function OperationAssignmentsPage() {
     };
 
     load();
-  }, [profile]);
+  }, [canApprove, profile]);
 
   const stats = useMemo(() => {
     return {

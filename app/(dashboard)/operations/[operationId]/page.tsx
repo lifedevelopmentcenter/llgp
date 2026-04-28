@@ -171,6 +171,7 @@ const OPS_EDITOR_ROLES: UserRole[] = ["global_admin", "global_team_lead", "globa
 const FINANCE_EDITOR_ROLES: UserRole[] = ["global_admin", "global_team_lead", "global_operations_member", "finance_coordinator"];
 const TRAVEL_EDITOR_ROLES: UserRole[] = ["global_admin", "global_team_lead", "global_operations_member", "travel_coordinator"];
 const MISSION_EDITOR_ROLES: UserRole[] = ["global_admin", "global_team_lead", "global_operations_member", "missions_coordinator"];
+const APPROVER_ROLES: UserRole[] = ["global_admin", "global_team_lead"];
 
 export default function OperationDetailPage() {
   const { profile } = useAuth();
@@ -247,6 +248,7 @@ export default function OperationDetailPage() {
   const canEditFinance = hasRole(profile?.role, FINANCE_EDITOR_ROLES);
   const canEditTravel = hasRole(profile?.role, TRAVEL_EDITOR_ROLES);
   const canEditMission = hasRole(profile?.role, MISSION_EDITOR_ROLES);
+  const canApproveOperations = hasRole(profile?.role, APPROVER_ROLES);
 
   useEffect(() => {
     if (!profile || !operationId) return;
@@ -617,6 +619,90 @@ export default function OperationDetailPage() {
     }
   };
 
+  const approveFinanceItem = async (item: GlobalOperationFinanceItem) => {
+    if (!canApproveOperations || !record || !profile) return;
+    try {
+      const data = {
+        status: "approved" as GlobalOperationFinanceStatus,
+        approvedBy: profile.id,
+        approvedByName: profile.displayName,
+        approvedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      };
+      await updateDoc(doc(db, COLLECTIONS.GLOBAL_OPERATIONS, record.id, "finance", item.id), data);
+      setFinanceItems((prev) => prev.map((finance) => (
+        finance.id === item.id
+          ? { ...finance, ...data, approvedAt: Timestamp.now(), updatedAt: Timestamp.now() } as GlobalOperationFinanceItem
+          : finance
+      )));
+      toast.success("Finance item approved.");
+    } catch (error) {
+      console.error(error);
+      toast.error("Could not approve finance item.");
+    }
+  };
+
+  const requestFinanceApproval = async (item: GlobalOperationFinanceItem) => {
+    if (!canEditFinance || !record) return;
+    try {
+      await updateDoc(doc(db, COLLECTIONS.GLOBAL_OPERATIONS, record.id, "finance", item.id), {
+        status: "requested",
+        updatedAt: serverTimestamp(),
+      });
+      setFinanceItems((prev) => prev.map((finance) => (finance.id === item.id ? { ...finance, status: "requested" } : finance)));
+      toast.success("Finance approval requested.");
+    } catch (error) {
+      console.error(error);
+      toast.error("Could not request finance approval.");
+    }
+  };
+
+  const approveTravelItem = async (item: GlobalOperationTravelItem) => {
+    if (!canApproveOperations || !record || !profile) return;
+    try {
+      const data = {
+        status: "booked" as GlobalOperationTravelStatus,
+        approvedBy: profile.id,
+        approvedByName: profile.displayName,
+        approvedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      };
+      await updateDoc(doc(db, COLLECTIONS.GLOBAL_OPERATIONS, record.id, "travel", item.id), data);
+      setTravelItems((prev) => prev.map((travel) => (
+        travel.id === item.id
+          ? { ...travel, ...data, approvedAt: Timestamp.now(), updatedAt: Timestamp.now() } as GlobalOperationTravelItem
+          : travel
+      )));
+      toast.success("Travel approved.");
+    } catch (error) {
+      console.error(error);
+      toast.error("Could not approve travel.");
+    }
+  };
+
+  const approveProcedureItem = async (item: GlobalOperationProcedureItem) => {
+    if (!canApproveOperations || !record || !profile) return;
+    try {
+      const data = {
+        status: "complete" as GlobalOperationProcedureStatus,
+        approvedBy: profile.id,
+        approvedByName: profile.displayName,
+        approvedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      };
+      await updateDoc(doc(db, COLLECTIONS.GLOBAL_OPERATIONS, record.id, "procedures", item.id), data);
+      setProcedureItems((prev) => prev.map((procedure) => (
+        procedure.id === item.id
+          ? { ...procedure, ...data, approvedAt: Timestamp.now(), updatedAt: Timestamp.now() } as GlobalOperationProcedureItem
+          : procedure
+      )));
+      toast.success("Mission gate approved.");
+    } catch (error) {
+      console.error(error);
+      toast.error("Could not approve mission gate.");
+    }
+  };
+
   const archiveOperation = async () => {
     if (!canEditOperation || !record) return;
     try {
@@ -933,10 +1019,11 @@ export default function OperationDetailPage() {
           ) : (
             <div className="divide-y divide-slate-100">
               {financeItems.map((item) => (
-                <div key={item.id} className="grid gap-2 p-3 text-sm md:grid-cols-[120px_120px_1fr_120px] md:items-center">
+                <div key={item.id} className="grid gap-2 p-3 text-sm md:grid-cols-[120px_120px_1fr_180px] md:items-center">
                   <div>
                     <p className="font-black text-slate-900">{FINANCE_TYPE_LABELS[item.type]}</p>
                     <p className="text-xs text-slate-400">{FINANCE_STATUS_LABELS[item.status]}</p>
+                    {item.approvedByName && <p className="mt-1 text-xs font-semibold text-green-700">Approved by {item.approvedByName}</p>}
                   </div>
                   <p className="font-black text-slate-900">{item.currency} {Number(item.amount || 0).toLocaleString()}</p>
                   <div>
@@ -945,11 +1032,17 @@ export default function OperationDetailPage() {
                       {item.recipient || "No recipient"} · {formatDate(item.transactionDate)}
                     </p>
                   </div>
-                  <div className="md:text-right">
+                  <div className="flex flex-col gap-2 md:items-end">
                     {item.receiptUrl ? (
                       <a className="font-semibold text-indigo-600 hover:text-indigo-700" href={item.receiptUrl} target="_blank" rel="noreferrer">Receipt</a>
                     ) : (
                       <span className="text-xs text-slate-400">No receipt</span>
+                    )}
+                    {canEditFinance && item.status === "planned" && (
+                      <Button size="sm" variant="secondary" onClick={() => requestFinanceApproval(item)}>Request Approval</Button>
+                    )}
+                    {canApproveOperations && item.status === "requested" && (
+                      <Button size="sm" onClick={() => approveFinanceItem(item)}>Approve Funds</Button>
                     )}
                   </div>
                 </div>
@@ -1049,12 +1142,14 @@ export default function OperationDetailPage() {
                     <div className="mt-1 flex flex-wrap gap-1.5">
                       <span className="rounded-full bg-violet-50 px-2 py-0.5 text-xs font-bold text-violet-700">{PROCEDURE_TYPE_LABELS[item.type]}</span>
                       {item.requiredBeforeMission && <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-700">Required gate</span>}
+                      {item.approvedByName && <span className="rounded-full bg-green-50 px-2 py-0.5 text-xs font-bold text-green-700">Approved</span>}
                     </div>
                   </div>
                   <div className="space-y-1 text-slate-600">
                     <p><strong>Owner:</strong> {item.ownerName || "Unassigned"}</p>
                     <p><strong>Due:</strong> {formatDate(item.dueDate)}</p>
                     {item.notes && <p><strong>Notes:</strong> {item.notes}</p>}
+                    {item.approvedByName && <p><strong>Approved by:</strong> {item.approvedByName} · {formatDate(item.approvedAt)}</p>}
                     {item.documentUrl && <a className="font-semibold text-indigo-600 hover:text-indigo-700" href={item.documentUrl} target="_blank" rel="noreferrer">Open document/form</a>}
                   </div>
                   <div className="flex flex-col gap-2">
@@ -1074,6 +1169,9 @@ export default function OperationDetailPage() {
                     }`}>
                       {PROCEDURE_STATUS_LABELS[item.status]}
                     </span>
+                    {canApproveOperations && item.requiredBeforeMission && item.status !== "complete" && (
+                      <Button size="sm" onClick={() => approveProcedureItem(item)}>Approve Gate</Button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -1153,12 +1251,13 @@ export default function OperationDetailPage() {
           ) : (
             <div className="divide-y divide-slate-100">
               {travelItems.map((item) => (
-                <div key={item.id} className="grid gap-3 p-3 text-sm lg:grid-cols-[180px_1fr_1fr_1fr] lg:items-start">
+                <div key={item.id} className="grid gap-3 p-3 text-sm lg:grid-cols-[180px_1fr_1fr_1fr_170px] lg:items-start">
                   <div>
                     <p className="font-black text-slate-900">{item.travelerName}</p>
                     <p className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-xs font-bold ${item.status === "issue" ? "bg-red-100 text-red-700" : "bg-rose-50 text-rose-700"}`}>
                       {TRAVEL_STATUS_LABELS[item.status]}
                     </p>
+                    {item.approvedByName && <p className="mt-1 text-xs font-semibold text-green-700">Approved by {item.approvedByName}</p>}
                   </div>
                   <div className="space-y-1 text-slate-600">
                     <p><strong>Route:</strong> {item.origin || "Origin TBD"} → {item.destination || "Destination TBD"}</p>
@@ -1175,6 +1274,12 @@ export default function OperationDetailPage() {
                     <p><strong>Visa:</strong> {item.visaStatus || "Not set"}</p>
                     <p><strong>Passport:</strong> {item.passportStatus || "Not set"}</p>
                     {item.notes && <p><strong>Notes:</strong> {item.notes}</p>}
+                  </div>
+                  <div className="flex flex-col gap-2 lg:items-end">
+                    {item.approvedAt && <p className="text-xs font-semibold text-slate-500">Approved {formatDate(item.approvedAt)}</p>}
+                    {canApproveOperations && item.status === "planning" && (
+                      <Button size="sm" onClick={() => approveTravelItem(item)}>Approve Travel</Button>
+                    )}
                   </div>
                 </div>
               ))}

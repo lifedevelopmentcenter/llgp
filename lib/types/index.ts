@@ -265,6 +265,9 @@ export interface GlobalOperationFinanceItem {
   recipient?: string | null;
   receiptUrl?: string | null;
   transactionDate?: Timestamp | null;
+  approvedBy?: string | null;
+  approvedByName?: string | null;
+  approvedAt?: Timestamp | null;
   createdBy: string;
   createdByName: string;
   createdAt: Timestamp;
@@ -296,6 +299,9 @@ export interface GlobalOperationTravelItem {
   visaStatus?: string | null;
   emergencyContact?: string | null;
   notes?: string | null;
+  approvedBy?: string | null;
+  approvedByName?: string | null;
+  approvedAt?: Timestamp | null;
   createdBy: string;
   createdByName: string;
   createdAt: Timestamp;
@@ -345,6 +351,9 @@ export interface GlobalOperationProcedureItem {
   requiredBeforeMission: boolean;
   ownerId?: string | null;
   ownerName?: string | null;
+  approvedBy?: string | null;
+  approvedByName?: string | null;
+  approvedAt?: Timestamp | null;
   documentUrl?: string | null;
   dueDate?: Timestamp | null;
   notes?: string | null;
