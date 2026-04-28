@@ -22,6 +22,7 @@ const TYPE_ICONS: Record<string, { icon: React.ReactNode; bg: string }> = {
   reaction:       { icon: <Heart className="w-4 h-4" />, bg: "bg-rose-100 text-rose-600" },
   group_activity: { icon: <Users className="w-4 h-4" />, bg: "bg-violet-100 text-violet-600" },
   announcement:   { icon: <Bell className="w-4 h-4" />, bg: "bg-amber-100 text-amber-600" },
+  operation:      { icon: <Bell className="w-4 h-4" />, bg: "bg-emerald-100 text-emerald-600" },
 };
 
 export default function NotificationsPage() {

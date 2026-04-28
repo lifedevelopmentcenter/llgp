@@ -173,6 +173,13 @@ const TRAVEL_EDITOR_ROLES: UserRole[] = ["global_admin", "global_team_lead", "gl
 const MISSION_EDITOR_ROLES: UserRole[] = ["global_admin", "global_team_lead", "global_operations_member", "missions_coordinator"];
 const APPROVER_ROLES: UserRole[] = ["global_admin", "global_team_lead"];
 
+interface OperationNotificationInput {
+  userIds: Array<string | null | undefined>;
+  title: string;
+  body: string;
+  link: string;
+}
+
 export default function OperationDetailPage() {
   const { profile } = useAuth();
   const params = useParams<{ operationId: string }>();
@@ -249,6 +256,29 @@ export default function OperationDetailPage() {
   const canEditTravel = hasRole(profile?.role, TRAVEL_EDITOR_ROLES);
   const canEditMission = hasRole(profile?.role, MISSION_EDITOR_ROLES);
   const canApproveOperations = hasRole(profile?.role, APPROVER_ROLES);
+
+  const notifyOperationUsers = async ({ userIds, title, body, link }: OperationNotificationInput) => {
+    if (!profile) return;
+    const recipients = Array.from(new Set(userIds.filter((id): id is string => Boolean(id && id !== profile.id))));
+    if (recipients.length === 0) return;
+
+    await Promise.all(recipients.map((userId) => addDoc(collection(db, COLLECTIONS.NOTIFICATIONS), {
+      userId,
+      type: "operation",
+      title,
+      body,
+      link,
+      isRead: false,
+      fromId: profile.id,
+      fromName: profile.displayName,
+      fromPhoto: profile.photoURL || null,
+      createdAt: serverTimestamp(),
+    })));
+  };
+
+  const approverIds = () => leaders
+    .filter((leader) => APPROVER_ROLES.includes(leader.role) && leader.isActive !== false)
+    .map((leader) => leader.id);
 
   useEffect(() => {
     if (!profile || !operationId) return;
@@ -403,6 +433,12 @@ export default function OperationDetailPage() {
       };
       const ref = await addDoc(collection(db, COLLECTIONS.GLOBAL_OPERATIONS, record.id, "tasks"), data);
       setTasks((prev) => [...prev, { id: ref.id, ...data, createdAt: Timestamp.now(), updatedAt: Timestamp.now() } as GlobalOperationTask]);
+      await notifyOperationUsers({
+        userIds: [assignee?.id],
+        title: "New operations task assigned",
+        body: `${profile.displayName} assigned you: ${data.title}`,
+        link: `/operations/${record.id}`,
+      });
       setTaskForm({ title: "", assignedToId: "", dueDate: "" });
     } catch (error) {
       console.error(error);
@@ -463,6 +499,14 @@ export default function OperationDetailPage() {
       };
       const ref = await addDoc(collection(db, COLLECTIONS.GLOBAL_OPERATIONS, record.id, "finance"), data);
       setFinanceItems((prev) => [{ id: ref.id, ...data, createdAt: Timestamp.now(), updatedAt: Timestamp.now() } as GlobalOperationFinanceItem, ...prev]);
+      if (data.status === "requested") {
+        await notifyOperationUsers({
+          userIds: approverIds(),
+          title: "Finance approval requested",
+          body: `${profile.displayName} requested approval for ${data.currency} ${Number(data.amount || 0).toLocaleString()}: ${data.description}`,
+          link: `/operations/${record.id}`,
+        });
+      }
       setFinanceForm({
         type: "budget",
         status: "planned",
@@ -507,6 +551,12 @@ export default function OperationDetailPage() {
       };
       const ref = await addDoc(collection(db, COLLECTIONS.GLOBAL_OPERATIONS, record.id, "travel"), data);
       setTravelItems((prev) => [{ id: ref.id, ...data, createdAt: Timestamp.now(), updatedAt: Timestamp.now() } as GlobalOperationTravelItem, ...prev]);
+      await notifyOperationUsers({
+        userIds: [traveler?.id],
+        title: "Travel added to mission manifest",
+        body: `${profile.displayName} added travel for ${data.travelerName}: ${data.origin || "Origin TBD"} to ${data.destination || "Destination TBD"}`,
+        link: `/operations/${record.id}`,
+      });
       setTravelForm({
         travelerName: "",
         travelerUserId: "",
@@ -589,6 +639,12 @@ export default function OperationDetailPage() {
       };
       const ref = await addDoc(collection(db, COLLECTIONS.GLOBAL_OPERATIONS, record.id, "procedures"), data);
       setProcedureItems((prev) => [{ id: ref.id, ...data, createdAt: Timestamp.now(), updatedAt: Timestamp.now() } as GlobalOperationProcedureItem, ...prev]);
+      await notifyOperationUsers({
+        userIds: [owner?.id],
+        title: "Mission procedure assigned",
+        body: `${profile.displayName} assigned you to ${data.title}`,
+        link: `/operations/${record.id}`,
+      });
       setProcedureForm({
         title: "",
         type: "checklist",
@@ -635,6 +691,12 @@ export default function OperationDetailPage() {
           ? { ...finance, ...data, approvedAt: Timestamp.now(), updatedAt: Timestamp.now() } as GlobalOperationFinanceItem
           : finance
       )));
+      await notifyOperationUsers({
+        userIds: [item.createdBy],
+        title: "Finance item approved",
+        body: `${profile.displayName} approved ${item.currency} ${Number(item.amount || 0).toLocaleString()}: ${item.description}`,
+        link: `/operations/${record.id}`,
+      });
       toast.success("Finance item approved.");
     } catch (error) {
       console.error(error);
@@ -650,6 +712,12 @@ export default function OperationDetailPage() {
         updatedAt: serverTimestamp(),
       });
       setFinanceItems((prev) => prev.map((finance) => (finance.id === item.id ? { ...finance, status: "requested" } : finance)));
+      await notifyOperationUsers({
+        userIds: approverIds(),
+        title: "Finance approval requested",
+        body: `${profile?.displayName || "A team member"} requested approval for ${item.currency} ${Number(item.amount || 0).toLocaleString()}: ${item.description}`,
+        link: `/operations/${record.id}`,
+      });
       toast.success("Finance approval requested.");
     } catch (error) {
       console.error(error);
@@ -673,6 +741,12 @@ export default function OperationDetailPage() {
           ? { ...travel, ...data, approvedAt: Timestamp.now(), updatedAt: Timestamp.now() } as GlobalOperationTravelItem
           : travel
       )));
+      await notifyOperationUsers({
+        userIds: [item.travelerUserId, item.createdBy],
+        title: "Travel approved",
+        body: `${profile.displayName} approved travel for ${item.travelerName}`,
+        link: `/operations/${record.id}`,
+      });
       toast.success("Travel approved.");
     } catch (error) {
       console.error(error);
@@ -696,6 +770,12 @@ export default function OperationDetailPage() {
           ? { ...procedure, ...data, approvedAt: Timestamp.now(), updatedAt: Timestamp.now() } as GlobalOperationProcedureItem
           : procedure
       )));
+      await notifyOperationUsers({
+        userIds: [item.ownerId, item.createdBy],
+        title: "Mission gate approved",
+        body: `${profile.displayName} approved ${item.title}`,
+        link: `/operations/${record.id}`,
+      });
       toast.success("Mission gate approved.");
     } catch (error) {
       console.error(error);

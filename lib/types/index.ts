@@ -701,7 +701,7 @@ export interface Message {
 export interface Notification {
   id: string;
   userId: string; // recipient UID
-  type: "message" | "comment" | "reaction" | "group_activity" | "announcement";
+  type: "message" | "comment" | "reaction" | "group_activity" | "announcement" | "operation";
   title: string;
   body: string;
   link?: string;

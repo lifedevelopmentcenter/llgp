@@ -15,6 +15,7 @@ const TYPE_ICON: Record<string, string> = {
   reaction: "❤️",
   group_activity: "👥",
   announcement: "📢",
+  operation: "📋",
 };
 
 export function NotificationBell() {
@@ -49,9 +50,9 @@ export function NotificationBell() {
   const unread = notifications.filter(n => !n.isRead).length;
 
   const markRead = async (notif: Notification) => {
-    if (notif.isRead) return;
     try {
-      await updateDoc(doc(db, COLLECTIONS.NOTIFICATIONS, notif.id), { isRead: true });
+      if (!notif.isRead) await updateDoc(doc(db, COLLECTIONS.NOTIFICATIONS, notif.id), { isRead: true });
+      if (notif.link) window.location.assign(notif.link);
     } catch (e) { console.error(e); }
   };
 
