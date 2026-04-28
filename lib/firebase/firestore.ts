@@ -45,4 +45,5 @@ export const COLLECTIONS = {
   ARTICLES: "articles",
   PROFILE_VIEWS: "profileViews",
   GLOBAL_OPERATIONS: "globalOperations",
+  GLOBAL_OPERATION_DOCUMENTS: "globalOperationDocuments",
 } as const;

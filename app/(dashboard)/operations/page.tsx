@@ -20,6 +20,7 @@ import {
   CheckCircle2,
   ClipboardList,
   FileCheck2,
+  FileText,
   ListChecks,
   Plane,
   Plus,
@@ -370,6 +371,12 @@ export default function OperationsPage() {
               <Button variant="secondary" className="border-white/20 bg-white/10 text-white hover:bg-white/20">
                 <ListChecks className="w-4 h-4" />
                 My Assignments
+              </Button>
+            </Link>
+            <Link href="/operations/documents">
+              <Button variant="secondary" className="border-white/20 bg-white/10 text-white hover:bg-white/20">
+                <FileText className="w-4 h-4" />
+                Playbooks
               </Button>
             </Link>
             {canEditOperations && (

@@ -151,6 +151,12 @@ const navItems: NavItem[] = [
     section: "manage",
   },
   {
+    label: "Playbooks & Forms", href: "/operations/documents",
+    icon: <FileText className="w-[18px] h-[18px]" />,
+    roles: OPERATIONS_ROLES,
+    section: "manage",
+  },
+  {
     label: "Global Team", href: "/operations/team",
     icon: <Users className="w-[18px] h-[18px]" />,
     roles: ["global_admin", "global_team_lead"],

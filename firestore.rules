@@ -405,6 +405,11 @@ service cloud.firestore {
     }
 
     // ── Global Operations ─────────────────────────────────────
+    match /globalOperationDocuments/{documentId} {
+      allow read: if isGlobalOperationsRole();
+      allow create, update, delete: if canWriteMissionOperations();
+    }
+
     match /globalOperations/{operationId} {
       allow read: if isGlobalOperationsRole();
       allow create, update, delete: if canWriteGlobalOperation();

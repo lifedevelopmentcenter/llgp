@@ -363,6 +363,33 @@ export interface GlobalOperationProcedureItem {
   updatedAt: Timestamp;
 }
 
+export type GlobalOperationDocumentType =
+  | "playbook"
+  | "form"
+  | "template"
+  | "procedure"
+  | "policy"
+  | "meeting_notes"
+  | "budget"
+  | "travel";
+
+export interface GlobalOperationDocument {
+  id: string;
+  title: string;
+  type: GlobalOperationDocumentType;
+  summary?: string | null;
+  documentUrl: string;
+  nationId?: string | null;
+  nationName?: string | null;
+  category?: GlobalOperationCategory | null;
+  tags?: string[];
+  isRequiredTemplate?: boolean;
+  createdBy: string;
+  createdByName: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
 // ----------------------------------------------------------
 // VENTURE 100 TRAINING
 // ----------------------------------------------------------
