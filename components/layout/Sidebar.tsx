@@ -157,6 +157,12 @@ const navItems: NavItem[] = [
     section: "manage",
   },
   {
+    label: "Operations Reports", href: "/operations/reports",
+    icon: <BarChart2 className="w-[18px] h-[18px]" />,
+    roles: OPERATIONS_ROLES,
+    section: "manage",
+  },
+  {
     label: "Global Team", href: "/operations/team",
     icon: <Users className="w-[18px] h-[18px]" />,
     roles: ["global_admin", "global_team_lead"],

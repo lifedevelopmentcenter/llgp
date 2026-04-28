@@ -16,6 +16,7 @@ import {
 } from "firebase/firestore";
 import {
   AlertTriangle,
+  BarChart2,
   CalendarDays,
   CheckCircle2,
   ClipboardList,
@@ -377,6 +378,12 @@ export default function OperationsPage() {
               <Button variant="secondary" className="border-white/20 bg-white/10 text-white hover:bg-white/20">
                 <FileText className="w-4 h-4" />
                 Playbooks
+              </Button>
+            </Link>
+            <Link href="/operations/reports">
+              <Button variant="secondary" className="border-white/20 bg-white/10 text-white hover:bg-white/20">
+                <BarChart2 className="w-4 h-4" />
+                Reports
               </Button>
             </Link>
             {canEditOperations && (
