@@ -35,6 +35,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Input, Select, Textarea } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { PageLoader } from "@/components/ui/Spinner";
+import { OPS_ACCESS_ROLES, OPS_EDITOR_ROLES, OPS_TEAM_ADMIN_ROLES, hasRole } from "@/lib/operations/roles";
 import type {
   GlobalOperationCategory,
   GlobalOperationFinanceItem,
@@ -46,7 +47,6 @@ import type {
   GlobalOperationTravelItem,
   Nation,
   UserProfile,
-  UserRole,
 } from "@/lib/types";
 import toast from "react-hot-toast";
 
@@ -150,24 +150,6 @@ const emptySignals: OperationSignals = {
   financeThisMonth: 0,
 };
 
-const OPS_ACCESS_ROLES: UserRole[] = [
-  "global_admin",
-  "global_team_lead",
-  "global_operations_member",
-  "finance_coordinator",
-  "travel_coordinator",
-  "missions_coordinator",
-];
-
-const OPS_EDITOR_ROLES: UserRole[] = [
-  "global_admin",
-  "global_team_lead",
-  "global_operations_member",
-  "missions_coordinator",
-];
-
-const hasRole = (role: UserRole | undefined, roles: UserRole[]) => Boolean(role && roles.includes(role));
-
 export default function OperationsPage() {
   const { profile } = useAuth();
   const [records, setRecords] = useState<GlobalOperationRecord[]>([]);
@@ -182,6 +164,7 @@ export default function OperationsPage() {
   const [form, setForm] = useState(initialForm);
   const canAccessOperations = hasRole(profile?.role, OPS_ACCESS_ROLES);
   const canEditOperations = hasRole(profile?.role, OPS_EDITOR_ROLES);
+  const canManageTeam = hasRole(profile?.role, OPS_TEAM_ADMIN_ROLES);
 
   useEffect(() => {
     if (!profile) return;
@@ -373,12 +356,22 @@ export default function OperationsPage() {
               Use this workspace to administer the global team, national leader meetings, event playbooks, mission budgets, travel logistics, and field procedures.
             </p>
           </div>
-          {canEditOperations && (
-            <Button onClick={() => setModalOpen(true)} className="bg-white text-slate-950 hover:bg-slate-100">
-              <Plus className="w-4 h-4" />
-              New Operations Record
-            </Button>
-          )}
+          <div className="flex flex-wrap gap-2">
+            {canManageTeam && (
+              <Link href="/operations/team">
+                <Button variant="secondary" className="border-white/20 bg-white/10 text-white hover:bg-white/20">
+                  <Users className="w-4 h-4" />
+                  Global Team
+                </Button>
+              </Link>
+            )}
+            {canEditOperations && (
+              <Button onClick={() => setModalOpen(true)} className="bg-white text-slate-950 hover:bg-slate-100">
+                <Plus className="w-4 h-4" />
+                New Operations Record
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 

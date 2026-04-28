@@ -165,6 +165,10 @@ export interface UserProfile {
     weeklyDigest?: boolean;
   };
 
+  // Global operations assignment
+  globalResponsibilities?: string[];
+  globalOpsNotes?: string;
+
   isActive: boolean;
   hasOnboarded?: boolean;
   createdAt: Timestamp;

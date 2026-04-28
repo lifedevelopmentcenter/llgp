@@ -40,6 +40,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Input, Select, Textarea } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { PageLoader } from "@/components/ui/Spinner";
+import { OPS_ACCESS_ROLES, hasRole } from "@/lib/operations/roles";
 import type {
   GlobalOperationCategory,
   GlobalOperationFinanceItem,
@@ -166,21 +167,10 @@ const operationFormFrom = (record: GlobalOperationRecord) => ({
   nextAction: record.nextAction || "",
 });
 
-const OPS_ACCESS_ROLES: UserRole[] = [
-  "global_admin",
-  "global_team_lead",
-  "global_operations_member",
-  "finance_coordinator",
-  "travel_coordinator",
-  "missions_coordinator",
-];
-
 const OPS_EDITOR_ROLES: UserRole[] = ["global_admin", "global_team_lead", "global_operations_member"];
 const FINANCE_EDITOR_ROLES: UserRole[] = ["global_admin", "global_team_lead", "global_operations_member", "finance_coordinator"];
 const TRAVEL_EDITOR_ROLES: UserRole[] = ["global_admin", "global_team_lead", "global_operations_member", "travel_coordinator"];
 const MISSION_EDITOR_ROLES: UserRole[] = ["global_admin", "global_team_lead", "global_operations_member", "missions_coordinator"];
-
-const hasRole = (role: UserRole | undefined, roles: UserRole[]) => Boolean(role && roles.includes(role));
 
 export default function OperationDetailPage() {
   const { profile } = useAuth();
