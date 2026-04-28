@@ -20,6 +20,7 @@ import {
   CheckCircle2,
   ClipboardList,
   FileCheck2,
+  ListChecks,
   Plane,
   Plus,
   Users,
@@ -365,6 +366,12 @@ export default function OperationsPage() {
                 </Button>
               </Link>
             )}
+            <Link href="/operations/assignments">
+              <Button variant="secondary" className="border-white/20 bg-white/10 text-white hover:bg-white/20">
+                <ListChecks className="w-4 h-4" />
+                My Assignments
+              </Button>
+            </Link>
             {canEditOperations && (
               <Button onClick={() => setModalOpen(true)} className="bg-white text-slate-950 hover:bg-slate-100">
                 <Plus className="w-4 h-4" />
