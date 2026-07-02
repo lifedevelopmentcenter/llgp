@@ -22,8 +22,8 @@ const GROUP_TYPES = [
   { value: "nation",     label: "Nation Group" },
   { value: "city",       label: "City Group" },
   { value: "hub",        label: "Hub Group" },
-  { value: "llgli_cohort", label: "LLGLI Cohort" },
-  { value: "venture100", label: "Venture 100 Cohort" },
+  { value: "llgli_cohort", label: "Leadership Program Group" },
+  { value: "venture100", label: "Venture 100 Group" },
   { value: "general",    label: "General / Miscellaneous" },
 ];
 
@@ -157,7 +157,7 @@ export default function GroupsPage() {
         <EmptyState
           icon={<Users className="w-6 h-6" />}
           title="No groups yet"
-          description="Create a group for your hub, city, or cohort."
+          description="Create a group for your local community, city, or class."
           action={canCreate ? <Button onClick={() => setModalOpen(true)}><Plus className="w-4 h-4" />Create Group</Button> : undefined}
         />
       ) : (

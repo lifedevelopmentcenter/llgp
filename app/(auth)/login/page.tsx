@@ -33,24 +33,24 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex">
       {/* Left panel — branding */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-700 flex-col justify-between p-12 text-white relative overflow-hidden">
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-indigo-700 via-indigo-800 to-indigo-950 flex-col justify-between p-12 text-white relative overflow-hidden">
         <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle at 30% 40%, white 1.5px, transparent 1.5px), radial-gradient(circle at 70% 80%, white 1px, transparent 1px)", backgroundSize: "40px 40px" }} />
         <div className="relative">
           <div className="mb-16">
             <Logo variant="light" size="md" />
           </div>
           <h1 className="text-4xl font-black leading-tight mb-4">
-            Global Leadership<br />& Discipleship
+            Discover your purpose.<br />Grow as a leader.
           </h1>
           <p className="text-indigo-200 text-lg leading-relaxed max-w-sm">
-            Train leaders. Build movements. Transform nations.
+            Join a global community learning to live on purpose and change their world.
           </p>
         </div>
         <div className="relative space-y-4">
-          {["Venture 100 Training", "LLGLI Leadership Incubator", "Global Community Network", "Movement Tracking"].map(item => (
-            <div key={item} className="flex items-center gap-3 text-sm text-indigo-200">
-              <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
-                <span className="text-white text-xs">✓</span>
+          {["Discover your God-given purpose", "Grow your leadership", "Connect with leaders worldwide", "See your growth and impact"].map(item => (
+            <div key={item} className="flex items-center gap-3 text-sm text-indigo-100">
+              <div className="w-5 h-5 rounded-full bg-[#c9a24b] flex items-center justify-center flex-shrink-0">
+                <span className="text-[#231c0a] text-xs font-bold">✓</span>
               </div>
               {item}
             </div>
@@ -59,7 +59,7 @@ export default function LoginPage() {
       </div>
 
       {/* Right panel — form */}
-      <div className="flex-1 flex flex-col items-center justify-center p-6 bg-[#F5F4FF]">
+      <div className="flex-1 flex flex-col items-center justify-center p-6 bg-[#f6f3ec]">
         <div className="w-full max-w-sm">
           {/* Mobile logo */}
           <div className="mb-8 lg:hidden">

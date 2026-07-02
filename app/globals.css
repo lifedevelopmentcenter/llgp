@@ -1,19 +1,80 @@
 @import "tailwindcss";
 
 /* ============================================================
-   LLGP DESIGN SYSTEM
+   LLGP DESIGN SYSTEM — Leading Lights brand
+   Palette aligned to the marketing site: burgundy + gold on warm neutrals.
+   The indigo scale is remapped to burgundy and slate to warm grey so the
+   entire existing UI reskins without touching per-component classes.
    ============================================================ */
+
+@theme {
+  /* Brand accent — burgundy (remaps every indigo-* utility) */
+  --color-indigo-50:  #fbf1f2;
+  --color-indigo-100: #f6dfe2;
+  --color-indigo-200: #edbcc2;
+  --color-indigo-300: #e08e98;
+  --color-indigo-400: #cf5c6b;
+  --color-indigo-500: #b23a49;
+  --color-indigo-600: #8b2635;
+  --color-indigo-700: #741f2c;
+  --color-indigo-800: #5f1a24;
+  --color-indigo-900: #4f1720;
+  --color-indigo-950: #2b0c11;
+
+  /* Secondary accents (violet & purple) also map to the burgundy family */
+  --color-violet-50:  #fbf1f2;
+  --color-violet-100: #f6dfe2;
+  --color-violet-200: #edbcc2;
+  --color-violet-300: #e08e98;
+  --color-violet-400: #cf5c6b;
+  --color-violet-500: #a6303f;
+  --color-violet-600: #8b2635;
+  --color-violet-700: #741f2c;
+  --color-violet-800: #5f1a24;
+  --color-violet-900: #4f1720;
+  --color-violet-950: #2b0c11;
+  --color-purple-50:  #fbf1f2;
+  --color-purple-100: #f6dfe2;
+  --color-purple-200: #edbcc2;
+  --color-purple-300: #e08e98;
+  --color-purple-400: #cf5c6b;
+  --color-purple-500: #a6303f;
+  --color-purple-600: #8b2635;
+  --color-purple-700: #741f2c;
+  --color-purple-800: #5f1a24;
+  --color-purple-900: #4f1720;
+  --color-purple-950: #2b0c11;
+
+  /* Warm neutrals (remaps every slate-* utility) */
+  --color-slate-50:  #faf9f6;
+  --color-slate-100: #f2f0ea;
+  --color-slate-200: #e7e2d8;
+  --color-slate-300: #d6cfc1;
+  --color-slate-400: #a8a094;
+  --color-slate-500: #79726a;
+  --color-slate-600: #57514b;
+  --color-slate-700: #44403b;
+  --color-slate-800: #2b2825;
+  --color-slate-900: #1c1a17;
+  --color-slate-950: #0f0d0b;
+
+  /* Gold accent (available as bg-gold-*, text-gold-*) */
+  --color-gold-400: #e2c274;
+  --color-gold-500: #c9a24b;
+  --color-gold-600: #b0872f;
+}
 
 @layer base {
   :root {
-    --bg: #F5F4FF;
+    --bg: #f6f3ec;
     --surface: #FFFFFF;
-    --border: #E8E6F0;
-    --brand: #4F46E5;
-    --brand-light: #EEF2FF;
-    --text-primary: #0F0E2A;
-    --text-secondary: #6B6B8A;
-    --text-muted: #A0A0BC;
+    --border: #e9e3d6;
+    --brand: #8b2635;
+    --brand-light: #f6dfe2;
+    --gold: #c9a24b;
+    --text-primary: #1d1b19;
+    --text-secondary: #6c665e;
+    --text-muted: #a8a29a;
   }
 
   html {
@@ -37,7 +98,8 @@
 @layer components {
 
   /* ── Buttons ── */
-  .btn-primary   { @apply inline-flex items-center justify-center gap-2 font-semibold rounded-xl transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed select-none px-4 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white shadow-sm; }
+  .btn-primary   { @apply inline-flex items-center justify-center gap-2 font-semibold rounded-xl transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed select-none px-4 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e2c274] focus-visible:ring-offset-2; }
+  .btn-gold      { @apply inline-flex items-center justify-center gap-2 font-semibold rounded-xl transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed select-none px-4 py-2 text-sm bg-[#c9a24b] hover:bg-[#b0872f] active:bg-[#96721f] text-[#231c0a] shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8b2635] focus-visible:ring-offset-2; }
   .btn-secondary { @apply inline-flex items-center justify-center gap-2 font-semibold rounded-xl transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed select-none px-4 py-2 text-sm bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-700 border border-slate-200 shadow-sm; }
   .btn-ghost     { @apply inline-flex items-center justify-center gap-2 font-semibold rounded-xl transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed select-none px-4 py-2 text-sm bg-transparent hover:bg-slate-100 active:bg-slate-200 text-slate-600; }
   .btn-danger    { @apply inline-flex items-center justify-center gap-2 font-semibold rounded-xl transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed select-none px-4 py-2 text-sm bg-red-600 hover:bg-red-700 text-white; }
@@ -54,7 +116,7 @@
   .field {
     @apply w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-900
            placeholder:text-slate-400
-           focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent
+           focus:outline-none focus:ring-2 focus:ring-[#c9a24b] focus:border-transparent
            transition-colors duration-150;
   }
   .field-error { @apply border-red-400 bg-red-50 focus:ring-red-400; }
@@ -65,7 +127,7 @@
            hover:bg-indigo-50 hover:text-indigo-700 transition-all duration-150 w-full;
   }
   .nav-item-active {
-    @apply bg-indigo-50 text-indigo-700 font-semibold;
+    @apply bg-indigo-50 text-indigo-700 font-semibold shadow-[inset_3px_0_0_0_#c9a24b];
   }
   .nav-section {
     @apply text-[10px] font-bold uppercase tracking-widest text-slate-400 px-3 pt-4 pb-1;

@@ -285,7 +285,7 @@ export default function SearchPage() {
                                 <span className="text-[9px] bg-green-100 text-green-700 font-bold px-1.5 py-0.5 rounded-full">V100</span>
                               )}
                               {user.isLLGLI && (
-                                <span className="text-[9px] bg-violet-100 text-violet-700 font-bold px-1.5 py-0.5 rounded-full">LLGLI</span>
+                                <span className="text-[9px] bg-violet-100 text-violet-700 font-bold px-1.5 py-0.5 rounded-full">Leadership</span>
                               )}
                             </div>
                           )}

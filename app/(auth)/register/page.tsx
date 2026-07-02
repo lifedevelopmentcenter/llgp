@@ -69,7 +69,7 @@ function RegisterForm() {
     try {
       const uid = await signUp(form.email, form.password, form.name);
       await processInvite(uid as any);
-      toast.success("Account created! Welcome to LLGP.");
+      toast.success("Account created! Welcome to Leading Lights.");
       router.replace("/onboarding");
     } catch (err: any) {
       const msg = err.code === "auth/email-already-in-use"

@@ -220,7 +220,7 @@ export default function OnboardingPage() {
                 onChange={(e) => setForm({ ...form, profession: e.target.value })}
               />
               <div>
-                <p className="text-xs font-semibold text-slate-700 mb-2">Sphere(s) of Influence <span className="text-slate-400 font-normal">(select all that apply)</span></p>
+                <p className="text-xs font-semibold text-slate-700 mb-2">Sphere(s) of Influence <span className="text-slate-400 font-normal">— where you lead (e.g. business, education, government)</span></p>
                 <div className="flex flex-col gap-1.5">
                   {SPHERES.map((s) => {
                     const selected = form.sphereOfInfluence.includes(s);
@@ -347,10 +347,10 @@ export default function OnboardingPage() {
                 {[
                   "Complete your profile to help others find you",
                   "Explore the member directory",
-                  "Join a group space",
-                  "Connect with other LL Network members",
+                  "Join a group",
+                  "Connect with members around the world",
                   "Take courses or create your own course",
-                  "Showcase your initiative, ministry or project",
+                  "Share a project, ministry, or cause you're working on",
                 ].map((item) => (
                   <div key={item} className="flex items-center gap-2 text-sm text-slate-600">
                     <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 flex-shrink-0" />

@@ -110,7 +110,7 @@ const MEETING_STATUS_LABELS: Record<GlobalOperationMeetingStatus, string> = {
 };
 
 const PROCEDURE_TYPE_LABELS: Record<GlobalOperationProcedureType, string> = {
-  playbook: "Playbook",
+  playbook: "Guide",
   form: "Form",
   checklist: "Checklist",
   policy: "Policy",
@@ -871,7 +871,7 @@ export default function OperationDetailPage() {
           <p><strong>Travel:</strong> {record.travelRoute || "Not set"}</p>
           <div className="flex flex-wrap gap-3">
             {record.meetingLink && <a className="font-semibold text-indigo-600 hover:text-indigo-700" href={record.meetingLink} target="_blank" rel="noreferrer">Meeting link</a>}
-            {record.documentUrl && <a className="font-semibold text-indigo-600 hover:text-indigo-700" href={record.documentUrl} target="_blank" rel="noreferrer">Playbook / form / procedure</a>}
+            {record.documentUrl && <a className="font-semibold text-indigo-600 hover:text-indigo-700" href={record.documentUrl} target="_blank" rel="noreferrer">Guide / form / procedure</a>}
           </div>
         </div>
       </div>
@@ -1137,7 +1137,7 @@ export default function OperationDetailPage() {
           <div>
             <div className="flex items-center gap-2">
               <FileCheck2 className="w-4 h-4 text-violet-600" />
-              <h2 className="font-black text-slate-900">Procedures, Playbooks & Forms</h2>
+              <h2 className="font-black text-slate-900">Procedures, Guides & Forms</h2>
             </div>
             <p className="mt-1 text-sm text-slate-500">Track required mission gates, procedure documents, forms, safety checks, and completion status.</p>
           </div>
@@ -1415,7 +1415,7 @@ export default function OperationDetailPage() {
             <Input label="Travel / Accommodation Route" value={operationForm.travelRoute} onChange={(e) => setOperationForm({ ...operationForm, travelRoute: e.target.value })} />
             <div className="grid gap-3 md:grid-cols-2">
               <Input label="Meeting Link" value={operationForm.meetingLink} onChange={(e) => setOperationForm({ ...operationForm, meetingLink: e.target.value })} />
-              <Input label="Playbook / Form / Procedure URL" value={operationForm.documentUrl} onChange={(e) => setOperationForm({ ...operationForm, documentUrl: e.target.value })} />
+              <Input label="Guide / Form / Procedure URL" value={operationForm.documentUrl} onChange={(e) => setOperationForm({ ...operationForm, documentUrl: e.target.value })} />
             </div>
             <Textarea label="Next Action" value={operationForm.nextAction} onChange={(e) => setOperationForm({ ...operationForm, nextAction: e.target.value })} rows={2} />
 

@@ -112,12 +112,13 @@ function SpotlightCard({
     <Card className={`flex flex-col gap-0 p-0 overflow-hidden ${isPending ? "border-amber-200 bg-amber-50" : ""}`}>
       {/* Thumbnail */}
       <div className="relative">
-        {spotlight.thumbnailUrl ? (
-          <img src={spotlight.thumbnailUrl} alt={spotlight.title} className="w-full h-36 object-cover" />
-        ) : (
-          <div className={`w-full h-36 bg-gradient-to-br ${TYPE_GRADIENT[spotlight.type]} flex items-center justify-center`}>
-            {TYPE_ICON[spotlight.type]}
-          </div>
+        <div className={`w-full h-36 bg-gradient-to-br ${TYPE_GRADIENT[spotlight.type]} flex items-center justify-center`}>
+          {TYPE_ICON[spotlight.type]}
+        </div>
+        {spotlight.thumbnailUrl && (
+          <img src={spotlight.thumbnailUrl} alt={spotlight.title}
+            className="absolute inset-0 w-full h-36 object-cover"
+            onError={e => (e.currentTarget.style.display = "none")} />
         )}
         {/* Edit / Delete overlay buttons */}
         {(isAdmin || spotlight.submittedBy === currentUserId) && (
@@ -303,7 +304,7 @@ export default function SpotlightsPage() {
         isApproved: true,
         updatedAt: serverTimestamp(),
       });
-      toast.success("Spotlight published!");
+      toast.success("Project published!");
       setPendingSpotlights((prev) => prev.filter((s) => s.id !== id));
       loadSpotlights();
     } catch (err) {
@@ -316,7 +317,7 @@ export default function SpotlightsPage() {
     if (!confirm("Delete this spotlight?")) return;
     try {
       await deleteDoc(doc(db, COLLECTIONS.SPOTLIGHTS, id));
-      toast.success("Spotlight deleted.");
+      toast.success("Project deleted.");
       setSpotlights((prev) => prev.filter((s) => s.id !== id));
     } catch { toast.error("Failed to delete"); }
   };
@@ -324,7 +325,7 @@ export default function SpotlightsPage() {
   const handleReject = async (id: string) => {
     try {
       await deleteDoc(doc(db, COLLECTIONS.SPOTLIGHTS, id));
-      toast.success("Spotlight removed.");
+      toast.success("Project removed.");
       setPendingSpotlights((prev) => prev.filter((s) => s.id !== id));
     } catch (err) {
       console.error(err);
@@ -385,7 +386,7 @@ export default function SpotlightsPage() {
         thumbnailUrl: editForm.thumbnailUrl.trim() || null,
         updatedAt: serverTimestamp(),
       });
-      toast.success("Spotlight updated!");
+      toast.success("Project updated!");
       setEditingSpotlight(null);
       loadSpotlights();
     } catch {
@@ -403,7 +404,7 @@ export default function SpotlightsPage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">Spotlights</h1>
+          <h1 className="text-xl font-bold text-slate-900">Featured Projects</h1>
           <p className="text-sm text-slate-500 mt-0.5">
             Discover initiatives, podcasts, and videos from Leading Lights members
           </p>
@@ -479,7 +480,7 @@ export default function SpotlightsPage() {
       )}
 
       {/* Edit Modal */}
-      <Modal open={!!editingSpotlight} onClose={() => setEditingSpotlight(null)} title="Edit Spotlight" size="lg">
+      <Modal open={!!editingSpotlight} onClose={() => setEditingSpotlight(null)} title="Edit Project" size="lg">
         <form onSubmit={handleEdit} className="space-y-4">
           <Input label="Title" value={editForm.title} onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))} required />
           <Textarea label="Description" value={editForm.description} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))} rows={3} />
@@ -528,7 +529,7 @@ export default function SpotlightsPage() {
       <Modal
         open={showModal}
         onClose={() => setShowModal(false)}
-        title="Submit a Spotlight"
+        title="Share a Project"
         size="lg"
       >
         <form onSubmit={handleSubmit} className="space-y-4">

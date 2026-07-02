@@ -163,12 +163,12 @@ function CoursesContent() {
     <div className="space-y-5">
       <div>
         <h1 className="text-xl font-bold text-slate-900">Course Management</h1>
-        <p className="text-sm text-slate-500">Manage Venture 100 and LLGLI content</p>
+        <p className="text-sm text-slate-500">Manage Venture 100 and Leadership Program content</p>
       </div>
 
       {/* Tabs */}
       <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit">
-        {[{ key: "venture", label: "Venture 100" }, { key: "llgli", label: "LLGLI Modules" }].map((t) => (
+        {[{ key: "venture", label: "Venture 100" }, { key: "llgli", label: "Leadership Program" }].map((t) => (
           <button key={t.key} onClick={() => setTab(t.key as any)}
             className={`py-1.5 px-4 rounded-lg text-sm font-medium transition-colors ${tab === t.key ? "bg-white shadow-sm text-slate-900" : "text-slate-500"}`}>
             {t.label}

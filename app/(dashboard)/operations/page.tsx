@@ -646,7 +646,7 @@ export default function OperationsPage() {
           <Input label="Travel / Accommodation Route" value={form.travelRoute} onChange={(e) => setForm({ ...form, travelRoute: e.target.value })} placeholder="Lagos → Nairobi, 4 volunteers, hotel pending..." />
           <div className="grid gap-3 md:grid-cols-2">
             <Input label="Meeting Link" value={form.meetingLink} onChange={(e) => setForm({ ...form, meetingLink: e.target.value })} placeholder="Zoom, Meet, Teams..." />
-            <Input label="Playbook / Form / Procedure URL" value={form.documentUrl} onChange={(e) => setForm({ ...form, documentUrl: e.target.value })} placeholder="Google Doc, form, PDF..." />
+            <Input label="Guide / Form / Procedure URL" value={form.documentUrl} onChange={(e) => setForm({ ...form, documentUrl: e.target.value })} placeholder="Google Doc, form, PDF..." />
           </div>
           <Textarea label="Next Action" value={form.nextAction} onChange={(e) => setForm({ ...form, nextAction: e.target.value })} rows={2} placeholder="Who must do what next?" />
 

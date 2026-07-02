@@ -4,18 +4,18 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { Toaster } from "react-hot-toast";
 
 export const metadata: Metadata = {
-  title: "Leading Lights Global Platform",
-  description: "Global Leadership, Discipleship & Movement-Building Platform",
+  title: "Leading Lights Global Network",
+  description: "Discover your purpose, grow as a leader, and connect with a global community.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "LLGP",
+    title: "Leading Lights",
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#4F46E5",
+  themeColor: "#8b2635",
 };
 
 export default function RootLayout({

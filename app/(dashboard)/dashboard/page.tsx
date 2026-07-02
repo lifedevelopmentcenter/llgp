@@ -167,7 +167,7 @@ function FeaturedCarousel({ spotlights, onSubmit, currentUserId, isAdmin, onEdit
             <Rocket className="w-7 h-7 text-white" />
           </div>
           <div>
-            <p className="font-bold text-slate-900 text-sm">Spotlight your initiative</p>
+            <p className="font-bold text-slate-900 text-sm">Share a project</p>
             <p className="text-xs text-slate-400 mt-0.5">Share a podcast, article, video or project with the community</p>
           </div>
           <button onClick={onSubmit}
@@ -233,7 +233,8 @@ function FeaturedCarousel({ spotlights, onSubmit, currentUserId, isAdmin, onEdit
             <div className={`relative h-40 bg-gradient-to-br ${GRADIENT_FALLBACKS[i % GRADIENT_FALLBACKS.length]}`}>
               {s.thumbnailUrl && (
                 <img src={s.thumbnailUrl} alt={s.title}
-                  className="absolute inset-0 w-full h-full object-cover" />
+                  className="absolute inset-0 w-full h-full object-cover"
+                  onError={e => (e.currentTarget.style.display = "none")} />
               )}
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
               <span className="absolute top-3 left-3 text-[10px] font-black uppercase tracking-widest bg-white/20 backdrop-blur-sm text-white px-2.5 py-0.5 rounded-full">
@@ -606,7 +607,7 @@ export default function DashboardPage() {
               <Rocket className="w-4 h-4 text-indigo-600 shrink-0" />
               <span>Have a podcast, initiative, or article?{" "}
                 <button className="font-bold text-indigo-600 underline" onClick={() => { toast.dismiss(t.id); setSpotlightOpen(true); }}>
-                  Share it in Spotlights →
+                  Share it as a Project →
                 </button>
               </span>
             </span>
@@ -715,7 +716,7 @@ export default function DashboardPage() {
         updatedAt: serverTimestamp(),
       });
       setSpotlights(prev => prev.map(s => s.id === editingSpotlight.id ? { ...s, ...editForm } : s));
-      toast.success("Spotlight updated!");
+      toast.success("Project updated!");
       setEditingSpotlight(null);
     } catch { toast.error("Failed to update"); }
     finally { setEditSaving(false); }
@@ -769,7 +770,7 @@ export default function DashboardPage() {
                 onClick={() => setSpotlightOpen(true)}
                 className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-xs font-semibold text-indigo-600 hover:bg-indigo-50 transition-colors">
                 <Rocket className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Spotlight</span>
+                <span className="hidden sm:inline">Share a Project</span>
               </button>
             </div>
           </div>
@@ -887,7 +888,7 @@ export default function DashboardPage() {
       {/* ── Modals ── */}
 
       {/* Spotlight edit */}
-      <Modal open={!!editingSpotlight} onClose={() => setEditingSpotlight(null)} title="Edit Spotlight" size="md">
+      <Modal open={!!editingSpotlight} onClose={() => setEditingSpotlight(null)} title="Edit Project" size="md">
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-1.5">URL</label>
@@ -955,7 +956,7 @@ export default function DashboardPage() {
       </Modal>
 
       {/* Spotlight submit */}
-      <Modal open={spotlightOpen} onClose={() => setSpotlightOpen(false)} title="Share a Spotlight" size="md">
+      <Modal open={spotlightOpen} onClose={() => setSpotlightOpen(false)} title="Share a Project" size="md">
         <div className="space-y-4">
           <div className="bg-indigo-50 rounded-xl p-3 text-xs text-indigo-700 font-medium">
             🚀 Share a podcast, initiative, article, video or website with the community. It'll be reviewed before publishing.
