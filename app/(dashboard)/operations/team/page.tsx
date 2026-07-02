@@ -27,7 +27,7 @@ const RESPONSIBILITY_OPTIONS = [
   "Mission event coordination",
   "Finance and budgets",
   "Travel and accommodation",
-  "Playbooks and forms",
+  "Guides and forms",
   "Volunteer movement",
   "Mission procedures",
   "Communications",

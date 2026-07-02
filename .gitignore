@@ -48,3 +48,6 @@ next-env.d.ts
 scripts/serviceAccount.json
 scripts/members.csv
 scripts/*.csv
+
+# Claude Code local files
+.claude/

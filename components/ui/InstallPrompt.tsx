@@ -21,7 +21,7 @@ export function InstallPrompt() {
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-bold text-slate-900">Add to Home Screen</p>
-        <p className="text-xs text-slate-500">Install LLGP for the best experience</p>
+        <p className="text-xs text-slate-500">Install Leading Lights for the best experience</p>
       </div>
       <div className="flex items-center gap-2 flex-shrink-0">
         <button onClick={async () => { prompt.prompt(); setShow(false); }}

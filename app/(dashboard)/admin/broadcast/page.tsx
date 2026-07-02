@@ -42,8 +42,8 @@ export default function BroadcastPage() {
   return (
     <div className="max-w-lg mx-auto space-y-5">
       <div>
-        <h1 className="text-xl font-black text-slate-900">Push Broadcast</h1>
-        <p className="text-sm text-slate-500 mt-0.5">Send a push notification to all LLGP users</p>
+        <h1 className="text-xl font-black text-slate-900">Send Announcement</h1>
+        <p className="text-sm text-slate-500 mt-0.5">Send an announcement to all members</p>
       </div>
       <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800 font-medium">
         ⚠️ This sends to ALL users who have enabled push notifications. Use sparingly.

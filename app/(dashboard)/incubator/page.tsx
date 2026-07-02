@@ -57,7 +57,7 @@ export default function IncubatorPage() {
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-xl font-bold text-slate-900">Leadership Incubator</h1>
-          <p className="text-sm text-slate-500 mt-0.5">LLGLI — 6-Week Leadership Programme</p>
+          <p className="text-sm text-slate-500 mt-0.5">A guided 6-week leadership program</p>
         </div>
         {profile?.role === "global_admin" && (
           <Link href="/admin/courses" className="text-sm text-indigo-600 font-medium">Manage →</Link>

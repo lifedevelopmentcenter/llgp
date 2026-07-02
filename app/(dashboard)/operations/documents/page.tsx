@@ -20,7 +20,7 @@ import type { GlobalOperationCategory, GlobalOperationDocument, GlobalOperationD
 import toast from "react-hot-toast";
 
 const DOCUMENT_TYPE_LABELS: Record<GlobalOperationDocumentType, string> = {
-  playbook: "Playbook",
+  playbook: "Guide",
   form: "Form",
   template: "Template",
   procedure: "Procedure",
@@ -185,7 +185,7 @@ export default function OperationDocumentsPage() {
       <div className="grid gap-3 md:grid-cols-4">
         <LibraryStat label="Documents" value={stats.total} />
         <LibraryStat label="Required" value={stats.required} />
-        <LibraryStat label="Playbooks" value={stats.playbooks} />
+        <LibraryStat label="Guides" value={stats.playbooks} />
         <LibraryStat label="Forms" value={stats.forms} />
       </div>
 

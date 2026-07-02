@@ -97,7 +97,7 @@ export default function HubsPage() {
   };
 
   const saveHub = async () => {
-    if (!form.name || !form.nationId) { toast.error("Hub name and nation are required."); return; }
+    if (!form.name || !form.nationId) { toast.error("Group name and nation are required."); return; }
     setSaving(true);
     try {
       const nation = nations.find((n) => n.id === form.nationId);
@@ -113,11 +113,11 @@ export default function HubsPage() {
       if (editing) {
         await updateDoc(doc(db, COLLECTIONS.HUBS, editing.id), data);
         setHubs((prev) => prev.map((h) => h.id === editing.id ? { ...h, ...data } as Hub : h));
-        toast.success("Hub updated.");
+        toast.success("Group updated.");
       } else {
         const ref = await addDoc(collection(db, COLLECTIONS.HUBS), { ...data, createdAt: serverTimestamp() });
         setHubs((prev) => [...prev, { id: ref.id, ...data, createdAt: null, updatedAt: null } as any]);
-        toast.success("Hub created.");
+        toast.success("Group created.");
       }
       setModalOpen(false);
     } catch (e) {
@@ -142,7 +142,7 @@ export default function HubsPage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">Hub Management</h1>
+          <h1 className="text-xl font-bold text-slate-900">Local Groups</h1>
           <p className="text-sm text-slate-500">{filtered.length} hub{filtered.length !== 1 ? "s" : ""}</p>
         </div>
         {canEdit && (
@@ -179,7 +179,7 @@ export default function HubsPage() {
       {/* Summary Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: "Total Hubs", value: hubs.length, icon: <Building2 className="w-4 h-4" />, color: "text-indigo-600" },
+          { label: "Total Groups", value: hubs.length, icon: <Building2 className="w-4 h-4" />, color: "text-indigo-600" },
           { label: "Total Members", value: hubs.reduce((a, h) => a + h.memberCount, 0), icon: <Users className="w-4 h-4" />, color: "text-teal-600" },
           { label: "Venture 100", value: hubs.reduce((a, h) => a + h.venture100Count, 0), icon: <BookOpen className="w-4 h-4" />, color: "text-purple-600" },
           { label: "In Training", value: hubs.reduce((a, h) => a + h.leadersInTraining, 0), icon: <TrendingUp className="w-4 h-4" />, color: "text-amber-600" },
@@ -198,7 +198,7 @@ export default function HubsPage() {
           icon={<Building2 className="w-6 h-6" />}
           title="No hubs found"
           description={canEdit ? "Create your first hub to get started." : "No hubs have been added yet."}
-          action={canEdit ? <Button onClick={() => openModal()}><Plus className="w-4 h-4" />Add Hub</Button> : undefined}
+          action={canEdit ? <Button onClick={() => openModal()}><Plus className="w-4 h-4" />Add Group</Button> : undefined}
         />
       ) : (
         <div className="grid sm:grid-cols-2 gap-3">
@@ -241,9 +241,9 @@ export default function HubsPage() {
       )}
 
       {/* Add/Edit Modal */}
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing ? "Edit Hub" : "Add Hub"} size="lg">
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing ? "Edit Group" : "Add Group"} size="lg">
         <div className="space-y-3">
-          <Input label="Hub Name *" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Lagos North Hub" />
+          <Input label="Group Name *" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Lagos North Group" />
           <Select label="Nation *" value={form.nationId} onChange={(e) => setForm({ ...form, nationId: e.target.value, cityId: "" })}>
             <option value="">Select nation…</option>
             {nations.map((n) => <option key={n.id} value={n.id}>{n.name}</option>)}
@@ -252,7 +252,7 @@ export default function HubsPage() {
             <option value="">Select city…</option>
             {filteredCities.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </Select>
-          <Input label="Hub Leader Name" value={form.leaderName} onChange={(e) => setForm({ ...form, leaderName: e.target.value })} />
+          <Input label="Group Leader Name" value={form.leaderName} onChange={(e) => setForm({ ...form, leaderName: e.target.value })} />
           <Select label="Status" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as Hub["status"] })}>
             <option value="active">Active</option>
             <option value="forming">Forming</option>
@@ -267,7 +267,7 @@ export default function HubsPage() {
           <div className="flex gap-2 pt-2">
             <Button variant="secondary" className="flex-1" onClick={() => setModalOpen(false)}>Cancel</Button>
             <Button className="flex-1" onClick={saveHub} loading={saving}>
-              {editing ? "Update Hub" : "Create Hub"}
+              {editing ? "Update Group" : "Create Group"}
             </Button>
           </div>
         </div>

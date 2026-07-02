@@ -74,7 +74,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   }, [profile, loading]);
 
   return (
-    <div className="min-h-screen bg-[#F5F4FF]">
+    <div className="min-h-screen bg-[#f6f3ec]">
       {/* Desktop Sidebar */}
       <div className="hidden lg:fixed lg:top-14 lg:bottom-0 lg:flex lg:w-64 lg:flex-col border-r border-slate-100 shadow-sm z-40">
         <Sidebar />

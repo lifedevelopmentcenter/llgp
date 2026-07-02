@@ -150,7 +150,7 @@ function MetricsContent() {
           <BarChart2 className="w-5 h-5 text-indigo-600" />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-slate-900">Movement Metrics</h1>
+          <h1 className="text-xl font-bold text-slate-900">Community Growth</h1>
           <p className="text-sm text-slate-500">Platform-wide activity overview</p>
         </div>
       </div>

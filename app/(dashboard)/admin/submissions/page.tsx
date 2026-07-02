@@ -96,7 +96,7 @@ function SubmissionsContent() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-xl font-bold text-slate-900">LLGLI Submissions</h1>
+        <h1 className="text-xl font-bold text-slate-900">Leadership Program Submissions</h1>
         <p className="text-sm text-slate-500">{submissions.length} total · {pendingCount} pending review</p>
       </div>
 
