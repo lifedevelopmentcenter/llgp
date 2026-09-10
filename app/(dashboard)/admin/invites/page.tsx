@@ -68,12 +68,12 @@ function InvitesContent() {
       invitedById: profile.id,
       invitedByName: profile.displayName,
       adminInvite: true,
-      preAssignedRole: opts.role,
-      preAssignedNationId: opts.nationId || undefined,
-      preAssignedNationName: opts.nationName || undefined,
       status: "pending",
       expiresAt: Timestamp.fromDate(expiresAt),
       createdAt: serverTimestamp() as any,
+      // Only include what was chosen — Firestore rejects fields set to undefined
+      ...(opts.role ? { preAssignedRole: opts.role } : {}),
+      ...(opts.nationId ? { preAssignedNationId: opts.nationId, preAssignedNationName: opts.nationName ?? "" } : {}),
     };
     await setDoc(doc(db, COLLECTIONS.INVITATIONS, token), inv);
     return token;

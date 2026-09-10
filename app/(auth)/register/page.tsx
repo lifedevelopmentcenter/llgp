@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { useAuth } from "@/lib/hooks/useAuth";
-import { db } from "@/lib/firebase/config";
+import { auth, db } from "@/lib/firebase/config";
 import { COLLECTIONS } from "@/lib/firebase/firestore";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -126,6 +126,8 @@ function RegisterForm() {
                     setLoading(true);
                     try {
                       await signInWithGoogle();
+                      // Apply the invite (role, nation, auto-activation) for Google sign-ups too
+                      if (auth.currentUser) await processInvite(auth.currentUser.uid);
                       router.replace("/onboarding");
                     } catch (err: any) {
                       console.error("Google sign-in error:", err);
