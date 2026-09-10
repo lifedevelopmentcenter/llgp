@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 
 export default function BroadcastPage() {
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -26,7 +26,7 @@ export default function BroadcastPage() {
     try {
       const res = await fetch("/api/admin/broadcast", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${await user?.getIdToken()}` },
         body: JSON.stringify({ title: title.trim(), body: body.trim() }),
       });
       const data = await res.json();

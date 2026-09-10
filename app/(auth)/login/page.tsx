@@ -37,7 +37,7 @@ export default function LoginPage() {
         <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle at 30% 40%, white 1.5px, transparent 1.5px), radial-gradient(circle at 70% 80%, white 1px, transparent 1px)", backgroundSize: "40px 40px" }} />
         <div className="relative">
           <div className="mb-16">
-            <Logo variant="light" size="md" />
+            <Logo variant="dark" size="md" />
           </div>
           <h1 className="text-4xl font-black leading-tight mb-4">
             Discover your purpose.<br />Grow as a leader.

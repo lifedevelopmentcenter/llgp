@@ -46,14 +46,16 @@ function NationsContent() {
   useEffect(() => {
     const load = async () => {
       try {
-        const [nSnap, cSnap, pendingSnap] = await Promise.all([
+        // One query for all cities, split client-side: a `!=` filter would need a composite
+        // index and would also drop every city that has no needsReview field at all.
+        const [nSnap, cSnap] = await Promise.all([
           getDocs(query(collection(db, COLLECTIONS.NATIONS), orderBy("name"))),
-          getDocs(query(collection(db, COLLECTIONS.CITIES), where("needsReview", "!=", true), orderBy("needsReview"), orderBy("name"))),
-          getDocs(query(collection(db, COLLECTIONS.CITIES), where("needsReview", "==", true))),
+          getDocs(query(collection(db, COLLECTIONS.CITIES), orderBy("name"))),
         ]);
+        const allCities = cSnap.docs.map((d) => ({ id: d.id, ...d.data() } as City & { needsReview?: boolean }));
         setNations(nSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Nation)));
-        setCities(cSnap.docs.map((d) => ({ id: d.id, ...d.data() } as City)));
-        setPendingCities(pendingSnap.docs.map((d) => ({ id: d.id, ...d.data() } as City)));
+        setCities(allCities.filter((c) => !c.needsReview));
+        setPendingCities(allCities.filter((c) => c.needsReview));
       } catch (e) { console.error(e); }
       finally { setLoading(false); }
     };

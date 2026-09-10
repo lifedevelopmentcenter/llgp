@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { initializeApp, getApps, cert } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 import { getMessaging } from "firebase-admin/messaging";
 
@@ -17,10 +18,25 @@ function initAdmin() {
 export async function POST(req: NextRequest) {
   try {
     initAdmin();
+    const db = getFirestore();
+
+    // Only a signed-in global admin may push to every device.
+    const idToken = req.headers.get("authorization")?.match(/^Bearer (.+)$/)?.[1];
+    if (!idToken) return NextResponse.json({ error: "Sign in required" }, { status: 401 });
+    let uid: string;
+    try {
+      uid = (await getAuth().verifyIdToken(idToken)).uid;
+    } catch {
+      return NextResponse.json({ error: "Your session has expired. Sign in again." }, { status: 401 });
+    }
+    const caller = await db.collection("users").doc(uid).get();
+    if (caller.data()?.role !== "global_admin") {
+      return NextResponse.json({ error: "Only global admins can send announcements" }, { status: 403 });
+    }
+
     const { title, body } = await req.json();
     if (!title || !body) return NextResponse.json({ error: "title and body required" }, { status: 400 });
 
-    const db = getFirestore();
     const snap = await db.collection("fcmTokens").get();
     const tokens = snap.docs.map(d => d.data().token as string).filter(Boolean);
 
