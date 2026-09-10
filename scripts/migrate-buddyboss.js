@@ -26,10 +26,17 @@ const https = require("https");
 
 const SERVICE_ACCOUNT_PATH = path.join(__dirname, "serviceAccount.json");
 const CSV_PATH = path.join(__dirname, "buddyboss.csv");
+// Optional: one email per line. These rows are imported even though BuddyBoss gave them no
+// role (most no-role rows are spam bots, but a few real members are in there — review first).
+const APPROVED_PATH = path.join(__dirname, "approved-extra.txt");
+// Where the "Continue" button on the password-reset page sends people.
+const CONTINUE_URL = "https://leadinglightsnetwork.org/login";
 const FIREBASE_API_KEY = process.env.FIREBASE_API_KEY || "";
 const DRY_RUN = process.argv.includes("--dry-run");
 const SKIP_RESET = process.argv.includes("--skip-reset");
 const SEND_RESETS_ONLY = process.argv.includes("--send-resets-only");
+// --only=someone@example.com  → process just that member (send yourself a test email first)
+const ONLY = (process.argv.find((a) => a.startsWith("--only=")) || "").slice("--only=".length).trim().toLowerCase();
 
 // Only import users with these roles (filters out spam accounts)
 const VALID_ROLES = ["subscriber", "bbp_participant", "group_leader", "administrator", "editor", "author"];
@@ -92,9 +99,11 @@ function splitCSVLine(line) {
 
 // ─── Role mapping ─────────────────────────────────────────────────────────────
 
+// WordPress administrators are NOT auto-promoted to global_admin (the export includes test
+// accounts with that role). They import as participants and are listed at the end so a
+// global admin can promote the right people in the app.
 function mapRole(rawRoles) {
   const r = (rawRoles || "").toLowerCase();
-  if (r.includes("administrator")) return "global_admin";
   if (r.includes("national_leader")) return "national_leader";
   if (r.includes("city_leader")) return "city_leader";
   if (r.includes("hub_leader") || r.includes("group_leader")) return "hub_leader";
@@ -103,11 +112,20 @@ function mapRole(rawRoles) {
 
 // ─── Spam check ───────────────────────────────────────────────────────────────
 
+const APPROVED = new Set(
+  fs.existsSync(APPROVED_PATH)
+    ? fs.readFileSync(APPROVED_PATH, "utf8").split(/\r?\n/).map((l) => l.trim().toLowerCase()).filter((l) => l.includes("@"))
+    : []
+);
+
 function isSpam(row) {
-  // Must have at least one valid role
+  // App Store reviewer login for the old BuddyBoss app — not a member
+  if (/^apple review$/i.test((row.display_name || "").trim())) return true;
+
+  // Must have at least one valid role (or be hand-approved)
   const roles = (row.roles || "").toLowerCase();
   const hasValidRole = VALID_ROLES.some((r) => roles.includes(r));
-  if (!hasValidRole) return true;
+  if (!hasValidRole && !APPROVED.has((row.user_email || "").trim().toLowerCase())) return true;
 
   // Email must look real
   const email = row.user_email || "";
@@ -133,14 +151,19 @@ function buildProfile(uid, row) {
     row.user_login ||
     row.user_email;
 
+  // Omit empty optional fields rather than writing null — the app types them as string | undefined.
+  const optional = {
+    firstName: row.first_name,
+    lastName: row.last_name,
+    bio: row.description, // photo isn't in this export — members set their own
+  };
+  Object.keys(optional).forEach((k) => { if (!optional[k]) delete optional[k]; });
+
   return {
     id: uid,
     email: row.user_email,
     displayName,
-    firstName: row.first_name || null,
-    lastName: row.last_name || null,
-    photoURL: null, // not in this export — users set their own
-    bio: row.description || null,
+    ...optional,
     role: mapRole(row.roles),
     isActive: true,
     followerCount: 0,
@@ -162,7 +185,7 @@ function buildProfile(uid, row) {
 
 async function sendPasswordReset(email) {
   if (!FIREBASE_API_KEY) return false;
-  const body = JSON.stringify({ requestType: "PASSWORD_RESET", email });
+  const body = JSON.stringify({ requestType: "PASSWORD_RESET", email, continueUrl: CONTINUE_URL });
   const url = `https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=${FIREBASE_API_KEY}`;
   return new Promise((resolve) => {
     const req = https.request(
@@ -195,10 +218,14 @@ async function main() {
   const rows = parseCSV(CSV_PATH);
   console.log(`📋  Total rows in CSV: ${rows.length}`);
 
-  const valid = rows.filter((r) => !isSpam(r));
+  let valid = rows.filter((r) => !isSpam(r));
   const spamCount = rows.length - valid.length;
   console.log(`🚫  Filtered as spam/test accounts: ${spamCount}`);
   console.log(`✅  Valid members to import: ${valid.length}\n`);
+  if (ONLY) {
+    valid = valid.filter((r) => r.user_email.toLowerCase().trim() === ONLY);
+    console.log(`🎯  --only: processing ${valid.length} member(s) matching ${ONLY}\n`);
+  }
 
   let created = 0;
   let skipped = 0;
@@ -219,6 +246,12 @@ async function main() {
         const existing = await auth.getUserByEmail(email);
         uid = existing.uid;
         process.stdout.write("auth:exists  ");
+        if (SEND_RESETS_ONLY && existing.metadata.lastSignInTime) {
+          // Already using the new platform — no reset email needed (also makes re-runs safe)
+          console.log("  ⏭️  already signed in");
+          skipped++;
+          continue;
+        }
       } catch {
         if (SEND_RESETS_ONLY) {
           // Account doesn't exist yet — skip in resets-only mode
@@ -282,6 +315,13 @@ async function main() {
   console.log(`📧  Reset emails sent:    ${resetSent}`);
   console.log(`❌  Errors:               ${failed}`);
   console.log("─────────────────────────────────────────────────────────\n");
+
+  const wpAdmins = valid.filter((r) => (r.roles || "").toLowerCase().includes("administrator"));
+  if (wpAdmins.length && !SEND_RESETS_ONLY) {
+    console.log("👤  BuddyBoss administrators (imported as participants — promote in Admin → Users if needed):");
+    wpAdmins.forEach((r) => console.log(`    • ${r.display_name || r.user_email}  <${r.user_email}>`));
+    console.log("");
+  }
 
   if (!FIREBASE_API_KEY && !SKIP_RESET && created > 0) {
     console.log("📧  To send password reset emails, run:");
