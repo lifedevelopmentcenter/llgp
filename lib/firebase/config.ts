@@ -7,9 +7,22 @@ import { getDatabase } from "firebase/database";
 
 const cleanEnv = (value: string | undefined) => value?.trim();
 
+// On these hosts the Firebase auth handler is proxied at /__/auth (next.config.ts), so
+// the Google sign-in popup stays same-origin. Cross-origin handlers fail in iOS Safari
+// with "missing initial state". Each host needs https://<host>/__/auth/handler in the
+// OAuth client's authorized redirect URIs.
+const SELF_HOSTED_AUTH_HOSTS = ["leadinglightsnetwork.org", "www.leadinglightsnetwork.org"];
+
+const resolveAuthDomain = () => {
+  if (typeof window !== "undefined" && SELF_HOSTED_AUTH_HOSTS.includes(window.location.hostname)) {
+    return window.location.hostname;
+  }
+  return cleanEnv(process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN);
+};
+
 export const firebaseConfig = {
   apiKey: cleanEnv(process.env.NEXT_PUBLIC_FIREBASE_API_KEY),
-  authDomain: cleanEnv(process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN),
+  authDomain: resolveAuthDomain(),
   projectId: cleanEnv(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID),
   storageBucket: cleanEnv(process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET),
   messagingSenderId: cleanEnv(process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID),
